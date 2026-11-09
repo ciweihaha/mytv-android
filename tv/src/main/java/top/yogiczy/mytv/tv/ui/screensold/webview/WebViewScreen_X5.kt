@@ -173,10 +173,10 @@ class MyClient_X5(
         request: WebResourceRequest?
     ): WebResourceResponse? {
         val url = request?.url.toString() ?: ""
-        for (item in blacklistGlobal) {
-            if (url.contains(item)) {
-                return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
-            }
+        // 只拦 favicon 文件：旧实现用 url.contains(".ico")，会误拦
+        // `.icon`/`.icons` 这类路径的正常资源
+        if (isFaviconUrl(url)) {
+            return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
         }
         if(blacklist != null && blacklist.isNotEmpty()){
             for (item in blacklist) {

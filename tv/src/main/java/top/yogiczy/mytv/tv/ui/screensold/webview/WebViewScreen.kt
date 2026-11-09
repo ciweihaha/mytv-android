@@ -160,10 +160,10 @@ class MyClient(
         request: WebResourceRequest?
     ): WebResourceResponse? {
         val url = request?.url.toString() ?: ""
-        for (item in blacklistGlobal) {
-            if (url.contains(item)) {
-                return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
-            }
+        // 只拦 favicon 文件：旧实现用 url.contains(".ico")，会误拦
+        // `.icon`/`.icons` 这类路径的正常资源
+        if (isFaviconUrl(url)) {
+            return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
         }
         if(blacklist != null && blacklist.isNotEmpty()){
             for (item in blacklist) {
@@ -251,6 +251,10 @@ fun getContext(): Context {
     return LocalContext.current
 }
 
-val blacklistGlobal = listOf(
-    ".ico",
-)
+/**
+ * 是否为 favicon 请求：路径以 .ico 结尾（可带查询串/锚点）才拦；
+ * 不要用子串匹配，`.icon`/`.icons` 路径的正常资源也会含 ".ico"
+ */
+internal fun isFaviconUrl(url: String): Boolean {
+    return url.substringBefore("?").substringBefore("#").endsWith(".ico", ignoreCase = true)
+}
