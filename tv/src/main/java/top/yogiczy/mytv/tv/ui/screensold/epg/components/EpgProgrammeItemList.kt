@@ -72,7 +72,13 @@ fun EpgProgrammeItemList(
                 epgProgrammeProvider = { programme },
                 supportPlaybackProvider = supportPlaybackProvider,
                 isPlaybackProvider = { currentPlaybackProvider() == programme },
-                hasReservedProvider = { epgProgrammeReserveListProvider().firstOrNull { it.programme == programme.title } != null },
+                hasReservedProvider = {
+                    epgProgrammeReserveListProvider().firstOrNull {
+                        it.programme == programme.title
+                                && it.startAt == programme.startAt
+                                && it.endAt == programme.endAt
+                    } != null
+                },
                 onPlayback = { onPlayback(programme) },
                 onReserve = { onReserve(programme) },
                 focusOnLive = focusOnLive,
