@@ -10,7 +10,7 @@ import java.util.zip.GZIPInputStream
  */
 class XmlGzEpgFetcher : EpgFetcher {
     override fun isSupport(url: String): Boolean {
-        return url.endsWith(".gz")
+        return url.epgUrlPath().endsWith(".gz", ignoreCase = true)
     }
 
     override suspend fun fetch(body: ResponseBody) = withContext(Dispatchers.IO) {

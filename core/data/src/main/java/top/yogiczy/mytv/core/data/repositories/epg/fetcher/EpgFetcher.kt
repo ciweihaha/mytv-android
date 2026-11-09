@@ -25,3 +25,12 @@ interface EpgFetcher {
         )
     }
 }
+
+/**
+ * 取 URL 去掉查询串与锚点后的路径部分，供后缀判断用。
+ * 节目单地址常带 token 查询串（如 epg.xml.gz?token=xxx），直接 endsWith
+ * 会误判为不支持，走缺省解析后节目单为空。
+ */
+internal fun String.epgUrlPath(): String {
+    return substringBefore("?").substringBefore("#")
+}
