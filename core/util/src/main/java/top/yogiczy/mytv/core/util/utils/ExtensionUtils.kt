@@ -38,8 +38,12 @@ fun String.isIPv6(): Boolean {
 
 fun String.compareVersion(version2: String): Int {
     fun parseVersion(version: String): Pair<List<Int>, String?> {
-        val mainParts = version.split("-", limit = 2)
-        val versionNumbers = mainParts[0].split(".").map { it.toInt() }
+        // 防御：版本号可能带 v 前缀、非数字段（如自定义更新渠道的奇怪 tag）；
+        // 原先 toInt() 直接抛异常，而 AboutScreen 里比较时没有任何保护，
+        // 打开关于页就闪退。非数字段按 0 计，永不抛异常
+        val cleaned = version.trim().removePrefix("v").removePrefix("V")
+        val mainParts = cleaned.split("-", limit = 2)
+        val versionNumbers = mainParts[0].split(".").map { it.toIntOrNull() ?: 0 }
         val preReleaseLabel = mainParts.getOrNull(1)
         return versionNumbers to preReleaseLabel
     }

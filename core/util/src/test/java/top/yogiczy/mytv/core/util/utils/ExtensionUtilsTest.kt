@@ -45,4 +45,25 @@ class ExtensionUtilsTest {
         assertFalse("Accept: application/json\nnot-a-header".headersValid())
         assertFalse("Accept: ".headersValid())
     }
+
+    @Test
+    fun compareVersion_normal() {
+        assertEquals(-1, "1.2.3".compareVersion("1.2.4"))
+        assertEquals(1, "2.0.0".compareVersion("1.9.9"))
+        assertEquals(0, "1.2.3".compareVersion("1.2.3"))
+        assertEquals(0, "1.2".compareVersion("1.2.0"))
+        assertEquals(-1, "1.0.0-rc.1".compareVersion("1.0.0"))
+        assertEquals(1, "1.0.0".compareVersion("1.0.0-rc.1"))
+    }
+
+    @Test
+    fun compareVersion_weirdTags_neverThrows() {
+        // 自定义更新渠道的奇怪 tag：原先 toInt() 抛异常，AboutScreen 里比较时
+        // 没有任何保护，打开关于页就闪退
+        assertEquals(0, "v1.2.3".compareVersion("1.2.3"))
+        assertEquals(0, "V1.2.3".compareVersion("1.2.3"))
+        assertEquals(0, "1.0.0+build".compareVersion("1.0.0"))
+        assertEquals(-1, "release-2024.11.09".compareVersion("1.1.1"))
+        assertEquals(0, "".compareVersion(""))
+    }
 }
