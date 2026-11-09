@@ -154,14 +154,14 @@ class M3uIptvParser : IptvParser {
     override suspend fun getEpgUrl(data: String): String? {
         val lines = data.stripPlaylistBom().split("\r\n", "\n")
         return lines.firstOrNull { it.startsWith("#EXTM3U") }?.let { defLine ->
-            Regex("x-tvg-url=\"(.*?)\"").find(defLine)?.groupValues?.get(1)
-                ?.split(",")
-                ?.firstOrNull()
-                ?.trim()
-                ?: Regex("url-tvg=\"(.*?)\"").find(defLine)?.groupValues?.get(1)
+            // 取首个非空地址：x-tvg-url 常写多个地址，首项为空时不能直接返回
+            // 空串（会生成空地址的 EPG 源导致节目单全空），要跳过并继续找 url-tvg
+            listOf("x-tvg-url", "url-tvg").firstNotNullOfOrNull { attr ->
+                Regex("$attr=\"(.*?)\"").find(defLine)?.groupValues?.get(1)
                     ?.split(",")
-                    ?.firstOrNull()
+                    ?.firstOrNull { it.isNotBlank() }
                     ?.trim()
+            }
         }
     }
 }

@@ -155,6 +155,36 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_epgUrl_firstBlankEntry_skipped() = runBlocking {
+        // x-tvg-url 首项为空时应取后面的有效地址，而不是返回空串
+        val data = "#EXTM3U x-tvg-url=\",http://epg2.example.com/epg.xml\"\n" +
+            "#EXTINF:-1,CCTV-1\nhttp://example.com/cctv1.m3u8"
+        assertEquals(
+            "http://epg2.example.com/epg.xml",
+            m3uParser.getEpgUrl(data),
+        )
+    }
+
+    @Test
+    fun m3u_epgUrl_emptyFallsBackToUrlTvg() = runBlocking {
+        // x-tvg-url 为空时应兜底到 url-tvg
+        val data = "#EXTM3U x-tvg-url=\"\" url-tvg=\"http://epg.example.com/epg.xml\"\n" +
+            "#EXTINF:-1,CCTV-1\nhttp://example.com/cctv1.m3u8"
+        assertEquals(
+            "http://epg.example.com/epg.xml",
+            m3uParser.getEpgUrl(data),
+        )
+    }
+
+    @Test
+    fun m3u_epgUrl_allBlank_returnsNull() = runBlocking {
+        // 两个属性都为空时返回 null，不生成空地址的 EPG 源
+        val data = "#EXTM3U x-tvg-url=\"\"\n" +
+            "#EXTINF:-1,CCTV-1\nhttp://example.com/cctv1.m3u8"
+        assertEquals(null, m3uParser.getEpgUrl(data))
+    }
+
+    @Test
     fun m3u_kodipropValueWithEquals_notTruncated() = runBlocking {
         // 旧实现用 split("=").last() 取值，license_key 里带 `=`（URL 参数、
         // base64 填充）会被截断为空串，DRM 频道播不了
