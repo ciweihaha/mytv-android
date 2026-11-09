@@ -1,8 +1,5 @@
 package top.yogiczy.mytv.core.data.repositories.git.parser
 
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
 import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Globals
@@ -16,12 +13,13 @@ class CustomGitReleaseParser : GitReleaseParser {
     }
 
     override suspend fun parse(data: String): GitRelease {
-        val json = Globals.json.parseToJsonElement(data).jsonObject
+        val json = Globals.json.parseToJsonElement(data).requiredObject()
 
         return GitRelease(
-            version = json.getValue("tag_name").jsonPrimitive.content.substring(1),
-            downloadUrl = Constants.GITHUB_PROXY + json.getValue("assets").jsonArray[0].jsonObject["browser_download_url"]!!.jsonPrimitive.content,
-            description = json.getValue("body").jsonPrimitive.content,
+            version = json.requiredString("tag_name").stripVersionPrefix(),
+            downloadUrl = Constants.GITHUB_PROXY +
+                json.requiredArray("assets").downloadUrlAt(0),
+            description = json.optionalString("body"),
         )
     }
 }
