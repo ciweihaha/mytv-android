@@ -31,7 +31,6 @@ import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
 import top.yogiczy.mytv.core.data.utils.ChannelUtil
-import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Logger
 import top.yogiczy.mytv.tv.sync.CloudSync
 import top.yogiczy.mytv.tv.sync.CloudSyncData
@@ -93,12 +92,12 @@ class MainViewModel : ViewModel() {
             )
         }
             .retryWhen { e, attempt ->
-                if (attempt >= Constants.NETWORK_RETRY_COUNT) return@retryWhen false
+                if (attempt >= Configs.networkRetryCount) return@retryWhen false
                 if (e !is HttpException) return@retryWhen false
 
                 _uiState.value =
-                    MainUiState.Loading("加载订阅源(${attempt + 1}/${Constants.NETWORK_RETRY_COUNT})...")
-                delay(Constants.NETWORK_RETRY_INTERVAL)
+                    MainUiState.Loading("加载订阅源(${attempt + 1}/${Configs.networkRetryCount})...")
+                delay(Configs.networkRetryInterval)
                 true
             }
             .catch {
@@ -220,10 +219,10 @@ class MainViewModel : ViewModel() {
                 emit(EpgRepository(epgSource).getEpgList())
             }
                 .retryWhen { e, attempt ->
-                    if (attempt >= Constants.NETWORK_RETRY_COUNT) return@retryWhen false
+                    if (attempt >= Configs.networkRetryCount) return@retryWhen false
                     if (e !is HttpException) return@retryWhen false
 
-                    delay(Constants.NETWORK_RETRY_INTERVAL)
+                    delay(Configs.networkRetryInterval)
                     true
                 }
                 .catch {
