@@ -477,11 +477,13 @@ object HttpServer : Loggable("HttpServer") {
     ) {
         val path = request.query.getString("path")
 
-        val file = File(path).takeIf { it.exists() } ?: run {
+        val file = File(path).takeIf { it.isFile } ?: run {
             return response.code(404).send("File not found")
         }
 
-        wrapResponse(response).send(file.readText())
+        // 流式发送，不再整文件 readText() 进内存：该接口接受任意绝对路径，
+        // 请求大文件时会把应用内存撑爆
+        wrapResponse(response).sendFile(file)
     }
 
     private fun handleFileContentPost(
