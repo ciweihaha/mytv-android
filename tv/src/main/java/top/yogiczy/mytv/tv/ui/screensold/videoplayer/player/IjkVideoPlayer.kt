@@ -200,10 +200,16 @@ class IjkVideoPlayer(
         val info = player.mediaInfo
         metadata = Metadata(
             video = Metadata.Video(
-                width = info.mMeta.mVideoStream?.mWidth,
-                height = info.mMeta.mVideoStream?.mHeight,
-                frameRate = info.mMeta.mVideoStream?.mFpsNum?.toFloat(),
-                bitrate = info.mMeta.mVideoStream?.mBitrate?.toInt(),
+                // 原始类型字段未知时为 0，不转 null 界面会显示“0x0”“0声道”；
+                // 帧率是分数 mFpsNum/mFpsDen，只取分子时 NTSC 流会显示 30000fps
+                width = info.mMeta.mVideoStream?.mWidth?.takeIf { it > 0 },
+                height = info.mMeta.mVideoStream?.mHeight?.takeIf { it > 0 },
+                frameRate = info.mMeta.mVideoStream?.let { stream ->
+                    if (stream.mFpsNum > 0 && stream.mFpsDen > 0)
+                        stream.mFpsNum.toFloat() / stream.mFpsDen
+                    else null
+                },
+                bitrate = info.mMeta.mVideoStream?.mBitrate?.takeIf { it > 0 }?.toInt(),
                 mimeType = info.mMeta.mVideoStream?.mCodecName,
                 decoder = info.mVideoDecoderImpl,
             ),
@@ -253,7 +259,7 @@ class IjkVideoPlayer(
                     // IjkMediaMeta.AV_CH_LAYOUT_HEXADECAGONAL -> 16
 
                     // IjkMediaMeta.AV_CH_LAYOUT_22POINT2 -> 24
-                    else -> 0
+                    else -> null
                 },
                 channelsLabel = when (info.mMeta.mAudioStream?.mChannelLayout) {
                     IjkMediaMeta.AV_CH_LAYOUT_MONO -> "单声道"
@@ -289,8 +295,8 @@ class IjkVideoPlayer(
                     // IjkMediaMeta.AV_CH_LAYOUT_22POINT2 -> "22.2 环绕声"
                     else -> null
                 },
-                sampleRate = info.mMeta.mAudioStream?.mSampleRate,
-                bitrate = info.mMeta.mAudioStream?.mBitrate?.toInt(),
+                sampleRate = info.mMeta.mAudioStream?.mSampleRate?.takeIf { it > 0 },
+                bitrate = info.mMeta.mAudioStream?.mBitrate?.takeIf { it > 0 }?.toInt(),
                 mimeType = info.mMeta.mAudioStream?.mCodecName,
                 decoder = info.mAudioDecoderImpl,
             ),
