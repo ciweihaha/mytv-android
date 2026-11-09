@@ -68,7 +68,10 @@ fun WebViewScreen_X5(
         cookies = settingsVM.iptvHybridYangshipinCookie.split(";")
     }
     val urlHost = getURLHost(actualUrl)
-    val blacklist = readBlacklist(getContext(), urlHost)
+    // 黑名单要读 assets 并解析 JSON：每次重组都读一次是主线程 I/O，
+    // 只在 host 变化时读一次
+    val context = getContext()
+    val blacklist = remember(urlHost) { readBlacklist(context, urlHost) }
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier

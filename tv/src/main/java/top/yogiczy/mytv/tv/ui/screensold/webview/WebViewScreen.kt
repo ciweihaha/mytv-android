@@ -69,7 +69,10 @@ fun WebViewScreen(
         cookies = settingsVM.iptvHybridYangshipinCookie.split(";")
     }
     val urlHost = getURLHost(actualUrl)
-    val blacklist = readBlacklist(getContext(), urlHost)
+    // 黑名单要读 assets 并解析 JSON：每次重组都读一次是主线程 I/O，
+    // 只在 host 变化时读一次
+    val context = getContext()
+    val blacklist = remember(urlHost) { readBlacklist(context, urlHost) }
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier
@@ -238,8 +241,9 @@ fun readBlacklist(context: Context, urlHost: String): List<String> {
 }
 
 fun getURLHost(url: String): String {
-    val uri = URI(url)
-    return uri.host ?: ""
+    // 非法 URL（如含空格）会让 URI 抛异常：组合期间抛会导致崩溃，返回空串
+    // 让黑名单匹配不到即可
+    return runCatching { URI(url).host ?: "" }.getOrDefault("")
 }
 
 @Composable
