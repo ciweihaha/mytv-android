@@ -9,13 +9,27 @@ import androidx.core.content.FileProvider
 import java.io.File
 
 object ApkInstaller {
+    /**
+     * 把 APK 放到 cacheDir 供 FileProvider 分享安装。文件已在 cacheDir 时
+     * 直接复用，不再复制；否则流式复制。
+     */
+    internal fun prepareCachedApk(file: File, cacheDir: File): File {
+        val cachedApkFile = File(cacheDir, file.name)
+        if (cachedApkFile.absoluteFile != file.absoluteFile) {
+            // 流式复制：原先 writeBytes(file.readBytes()) 把整个 APK 读进
+            // 内存再写，100MB+ 的包在低端电视盒子上会 OOM
+            file.inputStream().use { input ->
+                cachedApkFile.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+        return cachedApkFile
+    }
+
     @SuppressLint("SetWorldReadable")
     fun installApk(context: Context, filePath: String) {
         val file = File(filePath)
         if (file.exists()) {
-            val cacheDir = context.cacheDir
-            val cachedApkFile = File(cacheDir, file.name).apply {
-                writeBytes(file.readBytes())
+            val cachedApkFile = prepareCachedApk(file, context.cacheDir).apply {
                 // 解决Android6 无法解析安装包
                 setReadable(true, false)
             }
