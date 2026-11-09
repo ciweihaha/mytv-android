@@ -1,0 +1,69 @@
+package top.yogiczy.mytv.core.data.repositories.iptv.parser
+
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * 直播源解析器 BOM 容错测试。
+ * 旧实现用 data.startsWith("#EXTM3U") 识别 M3U，带 UTF-8 BOM（Windows 记事本
+ * 默认保存格式）或开头空行的源会被当成未知格式，整条源解析不出频道；
+ * TXT 源首个分组名会带上 BOM 字符。
+ */
+class IptvParserTest {
+    private val m3uParser = M3uIptvParser()
+    private val txtParser = TxtIptvParser()
+
+    private val m3uData = """
+        #EXTM3U x-tvg-url="http://example.com/epg.xml"
+        #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+        http://example.com/cctv1.m3u8
+        #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+        http://example.com/cctv2.m3u8
+    """.trimIndent()
+
+    @Test
+    fun m3u_withBom_isSupported() {
+        assertTrue(m3uParser.isSupport("", "\uFEFF$m3uData"))
+    }
+
+    @Test
+    fun m3u_withBom_parsesChannels() = runBlocking {
+        val channels = m3uParser.parse("\uFEFF$m3uData")
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("央视", channels[0].groupName)
+        assertEquals("http://example.com/cctv1.m3u8", channels[0].url)
+        assertEquals("CCTV-2", channels[1].name)
+        assertEquals("http://example.com/cctv2.m3u8", channels[1].url)
+    }
+
+    @Test
+    fun m3u_withBom_getEpgUrl() = runBlocking {
+        assertEquals("http://example.com/epg.xml", m3uParser.getEpgUrl("\uFEFF$m3uData"))
+    }
+
+    @Test
+    fun m3u_leadingBlankLines_isSupported() {
+        assertTrue(m3uParser.isSupport("", "\n\n$m3uData"))
+    }
+
+    @Test
+    fun m3u_plain_stillWorks() = runBlocking {
+        assertTrue(m3uParser.isSupport("", m3uData))
+        val channels = m3uParser.parse(m3uData)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+    }
+
+    @Test
+    fun txt_withBom_groupNameClean() = runBlocking {
+        val txtData = "\uFEFF央视,#genre#\nCCTV-1,http://example.com/cctv1\nCCTV-2,http://example.com/cctv2"
+        assertTrue(txtParser.isSupport("", txtData))
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("央视", channels[0].groupName)
+        assertEquals("CCTV-1", channels[0].name)
+    }
+}

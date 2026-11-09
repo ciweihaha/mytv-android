@@ -31,6 +31,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    testOptions {
+        // 单元测试里 android.util.Log 等系统调用返回默认值而不是抛 Stub!，
+        // 否则用到 Logger 的解析器无法在 JVM 单测里跑
+        unitTests.isReturnDefaultValues = true
+    }
+
     kotlinOptions {
         jvmTarget = "11"
     }

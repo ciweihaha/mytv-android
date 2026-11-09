@@ -12,12 +12,12 @@ class M3uIptvParser : IptvParser {
     private val logger = Logger.create("M3uIptvParser")
 
     override fun isSupport(url: String, data: String): Boolean {
-        return data.startsWith("#EXTM3U")
+        return data.stripPlaylistBom().startsWith("#EXTM3U")
     }
 
     override suspend fun parse(data: String) =
         withContext(Dispatchers.Default) {
-            val lines = data.split("\r\n", "\n")
+            val lines = data.stripPlaylistBom().split("\r\n", "\n")
             val channelList = mutableListOf<IptvParser.ChannelItem>()
             var globalPlaybackType: Int? = null
             var globalPlaybackFormat: String? = null
@@ -152,7 +152,7 @@ class M3uIptvParser : IptvParser {
         }
 
     override suspend fun getEpgUrl(data: String): String? {
-        val lines = data.split("\r\n", "\n")
+        val lines = data.stripPlaylistBom().split("\r\n", "\n")
         return lines.firstOrNull { it.startsWith("#EXTM3U") }?.let { defLine ->
             Regex("x-tvg-url=\"(.*?)\"").find(defLine)?.groupValues?.get(1)
                 ?.split(",")

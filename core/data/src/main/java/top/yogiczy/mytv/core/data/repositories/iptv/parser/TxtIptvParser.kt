@@ -14,7 +14,7 @@ class TxtIptvParser : IptvParser {
 
     override suspend fun parse(data: String) =
         withContext(Dispatchers.Default) {
-            val lines = data.split("\r\n", "\n")
+            val lines = data.stripPlaylistBom().split("\r\n", "\n")
             val channelList = mutableListOf<IptvParser.ChannelItem>()
 
             var groupName: String? = null
