@@ -134,4 +134,23 @@ class IptvParserTest {
         assertEquals(1, channels.size)
         assertEquals("CCTV-2", channels[0].name)
     }
+
+    @Test
+    fun txt_genreLineWithoutGroupName_keepsPreviousGroup() = runBlocking {
+        // `,#genre#` 不应产生空分组名：其后的频道仍归上一个分组
+        val txtData = "央视,#genre#\nCCTV-1,http://example.com/1\n,#genre#\nCCTV-2,http://example.com/2"
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("央视", channels[0].groupName)
+        assertEquals("央视", channels[1].groupName)
+    }
+
+    @Test
+    fun txt_genreLineWithoutComma_markerNotInGroupName() = runBlocking {
+        // `央视 #genre#`（无逗号）：#genre# 标记本身不应带进分组名
+        val txtData = "央视 #genre#\nCCTV-1,http://example.com/1"
+        val channels = txtParser.parse(txtData)
+        assertEquals(1, channels.size)
+        assertEquals("央视", channels[0].groupName)
+    }
 }

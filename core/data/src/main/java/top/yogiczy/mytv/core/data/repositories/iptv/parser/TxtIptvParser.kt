@@ -22,7 +22,11 @@ class TxtIptvParser : IptvParser {
                 if (line.isBlank() || line.startsWith("#") || line.startsWith("//")) return@forEach
 
                 if (line.contains("#genre#")) {
-                    groupName = line.split(",", "，").firstOrNull()?.trim()
+                    // 先去掉 #genre# 标记再取分组名：`,#genre#` 不应产生空分
+                    // 组名，`央视 #genre#`（无逗号）不应把标记本身带进分组名；
+                    // 名字为空时保留上一个分组
+                    groupName = line.replace("#genre#", "").split(",", "，").firstOrNull()?.trim()
+                        ?.ifBlank { null } ?: groupName
                 } else {
                     // 只按第一个逗号（半角或全角）切分：名字取逗号前，地址取逗号后全部；
                     // 旧代码 split 后取 res[1]，地址里含逗号（如查询串 ?token=a,b）
