@@ -1,9 +1,13 @@
 package top.yogiczy.mytv.core.data.repositories.epg.fetcher
 
+import kotlinx.coroutines.runBlocking
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 
 /**
  * 节目单解析器 URL 识别测试。
@@ -67,5 +71,40 @@ class EpgFetcherTest {
             "http://example.com/epg.xml.gz?token=abc#frag".epgUrlPath(),
         )
         assertEquals("http://example.com/epg.xml", "http://example.com/epg.xml".epgUrlPath())
+    }
+
+    private fun gzipBytes(text: String): ByteArray {
+        val out = ByteArrayOutputStream()
+        GZIPOutputStream(out).use { it.write(text.toByteArray(Charsets.UTF_8)) }
+        return out.toByteArray()
+    }
+
+    @Test
+    fun gz_gzipBody_decompressed() = runBlocking {
+        val xml = "<?xml version=\"1.0\"?><tv></tv>"
+        val stream = gzFetcher.fetch(gzipBytes(xml).toResponseBody())
+        assertEquals(xml, stream.readBytes().toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun gz_plainXmlBody_passedThrough() = runBlocking {
+        // 服务端对 .gz 地址返回明文 XML 时旧实现直接抛“Not in GZIP format”，
+        // 整个节目单加载失败；应原样返回让后续 XML 解析处理
+        val xml = "<?xml version=\"1.0\"?><tv></tv>"
+        val stream = gzFetcher.fetch(xml.toByteArray(Charsets.UTF_8).toResponseBody())
+        assertEquals(xml, stream.readBytes().toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun gz_emptyBody_noThrow() = runBlocking {
+        val stream = gzFetcher.fetch(ByteArray(0).toResponseBody())
+        assertEquals(0, stream.readBytes().size)
+    }
+
+    @Test
+    fun gz_singleByteBody_noThrow() = runBlocking {
+        // 只有 1 个字节时 mark/reset 不能丢数据
+        val stream = gzFetcher.fetch(byteArrayOf(0x1f).toResponseBody())
+        assertEquals(listOf(0x1f), stream.readBytes().toList())
     }
 }
