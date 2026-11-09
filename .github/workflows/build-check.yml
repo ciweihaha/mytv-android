@@ -1,0 +1,76 @@
+name: Build Check
+
+# 恢复说明：main 曾在 2025 年被重写为构建壳（无源码），上游开发已收进
+# 私有库。2026-11-09 经用户决定，从公开历史 tag V1.1.1.135
+# （2025-05-24，c89160a）把源码恢复到 main。
+# 本工作流只做构建验证（debug + 用一次性 keystore 验 release/R8），
+# 不发版、不改版本号。快照自带的旧 Kotlin CI（需 SIGNING_PROPERTIES、
+# SIGN_KEY、SENTRY 等私有 secret）已移除。
+#
+# 注意：tv 模块的 debug 与 release 都用 release signingConfig，
+# 且仓库里没有 keystore，所以任何 gradle 构建之前必须先生成
+# 一次性 keystore 并导出 KEYSTORE 等环境变量（见下）。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+
+    steps:
+      - name: 代码迁出
+        uses: actions/checkout@v4
+
+      - name: 构建 Java 环境
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: gradle
+
+      # gradlew 在 git 里没有可执行位（mode 100644），先补上。
+      # 发行版下载（腾讯镜像）失败时只重试这一步，下载成功后会
+      # 缓存在 ~/.gradle/wrapper/dists。
+      - name: 下载 Gradle 发行版（带重试）
+        run: |
+          chmod +x ./gradlew
+          for i in 1 2 3 4 5; do
+            ./gradlew --version && break || { echo "download attempt $i failed, retrying in 60s"; sleep 60; }
+          done
+          ./gradlew --version
+
+      # 一次性签名：debug 构建同样走 release signingConfig，仓库里
+      # 没有 keystore，所以先生成一个仅供本次构建使用的 keystore。
+      # 产物仅用于验证，不上传。
+      - name: 生成一次性 keystore
+        run: |
+          keytool -genkeypair -keystore /tmp/release.keystore -storepass android -alias release -keypass android -dname "CN=CI,O=CI,C=CN" -keyalg RSA -keysize 2048 -validity 1
+          echo "KEYSTORE=/tmp/release.keystore" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=<redacted>" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=release" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=<redacted>" >> "$GITHUB_ENV"
+
+      - name: 构建 debug APK
+        run: ./gradlew :tv:assembleDebug
+        timeout-minutes: 30
+
+      # tv 模块没有单元测试；core 三个模块只有占位测试。
+      - name: 运行单元测试
+        run: ./gradlew :core:data:testDebugUnitTest :core:util:testDebugUnitTest :core:designsystem:testDebugUnitTest
+        timeout-minutes: 30
+
+      # debug 构建不跑 R8；构建 release 验证 R8 规则。
+      - name: 构建 release APK（验证 R8）
+        run: ./gradlew :tv:assembleRelease
+        timeout-minutes: 30
+
+      - name: 上传 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mytv-android-debug
+          path: tv/build/outputs/apk/*/debug/*.apk
