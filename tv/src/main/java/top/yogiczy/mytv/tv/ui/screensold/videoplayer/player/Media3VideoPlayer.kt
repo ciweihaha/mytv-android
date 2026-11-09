@@ -575,6 +575,10 @@ class Media3VideoPlayer(
 
     override fun release() {
         onCuesListeners.clear()
+        // 位置轮询协程只在 stop() 里取消：release() 后它仍会每 500ms
+        // 访问已释放的播放器，先停掉
+        updatePositionJob?.cancel()
+        updatePositionJob = null
         videoPlayer.removeListener(playerListener)
         videoPlayer.removeAnalyticsListener(metadataListener)
         videoPlayer.removeAnalyticsListener(eventLogger)
