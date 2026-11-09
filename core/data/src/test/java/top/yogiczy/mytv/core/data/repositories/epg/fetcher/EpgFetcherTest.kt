@@ -104,7 +104,8 @@ class EpgFetcherTest {
     @Test
     fun gz_singleByteBody_noThrow() = runBlocking {
         // 只有 1 个字节时 mark/reset 不能丢数据
-        val stream = gzFetcher.fetch(byteArrayOf(0x1f).toResponseBody())
-        assertEquals(listOf(0x1f), stream.readBytes().toList())
+        val bytes = gzFetcher.fetch(byteArrayOf(0x1f).toResponseBody()).readBytes()
+        assertEquals(1, bytes.size)
+        assertEquals(0x1f.toByte(), bytes[0])
     }
 }
