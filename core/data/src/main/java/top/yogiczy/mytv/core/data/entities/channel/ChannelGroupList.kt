@@ -42,11 +42,15 @@ data class ChannelGroupList(
             get() = ChannelList(this.asSequence().flatMap { it.channelList.asSequence() }.toList())
     }
 
-    fun withMetadata() = ChannelGroupList(map { group ->
-        val channelIndexMap = channelList.withIndex().associate { it.value to it.index }
-
-        group.copy(channelList = ChannelList(group.channelList.map { channel ->
-            channel.copy(index = channelIndexMap[channel] ?: -1)
-        }))
-    })
+    fun withMetadata(): ChannelGroupList {
+        // 旧实现每组都重算一次全表（flatMap + associate），O(G×N)；
+        // 且按值建 map 时同名同线路的重复频道都取最后一个下标，显示的
+        // 台号与数字选台（按位置取）对不上。改成一次遍历按位置编号。
+        var index = 0
+        return ChannelGroupList(map { group ->
+            group.copy(channelList = ChannelList(group.channelList.map { channel ->
+                channel.copy(index = index++)
+            }))
+        })
+    }
 }
