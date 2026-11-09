@@ -105,4 +105,33 @@ class IptvParserTest {
         assertEquals(1, channels.size)
         assertEquals("CCTV-1,高清", channels[0].name)
     }
+
+    @Test
+    fun txt_urlWithComma() = runBlocking {
+        // 地址查询串含逗号：旧代码 split 后取 res[1]，逗号后的部分被丢掉
+        val txtData = "央视,#genre#\nCCTV-1,http://example.com/play?token=a,b"
+        val channels = txtParser.parse(txtData)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("http://example.com/play?token=a,b", channels[0].url)
+    }
+
+    @Test
+    fun txt_multiLineUrlsAndChineseComma() = runBlocking {
+        val txtData = "央视,#genre#\nCCTV-1,http://a.com/1#http://a.com/2\nCCTV-2，http://example.com/cctv2"
+        val channels = txtParser.parse(txtData)
+        assertEquals(3, channels.size)
+        assertEquals("http://a.com/1", channels[0].url)
+        assertEquals("http://a.com/2", channels[1].url)
+        assertEquals("CCTV-2", channels[2].name)
+        assertEquals("http://example.com/cctv2", channels[2].url)
+    }
+
+    @Test
+    fun txt_emptyUrlSkipped() = runBlocking {
+        val txtData = "央视,#genre#\nCCTV-1,\nCCTV-2,http://example.com/cctv2"
+        val channels = txtParser.parse(txtData)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-2", channels[0].name)
+    }
 }

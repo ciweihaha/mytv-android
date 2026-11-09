@@ -24,19 +24,25 @@ class TxtIptvParser : IptvParser {
                 if (line.contains("#genre#")) {
                     groupName = line.split(",", "，").firstOrNull()?.trim()
                 } else {
-                    val res = line.split(",", "，")
-                    if (res.size < 2) return@forEach
-                    channelList.addAll(res[1].split("#").map { url ->
+                    // 只按第一个逗号（半角或全角）切分：名字取逗号前，地址取逗号后全部；
+                    // 旧代码 split 后取 res[1]，地址里含逗号（如查询串 ?token=a,b）
+                    // 会被截断；地址为空的行直接跳过（旧代码会加一条播不了的空地址）
+                    val sepIndex = line.indexOfFirst { it == ',' || it == '，' }
+                    if (sepIndex < 0) return@forEach
+                    val name = line.substring(0, sepIndex).trim()
+                    val urlPart = line.substring(sepIndex + 1)
+                    if (urlPart.isBlank()) return@forEach
+                    channelList.addAll(urlPart.split("#").map { url ->
                         if (url.startsWith("webview://")) {
                             IptvParser.ChannelItem(
-                                name = res[0].trim(),
+                                name = name,
                                 groupName = groupName ?: "其他",
-                                url = url.trim(), 
+                                url = url.trim(),
                                 hybridType = IptvParser.ChannelItem.HybridType.WebView,
-                            ) 
-                        }else{
+                            )
+                        } else {
                             IptvParser.ChannelItem(
-                                name = res[0].trim(),
+                                name = name,
                                 groupName = groupName ?: "其他",
                                 url = url.trim(),
                             )
