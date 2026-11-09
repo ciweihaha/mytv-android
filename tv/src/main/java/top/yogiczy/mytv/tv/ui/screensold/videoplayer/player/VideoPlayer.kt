@@ -228,11 +228,12 @@ abstract class VideoPlayer(
 
             val shortLabel: String
                 get() = listOfNotNull(
-                    "${width.toString()}x${height.toString()}",
+                    if (width != null && height != null) "${width}x${height}" else null,
                     frameRate?.takeIf { it > 0 }?.let { "${it.roundToInt()}fps" },
                     bitrate?.takeIf { nnBitrate -> nnBitrate > 0 }?.humanizeBitrate()
                 )
                     .joinToString(", ")
+                    .ifEmpty { mimeType ?: "" }
         }
 
         data class Audio(
@@ -268,6 +269,7 @@ abstract class VideoPlayer(
                     language?.humanizeLanguage(),
                 )
                     .joinToString(", ")
+                    .ifEmpty { mimeType ?: "" }
         }
 
         data class Subtitle(
@@ -295,6 +297,7 @@ abstract class VideoPlayer(
                     language?.humanizeLanguage(),
                 )
                     .joinToString(", ")
+                    .ifEmpty { mimeType ?: "" }
         }
     }
 }

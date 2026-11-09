@@ -489,22 +489,23 @@ class Media3VideoPlayer(
 
     private fun Format.toVideoMetadata(video: Metadata.Video? = null): Metadata.Video {
         return (video ?: Metadata.Video()).copy(
-            width = width,
-            height = height,
+            // Format 里未知值是 NO_VALUE(-1)，不转 null 界面会显示“-1x-1”
+            width = width.takeIf { it > 0 },
+            height = height.takeIf { it > 0 },
             color = colorInfo?.toLogString(),
-            frameRate = frameRate,
+            frameRate = frameRate.takeIf { it > 0 },
             // TODO 帧率、比特率目前是从tag中获取，有的返回空，后续需要实时计算
-            bitrate = bitrate,
+            bitrate = bitrate.takeIf { it > 0 },
             mimeType = sampleMimeType,
         )
     }
 
     private fun Format.toAudioMetadata(audio: Metadata.Audio? = null): Metadata.Audio {
         return (audio ?: Metadata.Audio()).copy(
-            channels = channelCount,
+            channels = channelCount.takeIf { it > 0 },
             channelsLabel = if (sampleMimeType == "audio/av3a") "菁彩声" else null,
-            sampleRate = sampleRate,
-            bitrate = bitrate,
+            sampleRate = sampleRate.takeIf { it > 0 },
+            bitrate = bitrate.takeIf { it > 0 },
             mimeType = sampleMimeType,
             language = language,
         )
@@ -512,7 +513,7 @@ class Media3VideoPlayer(
 
     private fun Format.toSubtitleMetadata(subtitle: Metadata.Subtitle? = null): Metadata.Subtitle {
         return (subtitle ?: Metadata.Subtitle()).copy(
-            bitrate = bitrate,
+            bitrate = bitrate.takeIf { it > 0 },
             mimeType = sampleMimeType,
             language = language,
         )

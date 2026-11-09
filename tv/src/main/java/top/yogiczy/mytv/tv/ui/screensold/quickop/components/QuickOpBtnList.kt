@@ -169,7 +169,7 @@ fun QuickOpBtnList(
             if (playerMetadata.videoTracks.isNotEmpty()) {
                 item {
                     QuickOpBtn(
-                        title = playerMetadataProvider().video?.shortLabel ?: "视轨",
+                        title = playerMetadataProvider().video?.shortLabel?.takeIf { it.isNotBlank() } ?: "视轨",
                         imageVector = Icons.Filled.VideoLibrary,
                         onSelect = onShowVideoTracks,
                     )
@@ -179,7 +179,7 @@ fun QuickOpBtnList(
             if (playerMetadata.audioTracks.isNotEmpty()) {
                 item {
                     QuickOpBtn(
-                        title = playerMetadataProvider().audio?.shortLabel ?: "音轨",
+                        title = playerMetadataProvider().audio?.shortLabel?.takeIf { it.isNotBlank() } ?: "音轨",
                         imageVector = Icons.Filled.MusicNote,
                         onSelect = onShowAudioTracks,
                     )
@@ -189,7 +189,7 @@ fun QuickOpBtnList(
             if (playerMetadata.subtitleTracks.isNotEmpty()) {
                 item {
                     QuickOpBtn(
-                        title = playerMetadataProvider().subtitle?.shortLabel ?: "字幕",
+                        title = playerMetadataProvider().subtitle?.shortLabel?.takeIf { it.isNotBlank() } ?: "字幕",
                         imageVector = Icons.Filled.Subtitles,
                         onSelect = onShowSubtitleTracks,
                     )
