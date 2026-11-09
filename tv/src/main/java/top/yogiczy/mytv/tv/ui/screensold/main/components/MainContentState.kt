@@ -358,22 +358,26 @@ class MainContentState(
                 val tfm = SimpleDateFormat("mm", Locale.getDefault())
                 val tfS = SimpleDateFormat("ss", Locale.getDefault())
                 val nowTime = System.currentTimeMillis()
-                playbackFormat.apply{
-                        _currentPlaybackEpgProgramme?.let { epgProgramme ->
-                            replace("{utc}", timeFormat.format(epgProgramme.startAt))
-                            replace("\${start}", timeFormat.format(epgProgramme.startAt))
-                            replace("{lutc}", timeFormat.format(nowTime))
-                            replace("\${now}", tfY.format(nowTime))
-                            replace("\${timestamp}", timeFormat.format(nowTime))
-                            replace("{utcend}", timeFormat.format(epgProgramme.endAt))
-                            replace("\${end}", timeFormat.format(epgProgramme.endAt))
-                            replace("{Y}", tfY.format(epgProgramme.startAt))
-                            replace("{m}", tfM.format(epgProgramme.startAt))
-                            replace("{d}", tfD.format(epgProgramme.startAt))
-                            replace("{H}", tfH.format(epgProgramme.startAt))
-                            replace("{M}", tfm.format(epgProgramme.startAt))
-                            replace("{S}", tfS.format(epgProgramme.startAt))
-                        }
+                // String.replace 返回新字符串：原先用 apply 包着一串 replace，
+                // 返回值全被丢弃，{utc}、{utcend}、${start} 等占位符从未被替换，
+                // 用这类格式的回放源 URL 里一直带着字面量占位符、播不了。
+                // 改成链式赋值；{utcend} 必须先于 {utc} 替换，否则 "{utcend}"
+                // 会被 "{utc}" 的替换截断成 "<时间>end}"。
+                _currentPlaybackEpgProgramme?.let { epgProgramme ->
+                    playbackFormat = playbackFormat
+                        .replace("{utcend}", timeFormat.format(epgProgramme.endAt))
+                        .replace("{utc}", timeFormat.format(epgProgramme.startAt))
+                        .replace("\${start}", timeFormat.format(epgProgramme.startAt))
+                        .replace("{lutc}", timeFormat.format(nowTime))
+                        .replace("\${now}", tfY.format(nowTime))
+                        .replace("\${timestamp}", timeFormat.format(nowTime))
+                        .replace("\${end}", timeFormat.format(epgProgramme.endAt))
+                        .replace("{Y}", tfY.format(epgProgramme.startAt))
+                        .replace("{m}", tfM.format(epgProgramme.startAt))
+                        .replace("{d}", tfD.format(epgProgramme.startAt))
+                        .replace("{H}", tfH.format(epgProgramme.startAt))
+                        .replace("{M}", tfm.format(epgProgramme.startAt))
+                        .replace("{S}", tfS.format(epgProgramme.startAt))
                 }
                 playbackFormat = ChannelUtil.replacePlaybackFormat(playbackFormat, _currentPlaybackEpgProgramme!!.startAt, nowTime, _currentPlaybackEpgProgramme!!.endAt)?:""
                 url = when (currentChannelLine.playbackType ?: 10) {
