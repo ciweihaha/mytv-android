@@ -24,10 +24,11 @@ class GiteeGistSyncRepository(
                 builder
                     .addHeader("Content-Type", "application/json")
                     .patch(body.toRequestBody())
-            }) { _ -> true }!!
+            }) { _ -> true } ?: false
         } catch (ex: Exception) {
             log.e("推送云端失败", ex)
-            throw Exception("推送云端失败", ex)
+            // 按接口契约返回 false 而不是抛异常：调用方按返回值提示成败
+            false
         }
     }
 

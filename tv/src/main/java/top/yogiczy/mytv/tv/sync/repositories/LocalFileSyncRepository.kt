@@ -21,11 +21,15 @@ class LocalFileSyncRepository(
 
     override suspend fun push(data: CloudSyncData): Boolean = withContext(Dispatchers.IO) {
         try {
+            // 用户配的路径所在目录可能不存在：先建目录，否则 writeText 抛
+            // FileNotFoundException，推送永远失败
+            file.parentFile?.mkdirs()
             file.writeText(Globals.json.encodeToString(data))
             true
         } catch (ex: Exception) {
             log.e("推送失败", ex)
-            throw Exception("推送失败", ex)
+            // 按接口契约返回 false 而不是抛异常：调用方按返回值提示成败
+            false
         }
     }
 

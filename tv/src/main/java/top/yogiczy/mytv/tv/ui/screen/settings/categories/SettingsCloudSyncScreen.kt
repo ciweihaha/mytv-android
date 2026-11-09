@@ -84,9 +84,15 @@ fun SettingsCloudSyncScreen(
                             coroutineScope.launch {
                                 pushLoading = true
                                 runCatching { CloudSync.push() }
-                                    .onSuccess {
-                                        Snackbar.show("推送云端成功")
-                                        pullSyncData()
+                                    .onSuccess { success ->
+                                        // 原先只看是否抛异常：push 返回 false
+                                        // 也会显示“推送云端成功”
+                                        if (success) {
+                                            Snackbar.show("推送云端成功")
+                                            pullSyncData()
+                                        } else {
+                                            Snackbar.show("推送云端失败")
+                                        }
                                     }
                                     .onFailure { Snackbar.show("推送云端失败") }
                                 pushLoading = false
