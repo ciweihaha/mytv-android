@@ -88,7 +88,11 @@ abstract class VideoPlayer(
 
     protected fun triggerError(error: PlaybackException?) {
         onErrorListeners.forEach { it(error) }
-        if (error != PlaybackException.LOAD_TIMEOUT) {
+        // 只有真实错误才取消加载超时 watchdog：error 为 null 只是“开始缓冲”
+        // 的信号（Media3 进 BUFFERING 时会调 triggerError(null)），原先连它
+        // 也取消 watchdog，导致卡在缓冲的流永远等不到超时、永远不自动换线路；
+        // 而清错误显示本就由 onBuffering 负责，不依赖这次调用
+        if (error != null && error != PlaybackException.LOAD_TIMEOUT) {
             loadTimeoutJob?.cancel()
             loadTimeoutJob = null
         }
