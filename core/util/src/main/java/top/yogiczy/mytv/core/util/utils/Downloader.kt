@@ -38,21 +38,37 @@ object Downloader {
             val client = OkHttpClient.Builder().addNetworkInterceptor(interceptor).build()
             val request = okhttp3.Request.Builder().url(url).build()
 
-            val response = try {
-                client.newCall(request).execute()
-            } catch (ex: Exception) {
-                throw Exception("下载文件失败，请检查网络连接", ex)
-            }
-
-            response.use {
-                if (!it.isSuccessful) throw Exception("下载文件失败: ${it.code}")
-
-                // 流式写入：原先用 body.bytes() 把整个文件读进内存再写，
-                // 下百 MB 的 APK 时低端电视盒子容易 OOM
-                val body = it.body ?: throw Exception("下载文件失败：服务器返回空数据")
-                FileOutputStream(File(filePath)).use { fos ->
-                    body.byteStream().use { input -> input.copyTo(fos) }
+            val targetFile = File(filePath)
+            // 先下到同目录临时文件，成功才 rename 覆盖目标：原先直接写目标文件，
+            // 下载中途失败会留下残缺文件，而更新页打开时按“文件存在即安装”，
+            // 会拿残缺的 APK 去安装（报解析失败）
+            val tmpFile = File(targetFile.absoluteFile.parent, "${targetFile.name}.tmp")
+            try {
+                val response = try {
+                    client.newCall(request).execute()
+                } catch (ex: Exception) {
+                    throw Exception("下载文件失败，请检查网络连接", ex)
                 }
+
+                response.use {
+                    if (!it.isSuccessful) throw Exception("下载文件失败: ${it.code}")
+
+                    // 流式写入：原先用 body.bytes() 把整个文件读进内存再写，
+                    // 下百 MB 的 APK 时低端电视盒子容易 OOM
+                    val body = it.body ?: throw Exception("下载文件失败：服务器返回空数据")
+                    FileOutputStream(tmpFile).use { fos ->
+                        body.byteStream().use { input -> input.copyTo(fos) }
+                    }
+                }
+
+                if (!tmpFile.renameTo(targetFile)) {
+                    // 极少数文件系统 rename 失败时回退为覆盖复制
+                    tmpFile.copyTo(targetFile, overwrite = true)
+                    tmpFile.delete()
+                }
+            } catch (ex: Exception) {
+                tmpFile.delete()
+                throw ex
             }
         }
 
