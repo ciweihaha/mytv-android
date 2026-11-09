@@ -21,6 +21,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.isLive
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeList
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeReserveList
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
+import top.yogiczy.mytv.tv.ui.utils.saveFocusRestorer
 import kotlin.math.max
 
 @Composable
@@ -46,18 +47,25 @@ fun EpgProgrammeItemList(
     }
 
     LazyColumn(
-        modifier = modifier,
-        // FIXME 闪退
-        // .focusRestorer {
-        //     itemFocusRequesterList[max(0, epgProgrammeList.indexOfFirst { it.isLive() })]
-        // },
+        modifier = modifier
+            // 原先注释掉是因空列表时下标越界闪退：无直播节目时
+            // indexOfFirst 得 -1，max(0, -1) = 0 在空列表上越界。
+            // 改成 getOrNull + Default 恢复焦点回到直播节目
+            .saveFocusRestorer {
+                itemFocusRequesterList.getOrNull(
+                    max(0, epgProgrammeList.indexOfFirst { it.isLive() })
+                ) ?: FocusRequester.Default
+            },
         state = listState,
         contentPadding = PaddingValues(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         itemsIndexed(
             epgProgrammeList,
-            key = { _, programme -> programme.hashCode() },
+            // key 不能只用 hashCode：EPG 源里重复的节目条目（同名同
+            // 起止，含解析失败起止为 0 的条目）完全相等，撞 key 会让
+            // LazyColumn 抛异常；缀上下标保证唯一
+            key = { index, programme -> "${programme.hashCode()}_$index" },
         ) { index, programme ->
             EpgProgrammeItem(
                 modifier = Modifier.focusRequester(itemFocusRequesterList[index]),
