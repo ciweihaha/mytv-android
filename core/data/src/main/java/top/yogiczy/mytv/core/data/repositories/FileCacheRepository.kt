@@ -36,12 +36,29 @@ abstract class FileCacheRepository(
 
     private suspend fun setCacheData(data: String) = withContext(Dispatchers.IO) {
         val file = getCacheFile()
-        file.writeText(data)
+        writeAtomically(file) { it.writeText(data) }
     }
 
     protected suspend fun setCacheInputStream(data: InputStream) = withContext(Dispatchers.IO) {
         val file = getCacheFile()
-        file.outputStream().use { data.copyTo(it) }
+        writeAtomically(file) { tmp -> tmp.outputStream().use { data.copyTo(it) } }
+    }
+
+    /**
+     * 先写同目录临时文件再 rename 覆盖目标：同文件系统内 rename 是原子的。
+     * 原先直接 writeText / outputStream 写目标文件，进程在写一半时被杀会
+     * 留下截断的缓存，下次读取时因未过期直接返回损坏数据、解析失败，
+     * 频道/节目单一直加载失败直到缓存过期。
+     * 原子写后崩溃只会留下 .tmp 临时文件，目标要么是旧的完整内容、要么是新的完整内容。
+     */
+    private fun writeAtomically(file: File, write: (File) -> Unit) {
+        val tmpFile = File(file.absoluteFile.parent, "${file.name}.tmp")
+        write(tmpFile)
+        if (!tmpFile.renameTo(file)) {
+            // 极少数文件系统 rename 失败时回退为覆盖复制
+            tmpFile.copyTo(file, overwrite = true)
+            tmpFile.delete()
+        }
     }
 
     protected suspend fun getOrRefreshInputStream(
@@ -58,13 +75,14 @@ abstract class FileCacheRepository(
         isExpired: (lastModified: Long, cacheData: InputStream?) -> Boolean,
         refreshOp: suspend () -> InputStream,
     ) = withContext(Dispatchers.IO) {
-        var data = getCacheInputStream()
+        // 仅用打开的流判断缓存是否为空，判断完就关闭：原先这个流从不关闭，
+        // 缓存命中时每次都漏一个文件描述符
+        val cached = getCacheInputStream()
+        val expired = isExpired(getCacheFile().lastModified(), cached)
+        val useCache = !expired && cached != null && cached.available() > 0
+        cached?.close()
 
-        if (isExpired(getCacheFile().lastModified(), data)) {
-            data = null
-        }
-
-        if (data == null || data.available() == 0) {
+        if (!useCache) {
             setCacheInputStream(refreshOp())
         }
 
