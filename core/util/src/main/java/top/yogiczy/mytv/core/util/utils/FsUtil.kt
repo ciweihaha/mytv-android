@@ -8,17 +8,23 @@ import java.io.File
 
 object FsUtil {
     /**
+     * 判断文件是否在 dir 之内（规范化后比较），防止 .. 越出。
+     * 与 resolveWithin 不同：这里入参就是目标文件本身（常为绝对路径），
+     * 不做 parent/child 拼接。
+     */
+    fun isWithin(file: File, dir: File): Boolean {
+        val base = dir.canonicalFile
+        val target = file.canonicalFile
+        return target == base || target.path.startsWith(base.path + File.separator)
+    }
+
+    /**
      * 把子路径解析为 dir 下的文件；子路径为绝对路径或含 .. 越出 dir 时返回 null，
      * 防止目录穿越。返回的文件已规范化（解析掉 . / .. / 符号链接）。
      */
     fun resolveWithin(dir: File, child: String): File? {
-        val base = dir.canonicalFile
-        val resolved = File(base, child).canonicalFile
-        return if (resolved == base || resolved.path.startsWith(base.path + File.separator)) {
-            resolved
-        } else {
-            null
-        }
+        val resolved = File(dir.canonicalFile, child).canonicalFile
+        return if (isWithin(resolved, dir)) resolved else null
     }
 
     /**

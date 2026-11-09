@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.Loggable
+import top.yogiczy.mytv.core.util.utils.FsUtil
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.sync.repositories.CloudSyncRepository
 import top.yogiczy.mytv.tv.sync.repositories.GiteeGistSyncRepository
@@ -47,7 +48,7 @@ object CloudSync : Loggable("CloudSync") {
             syncFrom = Globals.deviceName,
             configs = configs.desensitized(),
             extraLocalIptvSourceList = configs.iptvSourceList
-                ?.filter { it.isLocal && it.url.startsWith(Globals.fileDir.path) }
+                ?.filter { it.isLocal && FsUtil.isWithin(File(it.url), Globals.fileDir) }
                 ?.associate { it.url to runCatching { File(it.url).readText() }.getOrDefault("") },
             extraChannelNameAlias = runCatching { ChannelAlias.aliasFile.readText() }.getOrDefault(""),
         )
@@ -85,7 +86,9 @@ data class CloudSyncData(
         withContext(Dispatchers.IO) {
             Configs.fromPartial(that.configs)
             that.extraLocalIptvSourceList?.entries
-                ?.filter { it.key.startsWith(Globals.fileDir.path) }
+                // 只恢复 fileDir 内的文件：同步数据里的 key 带 .. 时，
+                // 旧代码只用 startsWith 判断，前缀相同即可越出目录写任意位置
+                ?.filter { FsUtil.isWithin(File(it.key), Globals.fileDir) }
                 ?.forEach { entry ->
                     File(entry.key).writeText(entry.value)
                 }

@@ -1,8 +1,10 @@
 package top.yogiczy.mytv.core.util.utils
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -55,5 +57,35 @@ class FsUtilTest {
     fun resolveWithin_absoluteChildWithDotDotStillRejected() {
         val dir = tempDir()
         assertNull(FsUtil.resolveWithin(dir, "/../escape.txt"))
+    }
+
+    @Test
+    fun isWithin_insideDir() {
+        val dir = tempDir()
+        assertTrue(FsUtil.isWithin(File(dir, "a.txt"), dir))
+        assertTrue(FsUtil.isWithin(File(dir, "sub/b.txt"), dir))
+        assertTrue(FsUtil.isWithin(dir, dir))
+    }
+
+    @Test
+    fun isWithin_dotDotEscapesRejected() {
+        val dir = tempDir()
+        assertFalse(FsUtil.isWithin(File(dir, "../escape.txt"), dir))
+        assertFalse(FsUtil.isWithin(File(dir, "sub/../../escape.txt"), dir))
+    }
+
+    @Test
+    fun isWithin_siblingPrefixNotFooled() {
+        // /tmp/x/files_evil 与 /tmp/x/files 前缀相同但不是子目录
+        val dir = File(tempDir(), "files").apply { mkdirs() }
+        val sibling = File(dir.parentFile, "files_evil/a.txt")
+        assertFalse(FsUtil.isWithin(sibling, dir))
+        assertTrue(FsUtil.isWithin(File(dir, "a.txt"), dir))
+    }
+
+    @Test
+    fun isWithin_absoluteOutsideRejected() {
+        val dir = tempDir()
+        assertFalse(FsUtil.isWithin(File("/etc/passwd"), dir))
     }
 }
