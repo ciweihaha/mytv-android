@@ -42,16 +42,18 @@ class FsUtilTest {
     }
 
     @Test
-    fun resolveWithin_absolutePathOutsideDir() {
+    fun resolveWithin_absoluteChildIsRootedUnderDir() {
+        // Unix 的 File(parent, child) 会把绝对路径子项拼到 parent 之下，
+        // 不会越出 base；这里锁定该行为
         val dir = tempDir()
-        assertNull(FsUtil.resolveWithin(dir, "/etc/passwd"))
-        assertNull(FsUtil.resolveWithin(dir, "/tmp/escape.txt"))
+        val resolved = FsUtil.resolveWithin(dir, "/etc/passwd")
+        assertNotNull(resolved)
+        assertEquals(File(dir, "etc/passwd").canonicalFile, resolved)
     }
 
     @Test
-    fun resolveWithin_absolutePathInsideDir() {
+    fun resolveWithin_absoluteChildWithDotDotStillRejected() {
         val dir = tempDir()
-        val inside = File(dir, "inner.txt").canonicalPath
-        assertEquals(File(inside), FsUtil.resolveWithin(dir, inside))
+        assertNull(FsUtil.resolveWithin(dir, "/../escape.txt"))
     }
 }
