@@ -35,7 +35,7 @@ class GithubGistSyncRepository(
         } catch (ex: Exception) {
             log.e("推送云端失败", ex)
             // 按接口契约返回 false 而不是抛异常：调用方按返回值提示成败
-            false
+            return false
         }
     }
 
