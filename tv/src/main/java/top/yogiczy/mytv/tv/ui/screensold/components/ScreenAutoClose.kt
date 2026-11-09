@@ -9,7 +9,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.debounce
-import top.yogiczy.mytv.core.data.utils.Constants
+import top.yogiczy.mytv.tv.ui.utils.Configs
 
 @Stable
 class ScreenAutoClose internal constructor(
@@ -32,7 +32,7 @@ class ScreenAutoClose internal constructor(
 
 @Composable
 fun rememberScreenAutoCloseState(
-    @IntRange(from = 0) timeout: Long = Constants.UI_SCREEN_AUTO_CLOSE_DELAY,
+    @IntRange(from = 0) timeout: Long = Configs.uiScreenAutoCloseDelay,
     onTimeout: () -> Unit = {},
 ) = remember { ScreenAutoClose(timeout = timeout, onTimeout = onTimeout) }.also {
     LaunchedEffect(it) { it.observe() }
