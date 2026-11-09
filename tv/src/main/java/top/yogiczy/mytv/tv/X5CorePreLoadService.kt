@@ -78,10 +78,15 @@ class X5CorePreLoadService : JobIntentService() {
                     }
                     val url = URL(downloadUrl)
                     val connection = url.openConnection()
+                    // 设超时：原先无任何超时，服务端假死时会无限挂住；
+                    // 输入流原先也没关闭，连接一直泄漏
+                    connection.connectTimeout = 30_000
+                    connection.readTimeout = 30_000
                     connection.connect()
-                    val inputStream = connection.getInputStream()
-                    file.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
+                    connection.getInputStream().use { inputStream ->
+                        file.outputStream().use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
                     }
                     runOnUiThread {
                         Toast.makeText(this@X5CorePreLoadService, "下载X5Core成功！", Toast.LENGTH_SHORT).show()
