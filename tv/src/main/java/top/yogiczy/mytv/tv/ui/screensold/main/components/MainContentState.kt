@@ -250,7 +250,10 @@ class MainContentState(
                 }
             } else {
                 // 分组内切换逻辑
-                val group = channelGroupList.getOrElse(channelGroupList.channelGroupIdx(_currentChannel)) { channelGroupList.first() }
+                val group = channelGroupList.getOrElse(channelGroupList.channelGroupIdx(_currentChannel)) { channelGroupList.firstOrNull() }
+                    ?: return _currentChannel
+                // 频道列表为空（源全部加载失败或已清空）时无频道可切，保持当前频道
+                if (group.channelList.isEmpty()) return _currentChannel
                 val currentIdx = group.channelList.indexOf(_currentChannel)
                 if (currentIdx <= 0) {
                     // 当前是分组内第一个
@@ -289,7 +292,10 @@ class MainContentState(
                 }
             } else {
                 // 分组内切换逻辑
-                val group = channelGroupList.getOrElse(channelGroupList.channelGroupIdx(_currentChannel)) { channelGroupList.first() }
+                val group = channelGroupList.getOrElse(channelGroupList.channelGroupIdx(_currentChannel)) { channelGroupList.firstOrNull() }
+                    ?: return _currentChannel
+                // 频道列表为空（源全部加载失败或已清空）时无频道可切，保持当前频道
+                if (group.channelList.isEmpty()) return _currentChannel
                 val currentIdx = group.channelList.indexOf(_currentChannel)
                 if (currentIdx >= group.channelList.size - 1) {
                     // 当前是分组内最后一个
@@ -319,7 +325,7 @@ class MainContentState(
                     settingsViewModel.iptvChannelLinePlayableHostList.contains(line.url.urlHost())
                 }
             } else idx
-        } else (lineIdx + lineList.size) % lineList.size
+        } else lineList.resolveLineIdx(lineIdx)
 
         return max(0, min(idx, lineList.size - 1))
     }
@@ -329,6 +335,9 @@ class MainContentState(
         lineIdx: Int? = null, 
         playbackEpgProgramme: EpgProgramme? = null,
     ) {
+        // 无线路的频道（如空列表兜底的 Channel.EMPTY）无法播放：直接忽略，
+        // 避免 currentChannelLine 下标越界，也不把它记为上次播放
+        if (channel.lineList.isEmpty()) return
         settingsViewModel.iptvChannelLastPlay = channel
         val realLineIdx = getLineIdx(channel.lineList, lineIdx)
 
