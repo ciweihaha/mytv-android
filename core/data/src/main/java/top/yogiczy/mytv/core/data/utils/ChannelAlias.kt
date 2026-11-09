@@ -26,9 +26,7 @@ object ChannelAlias : Loggable("ChannelAlias") {
         return nameCache.getOrPut(name) {
             measureTimedValue {
                 val normalizedSuffixes = getNormalizedSuffixes()
-                val nameWithoutSuffix =
-                    normalizedSuffixes.fold(name) { acc, suffix -> acc.removeSuffix(suffix) }
-                        .trim()
+                val nameWithoutSuffix = stripChannelNameSuffixes(name, normalizedSuffixes)
 
                 findAliasName(nameWithoutSuffix) ?: nameWithoutSuffix
             }.let {
@@ -46,6 +44,27 @@ object ChannelAlias : Loggable("ChannelAlias") {
 
     private fun getNormalizedSuffixes(): List<String> {
         return _aliasMap.getOrElse("__suffix") { emptyList() } + defaultAlias.getOrElse("__suffix") { emptyList() }
+    }
+
+    /**
+     * 反复去掉名字尾部的质量后缀，直到去无可去：后缀表只扫一遍时，
+     * `CCTV-1-4K-HD` 先去掉 `-HD` 露出 `-4K`，而 `-4K` 在表里排在
+     * 前面已扫过，会残留 `-4K`，标准名错导致 EPG 匹配不上
+     */
+    internal fun stripChannelNameSuffixes(name: String, suffixes: List<String>): String {
+        var result = name
+        var changed: Boolean
+        do {
+            changed = false
+            for (suffix in suffixes) {
+                val stripped = result.removeSuffix(suffix)
+                if (stripped != result) {
+                    result = stripped
+                    changed = true
+                }
+            }
+        } while (changed)
+        return result.trim()
     }
 
     private fun findAliasName(name: String): String? {
