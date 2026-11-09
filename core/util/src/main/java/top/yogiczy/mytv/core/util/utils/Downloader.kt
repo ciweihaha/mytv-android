@@ -27,6 +27,10 @@ internal fun calcDownloadProgress(totalBytesRead: Long, contentLength: Long): In
 }
 
 object Downloader {
+    // 进度拦截器各次下载不同，但连接池/线程池应共用：newBuilder() 共享
+    // 基础客户端的连接池与调度器，而不是每次下载都新建一套
+    private val baseClient by lazy { OkHttpClient.Builder().build() }
+
     suspend fun downloadTo(url: String, filePath: String, onProgressCb: ((Int) -> Unit)?) =
         withContext(Dispatchers.IO) {
             val interceptor = Interceptor { chain ->
@@ -35,7 +39,7 @@ object Downloader {
                     .body(DownloadResponseBody(originalResponse, onProgressCb)).build()
             }
 
-            val client = OkHttpClient.Builder().addNetworkInterceptor(interceptor).build()
+            val client = baseClient.newBuilder().addNetworkInterceptor(interceptor).build()
             val request = okhttp3.Request.Builder().url(url).build()
 
             val targetFile = File(filePath)
@@ -76,6 +80,10 @@ object Downloader {
         private val originalResponse: okhttp3.Response,
         private val onProgressCb: ((Int) -> Unit)?,
     ) : okhttp3.ResponseBody() {
+        // 进度回调的协程作用域：原来每次 read()（每 8KB 一次）都新建一个，
+        // 百 MB 下载要建上万个；一个下载共用一个即可
+        private val progressScope = CoroutineScope(Dispatchers.IO)
+
         override fun contentLength() = originalResponse.body?.contentLength() ?: -1
 
         override fun contentType() = originalResponse.body?.contentType()
@@ -90,7 +98,7 @@ object Downloader {
                     val bytesRead = super.read(sink, byteCount)
                     totalBytesRead += if (bytesRead != -1L) bytesRead else 0
                     val progress = calcDownloadProgress(totalBytesRead, contentLength())
-                    CoroutineScope(Dispatchers.IO).launch {
+                    progressScope.launch {
                         onProgressCb?.invoke(progress)
                     }
                     return bytesRead
