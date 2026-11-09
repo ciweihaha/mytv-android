@@ -153,4 +153,42 @@ class IptvParserTest {
         assertEquals(1, channels.size)
         assertEquals("央视", channels[0].groupName)
     }
+
+    @Test
+    fun m3u_kodipropValueWithEquals_notTruncated() = runBlocking {
+        // 旧实现用 split("=").last() 取值，license_key 里带 `=`（URL 参数、
+        // base64 填充）会被截断为空串，DRM 频道播不了
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="DRM-1" group-title="测试",DRM-1
+            #KODIPROP:inputstream.adaptive.manifest_type=mpd
+            #KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+            #KODIPROP:inputstream.adaptive.license_key=https://lic.example.com/get?token=abc==&id=1
+            http://example.com/drm1.mpd
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("mpd", channels[0].manifestType)
+        assertEquals("com.widevine.alpha", channels[0].licenseType)
+        assertEquals(
+            "https://lic.example.com/get?token=abc==&id=1",
+            channels[0].licenseKey,
+        )
+    }
+
+    @Test
+    fun m3u_extvlcoptValueWithEquals_notTruncated() = runBlocking {
+        // #EXTVLCOPT 的 http-referrer 带查询参数时同样不能被截断
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            #EXTVLCOPT:http-referrer=https://example.com/?a=b&c=d
+            #EXTVLCOPT:http-user-agent=Mozilla/5.0
+            http://example.com/cctv1.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("https://example.com/?a=b&c=d", channels[0].httpReferrer)
+        assertEquals("Mozilla/5.0", channels[0].httpUserAgent)
+    }
 }

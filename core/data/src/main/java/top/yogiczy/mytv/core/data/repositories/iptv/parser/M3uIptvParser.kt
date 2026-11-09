@@ -107,22 +107,22 @@ class M3uIptvParser : IptvParser {
                 } else {
                     if (line.startsWith("#KODIPROP:inputstream.adaptive.manifest_type")) {
                         addedChannels =
-                            addedChannels.map { it.copy(manifestType = line.split("=").last()) }
+                            addedChannels.map { it.copy(manifestType = line.substringAfter("=")) }
                     } else if (line.startsWith("#KODIPROP:inputstream.adaptive.license_type")) {
                         addedChannels =
-                            addedChannels.map { it.copy(licenseType = line.split("=").last()) }
+                            addedChannels.map { it.copy(licenseType = line.substringAfter("=")) }
                     } else if (line.startsWith("#KODIPROP:inputstream.adaptive.license_key")) {
                         addedChannels =
-                            addedChannels.map { it.copy(licenseKey = line.split("=").last()) }
+                            addedChannels.map { it.copy(licenseKey = line.substringAfter("=")) }
                     } else if (line.startsWith("#EXTVLCOPT:http-origin")) {
                         addedChannels =
-                            addedChannels.map { it.copy(httpOrigin = line.split("=").last()) }
+                            addedChannels.map { it.copy(httpOrigin = line.substringAfter("=")) }
                     } else if (line.startsWith("#EXTVLCOPT:http-referrer")) {
                         addedChannels =
-                            addedChannels.map { it.copy(httpReferrer = line.split("=").last()) }
+                            addedChannels.map { it.copy(httpReferrer = line.substringAfter("=")) }
                     } else if (line.startsWith("#EXTVLCOPT:http-user-agent")) {
                         addedChannels =
-                            addedChannels.map { it.copy(httpUserAgent = line.split("=").last()) }                      
+                            addedChannels.map { it.copy(httpUserAgent = line.substringAfter("=")) }                      
                     } else if (line.startsWith("#") || line.startsWith("//")) {
                         return@forEach
                     } else{
