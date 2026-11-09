@@ -32,13 +32,19 @@ data class EpgProgramme(
         fun EpgProgramme.isLive() = System.currentTimeMillis() in startAt..<endAt
 
         /**
-         * 节目进度
+         * 节目进度（0~1）。时长 <= 0（EPG 里缺 start/stop、解析失败会得 0）
+         * 时返回 0；当前时间在节目范围外时钳制到 0/1：原先直接相除，
+         * 零时长会算出 NaN/Infinity、越界会算出负数或 >1，调用方拿它当
+         * fillMaxWidth 的比例会布局异常。
          */
-        fun EpgProgramme.progress(current: Long = System.currentTimeMillis()) =
-            (current - startAt).toFloat() / (endAt - startAt)
+        fun EpgProgramme.progress(current: Long = System.currentTimeMillis()): Float {
+            val duration = endAt - startAt
+            if (duration <= 0) return 0f
+            return ((current - startAt).toFloat() / duration).coerceIn(0f, 1f)
+        }
 
         fun EpgProgramme.remainingMinutes(current: Long = System.currentTimeMillis()) =
-            ceil((endAt - current) / 60_000f).roundToInt()
+            ceil((endAt - current) / 60_000f).roundToInt().coerceAtLeast(0)
 
         val EXAMPLE = EpgProgramme(
             startAt = System.currentTimeMillis() - 3600 * 1000,
