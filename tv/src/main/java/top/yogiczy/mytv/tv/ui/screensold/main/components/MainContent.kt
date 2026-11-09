@@ -131,7 +131,11 @@ fun MainContent(
                 onLongDown = {  
                     getKeyDownEvent(settingsViewModel.keyDownEventLongDown, settingsViewModel, mainContentState, isLoading)
                 },
-                onNumber = { channelNumberSelectState.input(it) },
+                onNumber = if (settingsViewModel.iptvChannelNoSelectEnable) {
+                    { channelNumberSelectState.input(it) }
+                } else {
+                    null
+                },
             )
             .handleDragGestures(
                 onSwipeDown = {
