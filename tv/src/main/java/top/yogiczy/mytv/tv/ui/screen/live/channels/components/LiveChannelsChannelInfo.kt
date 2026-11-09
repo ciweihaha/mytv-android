@@ -150,7 +150,9 @@ private fun LiveChannelsChannelInfoTags(
 ) {
     val channel = channelProvider()
     val channelLineIdx = channelLineIdxProvider()
-    val line = channel.lineList[channelLineIdx]
+    // 无线路的频道（如空列表时的 Channel.EMPTY）没有可取的线路：
+    // 旧代码直接下标，快捷操作面板/频道面板在空列表时打开即越界闪退
+    val line = channel.lineList.getOrNull(channelLineIdx)
     val isInTimeShift = isInTimeShiftProvider()
     val currentPlaybackEpgProgramme = currentPlaybackEpgProgrammeProvider()
     val playerMetadata = playerMetadataProvider()
@@ -168,7 +170,7 @@ private fun LiveChannelsChannelInfoTags(
             Tag("时移", colors = tagColors)
         }
 
-        if (line.playbackType != null || currentPlaybackEpgProgramme != null) {
+        if (line?.playbackType != null || currentPlaybackEpgProgramme != null) {
             Tag("回放", colors = tagColors)
         }
 
@@ -176,10 +178,10 @@ private fun LiveChannelsChannelInfoTags(
             Tag("${channelLineIdx + 1}/${channel.lineList.size}", colors = tagColors)
         }
 
-        if (line.hybridType == ChannelLine.HybridType.WebView) {
+        if (line?.hybridType == ChannelLine.HybridType.WebView) {
             Tag(ChannelUtil.getHybridWebViewUrlProvider(line.url), colors = tagColors)
         } else {
-            if (line.url.isIPv6()) Tag("IPv6", colors = tagColors)
+            if (line?.url?.isIPv6() == true) Tag("IPv6", colors = tagColors)
         }
 
         playerMetadata.video?.let { nnVideo ->
