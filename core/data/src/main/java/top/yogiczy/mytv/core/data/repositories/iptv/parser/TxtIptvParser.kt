@@ -36,19 +36,22 @@ class TxtIptvParser : IptvParser {
                     val name = line.substring(0, sepIndex).trim()
                     val urlPart = line.substring(sepIndex + 1)
                     if (urlPart.isBlank()) return@forEach
-                    channelList.addAll(urlPart.split("#").map { url ->
+                    // 先 trim 再判空：尾部 `#`、连续 `##` 会产生空分段，旧代码
+                    // 会加一条播不了的空地址线路；`# webview://…` 带空格时也
+                    // 要先 trim 才能认出 WebView
+                    channelList.addAll(urlPart.split("#").map { it.trim() }.filter { it.isNotBlank() }.map { url ->
                         if (url.startsWith("webview://")) {
                             IptvParser.ChannelItem(
                                 name = name,
                                 groupName = groupName ?: "其他",
-                                url = url.trim(),
+                                url = url,
                                 hybridType = IptvParser.ChannelItem.HybridType.WebView,
                             )
                         } else {
                             IptvParser.ChannelItem(
                                 name = name,
                                 groupName = groupName ?: "其他",
-                                url = url.trim(),
+                                url = url,
                             )
                         }
                     })

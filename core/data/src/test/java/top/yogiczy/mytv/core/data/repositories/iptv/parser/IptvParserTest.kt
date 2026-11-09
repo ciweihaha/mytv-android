@@ -128,6 +128,31 @@ class IptvParserTest {
     }
 
     @Test
+    fun txt_trailingHash_noEmptyUrlLine() = runBlocking {
+        // 尾部 `#`、连续 `##` 不应产生空地址线路
+        val txtData = "央视,#genre#\nCCTV-1,http://a.com/1#\nCCTV-2,http://a.com/2##http://a.com/3"
+        val channels = txtParser.parse(txtData)
+        assertEquals(3, channels.size)
+        assertEquals("http://a.com/1", channels[0].url)
+        assertEquals("http://a.com/2", channels[1].url)
+        assertEquals("http://a.com/3", channels[2].url)
+    }
+
+    @Test
+    fun txt_multiUrlWithSpaces_webviewRecognized() = runBlocking {
+        // `#` 两侧带空格时分段要先 trim，webview:// 才能被认出
+        val txtData = "央视,#genre#\nCCTV-1,http://a.com/1 # webview://example.com/page"
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("http://a.com/1", channels[0].url)
+        assertEquals(
+            IptvParser.ChannelItem.HybridType.WebView,
+            channels[1].hybridType,
+        )
+        assertEquals("webview://example.com/page", channels[1].url)
+    }
+
+    @Test
     fun txt_emptyUrlSkipped() = runBlocking {
         val txtData = "央视,#genre#\nCCTV-1,\nCCTV-2,http://example.com/cctv2"
         val channels = txtParser.parse(txtData)
