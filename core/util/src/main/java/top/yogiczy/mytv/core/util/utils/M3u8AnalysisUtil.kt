@@ -6,15 +6,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 
 object M3u8AnalysisUtil {
+    // 预览取 m3u8 文本：原先 URL.readText() 无任何超时，服务端假死时会
+    // 无限挂住；5 个信号量许可被占满后所有频道预览都停摆。改用带超时的 OkHttp。
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
+
     private suspend fun getFirstTsUrl(m3u8Url: String): String? = withContext(Dispatchers.IO) {
         if (!m3u8Url.split("?").first().endsWith(".m3u8")) return@withContext null
 
         try {
-            val m3u8Content = URL(m3u8Url).readText()
+            val request = Request.Builder().url(m3u8Url).build()
+            val m3u8Content = client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string() ?: return@withContext null
+            }
             val lines = m3u8Content.lines()
             for (line in lines) {
                 if (!line.startsWith("#") && line.contains(".ts", ignoreCase = true)) {
