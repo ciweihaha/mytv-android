@@ -177,6 +177,13 @@ object HttpServer : Loggable("HttpServer") {
         }
     }
 
+    private fun responseError(response: AsyncHttpServerResponse) {
+        wrapResponse(response).apply {
+            setContentType("application/json")
+            send("{\"code\": 1}")
+        }
+    }
+
     private fun handleRawResource(
         response: AsyncHttpServerResponse,
         context: Context,
@@ -314,36 +321,72 @@ object HttpServer : Loggable("HttpServer") {
         response: AsyncHttpServerResponse,
         context: Context,
     ) {
-        val body = request.getBody<MultipartFormDataBody>()
+        // 非 multipart 请求时 getBody 会返回 null 或抛类型转换异常，直接拒绝
+        val body = runCatching { request.getBody<MultipartFormDataBody>() }.getOrNull()
+        if (body == null) {
+            log.e("APK 上传失败: 请求不是 multipart/form-data")
+            responseError(response)
+            return
+        }
 
-        val os = uploadedApkFile.outputStream()
-        val contentLength = request.headers["Content-Length"]?.toLong() ?: 1
+        val contentLength = (request.headers["Content-Length"]?.toLongOrNull() ?: 1)
+            .coerceAtLeast(1)
+        val os = runCatching { uploadedApkFile.outputStream() }.getOrElse {
+            log.e("APK 上传失败: 无法创建上传文件: ${it.message}", it)
+            responseError(response)
+            return
+        }
         var hasReceived = 0L
+        var receivedFile = false
+        var writeFailed = false
 
         body.setMultipartCallback { part ->
             if (part.isFile) {
+                receivedFile = true
                 body.setDataCallback { _, bb ->
-                    val byteArray = bb.allByteArray
-                    hasReceived += byteArray.size
-                    Snackbar.show(
-                        "正在接收文件: ${(hasReceived * 100f / contentLength).toInt()}%",
-                        leadingLoading = true,
-                        id = "uploading_apk",
-                    )
-                    os.write(byteArray)
+                    if (writeFailed) return@setDataCallback
+                    try {
+                        val byteArray = bb.allByteArray
+                        hasReceived += byteArray.size
+                        Snackbar.show(
+                            "正在接收文件: ${(hasReceived * 100f / contentLength).toInt()}%",
+                            leadingLoading = true,
+                            id = "uploading_apk",
+                        )
+                        os.write(byteArray)
+                    } catch (ex: Exception) {
+                        // 磁盘满等写入失败：记下失败并中断上传，不再继续写
+                        writeFailed = true
+                        log.e("APK 上传写入失败: ${ex.message}", ex)
+                        runCatching { os.close() }
+                        body.dataEmitter.close()
+                    }
                 }
             }
         }
 
-        body.setEndCallback {
-            Snackbar.show("正在准备安装，请稍后...", leadingLoading = true, duration = 10_000)
+        body.setEndCallback { ex ->
+            // AndroidAsync 的 report 会把流异常（客户端中断、multipart 损坏等）
+            // 传进 end 回调：原先直接忽略 ex 就去安装，截断/损坏的 APK 也会被安装
+            runCatching { os.flush() }
+            runCatching { os.close() }
             body.dataEmitter.close()
-            os.flush()
-            os.close()
+
+            val error = ex ?: if (writeFailed) Exception("文件写入失败") else null
+            if (error != null || !receivedFile || hasReceived <= 0) {
+                runCatching { uploadedApkFile.delete() }
+                log.e("APK 上传失败: ${error?.message ?: "未收到文件"}", error)
+                Snackbar.show("文件接收失败", type = SnackbarType.ERROR)
+                // 失败响应只在上传真正结束后才发：原先 handler 一返回就先发成功，
+                // 网页端即使随后上传失败也看到成功
+                responseError(response)
+                return@setEndCallback
+            }
+
+            Snackbar.show("正在准备安装，请稍后...", leadingLoading = true, duration = 10_000)
+            responseSuccess(response)
             ApkInstaller.installApk(context, uploadedApkFile.path)
         }
-
-        responseSuccess(response)
     }
 
     // private fun handleUploadAllInOne(
