@@ -78,18 +78,24 @@ fun Context.actionView(url: String) {
 }
 
 fun String.toHeaders(): Map<String, String> {
-    return runCatching {
-        lines().associate {
-            val (key, value) = it.split(":", limit = 2)
-            key.trim() to value.trim()
+    // 逐行解析，跳过空行/非法行：原先用 associate + runCatching，一行非法
+    // （粘贴时常见的末尾空行也算）就丢掉全部 headers，需要鉴权的流播不了；
+    // 与 headersValid() 用同一条“合法行”判定
+    return lines().mapNotNull { line ->
+        val parts = line.split(":", limit = 2)
+        if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+            parts[0].trim() to parts[1].trim()
+        } else {
+            null
         }
-    }.getOrElse { emptyMap() }
+    }.toMap()
 }
 
 fun String.headersValid(): Boolean {
     if (isBlank()) return true
 
-    return lines().all { line ->
+    // 空行不算非法（粘贴末尾换行很常见）：只校验非空行
+    return lines().filter { it.isNotBlank() }.all { line ->
         val parts = line.split(":", limit = 2)
         parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()
     }
