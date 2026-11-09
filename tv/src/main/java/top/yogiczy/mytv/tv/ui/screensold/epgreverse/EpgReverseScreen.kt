@@ -41,13 +41,26 @@ fun EpgReverseScreen(
 
     LaunchedEffect(Unit) {
         while (true) {
+            val now = System.currentTimeMillis()
             val epgProgrammeReserveList = epgProgrammeReserveListProvider()
 
-            epgProgrammeReserveList.forEach {
-                if (System.currentTimeMillis() > it.startAt) {
-                    onDeleteReserve(it)
-                    activeProgrammeReserve = it
-                }
+            // 已结束的预约不再提醒，直接清理（否则关机错过后重开应用，
+            // 会对已播完的节目弹出“即将开始”）
+            epgProgrammeReserveList
+                .filter { it.endAt > 0 && now >= it.endAt }
+                .forEach { onDeleteReserve(it) }
+
+            // 每轮只提醒一个到点且未结束的预约：旧代码用 forEach 全删
+            // 全弹，多个预约同时到点时只显示最后一个、其余的被删掉且
+            // 永不提醒；其余的留待下一轮依次提醒。已有弹窗在显示时不抢
+            if (activeProgrammeReserve == null) {
+                epgProgrammeReserveList
+                    .filter { now > it.startAt && (it.endAt <= 0 || now < it.endAt) }
+                    .minByOrNull { it.startAt }
+                    ?.let {
+                        onDeleteReserve(it)
+                        activeProgrammeReserve = it
+                    }
             }
 
             delay(60 * 1000)
