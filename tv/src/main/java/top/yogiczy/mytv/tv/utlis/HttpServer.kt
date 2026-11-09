@@ -27,6 +27,7 @@ import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.Loggable
 import top.yogiczy.mytv.core.data.utils.Logger
 import top.yogiczy.mytv.core.util.utils.ApkInstaller
+import top.yogiczy.mytv.core.util.utils.FsUtil
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.HttpServerService
 import top.yogiczy.mytv.tv.R
@@ -469,11 +470,15 @@ object HttpServer : Loggable("HttpServer") {
         val filename = body.get("filename").toString()
         val content = body.get("content").toString()
 
-        val file = when (dir) {
-            "cache" -> File(Globals.cacheDir, filename)
-            "file" -> File(Globals.fileDir, filename)
+        val baseDir = when (dir) {
+            "cache" -> Globals.cacheDir
+            "file" -> Globals.fileDir
             else -> return response.code(400).send("Invalid dir")
         }
+
+        // 文件名含 .. 或绝对路径时可能越出 cache/file 目录，拒绝写入
+        val file = FsUtil.resolveWithin(baseDir, filename)
+            ?: return response.code(400).send("Invalid filename")
 
         if (file.exists()) {
             file.writeText(content)
