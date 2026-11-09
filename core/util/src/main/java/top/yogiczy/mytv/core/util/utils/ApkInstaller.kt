@@ -47,7 +47,11 @@ object ApkInstaller {
                 setDataAndType(uri, "application/vnd.android.package-archive")
             }
 
-            context.startActivity(installIntent)
+            // 无包安装器处理该 intent 的设备上直接 startActivity 会抛
+            // ActivityNotFoundException（经 LaunchedEffect 上抛即闪退）
+            if (installIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(installIntent)
+            }
         }
     }
 }

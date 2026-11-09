@@ -32,6 +32,14 @@ class UpdateViewModel(
     private var _updateDownloaded by mutableStateOf(false)
     val updateDownloaded get() = _updateDownloaded
 
+    /**
+     * 消费“已下载待安装”标记：安装尝试后即清除，避免下次打开更新页
+     * 时对陈旧的 latest.apk 再次自动弹出安装器。
+     */
+    fun consumeUpdateDownloaded() {
+        _updateDownloaded = false
+    }
+
     private var _latestRelease by mutableStateOf(debugLatestRelease ?: GitRelease())
     val latestRelease get() = _latestRelease
 

@@ -49,14 +49,21 @@ fun UpdateScreen(
     val (hasPermission, requestPermission) = rememberCanRequestPackageInstallsPermission()
 
     LaunchedEffect(hasPermission) {
-        if (hasPermission) ApkInstaller.installApk(context, latestFile.path)
+        // 只在刚下载完待安装时自动装：旧代码不看 updateDownloaded，
+        // 陈旧的 latest.apk 会在每次打开更新页时都自动弹出安装器
+        if (hasPermission && updateViewModel.updateDownloaded) {
+            ApkInstaller.installApk(context, latestFile.path)
+            updateViewModel.consumeUpdateDownloaded()
+        }
     }
 
     LaunchedEffect(updateViewModel.updateDownloaded) {
         if (!updateViewModel.updateDownloaded) return@LaunchedEffect
 
-        if (hasPermission) ApkInstaller.installApk(context, latestFile.path)
-        else requestPermission()
+        if (hasPermission) {
+            ApkInstaller.installApk(context, latestFile.path)
+            updateViewModel.consumeUpdateDownloaded()
+        } else requestPermission()
     }
 
     AppScreen(modifier = modifier,
