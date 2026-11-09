@@ -16,9 +16,9 @@ import java.util.Locale
 import kotlin.time.measureTimedValue
 
 object EpgParser : Loggable("EpgParser") {
-    private fun parseTime(time: String): Long {
+    private fun parseTime(time: String, dateFormat: SimpleDateFormat): Long {
         if (time.length < 14) return 0
-        return SimpleDateFormat("yyyyMMddHHmmss Z", Locale.getDefault()).parse(time)?.time ?: 0
+        return dateFormat.parse(time)?.time ?: 0
     }
 
     private data class ChannelItem(
@@ -46,7 +46,12 @@ object EpgParser : Loggable("EpgParser") {
 
             var lastChannel: ChannelItem? = null
             val channelList = mutableListOf<ChannelItem>()
+            // 频道 id 查表：原先每条节目都用 channelList.any 顺序扫描，
+            // 大节目单（数千频道 × 数十万条节目）是 O(频道 × 节目)
+            val channelIds = mutableSetOf<String>()
             val programmeList = mutableListOf<ProgrammeItem>()
+            // 同一次解析内复用同一个 SimpleDateFormat（原先每条节目 new 一个）
+            val dateFormat = SimpleDateFormat("yyyyMMddHHmmss Z", Locale.getDefault())
 
             var eventType = parser.eventType
             while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -83,20 +88,34 @@ object EpgParser : Loggable("EpgParser") {
                             "programme" -> {
                                 runCatching {
                                     val channel = parser.getAttributeValue(null, "channel")
-                                    if (channelList.any { it.id == channel }) {
-                                        val start = parser.getAttributeValue(null, "start")
-                                        val stop = parser.getAttributeValue(null, "stop")
-                                        parser.nextTag()
-                                        val title = parser.nextText()
-
-                                        programmeList.add(
-                                            ProgrammeItem(
-                                                channel,
-                                                parseTime(start),
-                                                parseTime(stop),
-                                                title
+                                    val start = parser.getAttributeValue(null, "start")
+                                    val stop = parser.getAttributeValue(null, "stop")
+                                    // 按标签名取 title：原先用 nextTag/nextText 取第一个子
+                                    // 元素，子元素顺序不是 title 在前时会把 desc 等错当标题；
+                                    // 无论频道是否已知，都消费完子元素再回到外层循环
+                                    var title: String? = null
+                                    var event = parser.next()
+                                    while (event != XmlPullParser.END_DOCUMENT &&
+                                        !(event == XmlPullParser.END_TAG && parser.name == "programme")
+                                    ) {
+                                        if (event == XmlPullParser.START_TAG &&
+                                            parser.name == "title" && title == null
+                                        ) {
+                                            title = parser.nextText()
+                                        }
+                                        event = parser.next()
+                                    }
+                                    if (channelIds.contains(channel)) {
+                                        title?.let {
+                                            programmeList.add(
+                                                ProgrammeItem(
+                                                    channel,
+                                                    parseTime(start, dateFormat),
+                                                    parseTime(stop, dateFormat),
+                                                    it
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                 }
                             }
@@ -109,6 +128,7 @@ object EpgParser : Loggable("EpgParser") {
                                 lastChannel?.let {
                                     if (it.displayNames.isNotEmpty()) {
                                         channelList.add(it)
+                                        channelIds.add(it.id)
                                     }
                                 }
                             }
