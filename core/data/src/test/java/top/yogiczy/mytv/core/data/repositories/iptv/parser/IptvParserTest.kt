@@ -66,4 +66,43 @@ class IptvParserTest {
         assertEquals("央视", channels[0].groupName)
         assertEquals("CCTV-1", channels[0].name)
     }
+
+    @Test
+    fun m3u_channelNameWithComma() = runBlocking {
+        // 频道名本身含逗号：旧代码 split(",").last() 只剩尾段
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 group-title="央视",CCTV-1,高清
+            http://example.com/cctv1.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1,高清", channels[0].name)
+    }
+
+    @Test
+    fun m3u_attributeValueWithComma() = runBlocking {
+        // 属性值含逗号时，显示名仍是属性区之后第一个逗号后的全部内容
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="A,B" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("A,B", channels[0].epgName)
+    }
+
+    @Test
+    fun m3u_channelNameAndAttributeBothWithComma() = runBlocking {
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="A,B",CCTV-1,高清
+            http://example.com/cctv1.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1,高清", channels[0].name)
+    }
 }
