@@ -57,12 +57,16 @@ fun MultiViewItem(
     onMoveTo: (Int) -> Unit = {},
 ) {
     val channel = channelProvider()
+    // 无线路的频道（如空列表兜底的 Channel.EMPTY）没有可播线路：
+    // 旧代码最后用 lineList.first() 兜底，空列表直接抛异常；改成
+    // 可空，下游不准备播放器、不显示频道信息浮层，仍可通过操作
+    // 菜单换台
     val line = remember(channel) {
         channel.lineList.firstOrNull { line ->
             Configs.iptvChannelLinePlayableUrlList.contains(line.url)
         } ?: channel.lineList.firstOrNull { line ->
             Configs.iptvChannelLinePlayableHostList.contains(line.url.urlHost())
-        } ?: channel.lineList.first()
+        } ?: channel.lineList.firstOrNull()
     }
     val childPadding = rememberChildPadding()
 
@@ -88,7 +92,7 @@ fun MultiViewItem(
 
     LaunchedEffect(channel) {
         channelInfoVisible = true
-        player.prepare(line)
+        line?.let { player.prepare(it) }
     }
 
     LaunchedEffect(isFocused) {
@@ -135,7 +139,7 @@ fun MultiViewItem(
             }
         }
 
-        Visibility({ channelInfoVisible }) {
+        Visibility({ channelInfoVisible && line != null }) {
             ChannelTempScreen(
                 channelProvider = channelProvider,
                 channelLineIdxProvider = { channel.lineList.indexOf(line) },
@@ -198,7 +202,7 @@ fun MultiViewItem(
                 actionsVisible = false
             },
             onVideoPlayerReload = {
-                player.prepare(line)
+                line?.let { player.prepare(it) }
                 actionsVisible = false
             },
         )
