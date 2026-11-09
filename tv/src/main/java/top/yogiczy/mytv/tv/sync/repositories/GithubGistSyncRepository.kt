@@ -9,7 +9,6 @@ import top.yogiczy.mytv.core.data.network.request
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.Loggable
 import top.yogiczy.mytv.tv.sync.CloudSyncData
-import java.net.URL
 
 class GithubGistSyncRepository(
     private val gistId: String,
@@ -52,7 +51,11 @@ class GithubGistSyncRepository(
                 file?.get("truncated")?.jsonPrimitive?.booleanOrNull?.let { nnTruncated ->
                     if (nnTruncated) {
                         file["raw_url"]?.jsonPrimitive?.content?.let { rawUrl ->
-                            Globals.json.decodeFromString<CloudSyncData>(URL(rawUrl).readText())
+                            // 大文件走 raw 链接拉取：同样用统一的 OkHttp 请求，
+                            // 原先 URL.readText() 无超时，服务端假死时会无限挂住
+                            val text = rawUrl.request { body -> body.string() }
+                                ?: throw Exception("拉取云端失败：服务器返回空数据")
+                            Globals.json.decodeFromString<CloudSyncData>(text)
                         }
                     } else {
                         file["content"]?.jsonPrimitive?.content?.let {
