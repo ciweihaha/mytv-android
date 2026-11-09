@@ -64,12 +64,7 @@ fun SearchScreen(
                         ChannelList()
                     } else {
                         val channelList = channelGroupListProvider().channelList
-                        ChannelList(channelList.filter { channel ->
-                            Pinyin.toPinyin(channel.name, ",")
-                                .split(",")
-                                .joinToString("") { it.firstOrNull()?.lowercase() ?: "" }
-                                .contains(key.lowercase())
-                        })
+                        ChannelList(channelList.filter { channel -> channel.matchesSearchQuery(key) })
                     }
                 },
                 onChannelSelected = onChannelSelected,
@@ -87,5 +82,22 @@ private fun SearchScreenPreview() {
         SearchScreen()
         PreviewWithLayoutGrids { }
     }
+}
+
+/**
+ * 频道名是否匹配搜索关键词：原名、拼音首字母、全拼三者任一包含即可。
+ * 旧实现只比拼音首字母，输全拼（如 YANGSHI 搜“央视”）搜不到。
+ */
+private fun Channel.matchesSearchQuery(query: String): Boolean {
+    if (query.isEmpty()) return false
+    val key = query.lowercase()
+    if (name.lowercase().contains(key)) return true
+
+    val pinyinParts = Pinyin.toPinyin(name, ",").split(",")
+    val initials = pinyinParts.joinToString("") { it.firstOrNull()?.lowercase() ?: "" }
+    if (initials.contains(key)) return true
+
+    val fullPinyin = pinyinParts.joinToString("") { it.lowercase() }
+    return fullPinyin.contains(key)
 }
 
