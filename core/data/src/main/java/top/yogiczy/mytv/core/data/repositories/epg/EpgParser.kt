@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import top.yogiczy.mytv.core.data.entities.epg.Epg
+import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.sortedProgrammes
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeList
@@ -148,7 +149,7 @@ object EpgParser : Loggable("EpgParser") {
                             EpgProgramme(programme.start, programme.end, programme.title)
                         } ?: emptyList()
                     ),
-                )
+                ).sortedProgrammes()
             })
         }
     }

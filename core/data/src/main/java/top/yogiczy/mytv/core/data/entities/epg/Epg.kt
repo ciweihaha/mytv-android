@@ -28,6 +28,15 @@ data class Epg(
     companion object {
         private val log = Logger.create("Epg")
 
+        /**
+         * 按开始时间排好节目：源文件不保证按时间顺序，而 recentProgramme
+         * 的二分查找和节目单界面都依赖有序列表；sortedBy 是稳定排序，
+         * 同一开始时间的节目保持原文顺序
+         */
+        fun Epg.sortedProgrammes(): Epg {
+            return copy(programmeList = EpgProgrammeList(programmeList.sortedBy { it.startAt }))
+        }
+
         fun Epg.recentProgramme(): EpgProgrammeRecent {
             if (this == Epg()) return EpgProgrammeRecent()
 
