@@ -54,22 +54,32 @@ suspend fun <T> String.request(
     val url = this
 
     return withContext(Dispatchers.IO) {
-        val client = OkHttpClient.Builder()
-            .sslSocketFactory(
-                TrustAllSSLSocketFactory.sslSocketFactory,
-                TrustAllSSLSocketFactory.trustManager
-            )
-            .hostnameVerifier { _, _ -> true }
-            .followRedirects(true).build()
         val request = Request.Builder()
             .url(url)
             .let(builder)
             .build()
 
-        val response = client.newCall(request).await()
+        val response = sharedClient.newCall(request).await()
 
-        if (!response.isSuccessful) throw Exception("${response.code}: ${response.message}")
+        if (!response.isSuccessful) {
+            // 错误分支原来不关 response：body 不关连接无法回池，
+            // 共用客户端后会把池里的连接漏光
+            response.closeQuietly()
+            throw Exception("${response.code}: ${response.message}")
+        }
 
         action(response, response.request)
     }
+}
+
+// OkHttpClient 应全局共用：每次请求新建会丢掉连接复用，且每个客户端
+// 自带连接池与线程池；信任全部证书等配置各次调用都相同
+private val sharedClient by lazy {
+    OkHttpClient.Builder()
+        .sslSocketFactory(
+            TrustAllSSLSocketFactory.sslSocketFactory,
+            TrustAllSSLSocketFactory.trustManager
+        )
+        .hostnameVerifier { _, _ -> true }
+        .followRedirects(true).build()
 }
