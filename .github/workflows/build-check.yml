@@ -51,9 +51,9 @@ jobs:
         run: |
           keytool -genkeypair -keystore /tmp/release.keystore -storepass android -alias release -keypass android -dname "CN=CI,O=CI,C=CN" -keyalg RSA -keysize 2048 -validity 1
           echo "KEYSTORE=/tmp/release.keystore" >> "$GITHUB_ENV"
-          echo "KEYSTORE_PASSWORD=<redacted>" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
           echo "KEY_ALIAS=release" >> "$GITHUB_ENV"
-          echo "KEY_PASSWORD=<redacted>" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
 
       - name: 构建 debug APK
         run: ./gradlew :tv:assembleDebug
