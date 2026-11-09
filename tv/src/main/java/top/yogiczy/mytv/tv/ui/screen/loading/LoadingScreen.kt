@@ -49,8 +49,12 @@ fun LoadingScreen(
     onShowDialog: () -> Unit = {},
     toDashboardScreen: () -> Unit = {},
 ) {
-    onShowDialog()
-    toDashboardScreen()
+    // 导航/弹窗属于副作用，不能在组合期间直接执行（组合重跑会重复导航）；
+    // LaunchedEffect(Unit) 只在进入该目的地时跑一次，行为与原来一致
+    LaunchedEffect(Unit) {
+        onShowDialog()
+        toDashboardScreen()
+    }
 }
 
 @Composable
