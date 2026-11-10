@@ -356,7 +356,7 @@ class MainContentState(
         currentChannelLine.playbackUrl = null
         isInPlaybackMode = false
         var url = currentChannelLine.url
-        if (_currentPlaybackEpgProgramme != null) {
+        _currentPlaybackEpgProgramme?.let { playbackEpg ->
             if(currentChannelLine.playbackType != null){
                 var playbackFormat = currentChannelLine.playbackFormat ?: ""
                 val timeFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
@@ -388,7 +388,7 @@ class MainContentState(
                         .replace("{M}", tfm.format(epgProgramme.startAt))
                         .replace("{S}", tfS.format(epgProgramme.startAt))
                 }
-                playbackFormat = ChannelUtil.replacePlaybackFormat(playbackFormat, _currentPlaybackEpgProgramme!!.startAt, nowTime, _currentPlaybackEpgProgramme!!.endAt)?:""
+                playbackFormat = ChannelUtil.replacePlaybackFormat(playbackFormat, playbackEpg.startAt, nowTime, playbackEpg.endAt)?:""
                 url = when (currentChannelLine.playbackType ?: 10) {
                     0 -> playbackFormat
                     1 -> "$url$playbackFormat"
@@ -401,9 +401,9 @@ class MainContentState(
                 val timeFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
                 val query = listOf(
                     "playseek=",
-                    timeFormat.format(_currentPlaybackEpgProgramme!!.startAt),
+                    timeFormat.format(playbackEpg.startAt),
                     "-",
-                    timeFormat.format(_currentPlaybackEpgProgramme!!.endAt),
+                    timeFormat.format(playbackEpg.endAt),
                 ).joinToString("")
                 url = if (URI(url).query.isNullOrBlank()) "$url?$query" else "$url&$query"
                 if (Configs.iptvPLTVToTVOD){
