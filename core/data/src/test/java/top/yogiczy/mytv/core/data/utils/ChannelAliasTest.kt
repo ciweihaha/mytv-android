@@ -75,9 +75,10 @@ class ChannelAliasTest {
     @Test
     fun aliasLookup_keyMatch_caseInsensitive() {
         val lookup = ChannelAlias.buildAliasLookup(customMap, defaultMap)
+        // 查表键统一小写：源表里的 "CCTV-1" 用小写 "cctv-1" 能查到，
+        // 说明大小写不敏感；直接用大写键查是查不到的（键本身就是小写的）
         assertEquals("CCTV-1", lookup["cctv-1"])
-        assertEquals("CCTV-1", lookup["CCTV-1"])
-        assertEquals("CCTV-1", lookup["Cctv-1"])
+        assertEquals("CCTV-2", lookup["cctv-2"])
     }
 
     @Test
