@@ -10,6 +10,9 @@ name: Build Check
 # 注意：tv 模块的 debug 与 release 都用 release signingConfig，
 # 且仓库里没有 keystore，所以任何 gradle 构建之前必须先生成
 # 一次性 keystore 并导出 KEYSTORE 等环境变量（见下）。
+#
+# 2026-11-10：run 42726562332 的 rerun 卡死后，推送/dispatch 一度建不出
+# 新 run；本行注释仅为让 GitHub 重新读取工作流定义，无行为变化。
 
 on:
   push:
