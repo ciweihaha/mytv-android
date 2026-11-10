@@ -415,11 +415,16 @@ private fun rememberNetSpeed(): Long {
             delay(1000)
             val nowTotalRxBytes = TrafficStats.getUidRxBytes(android.os.Process.myUid())
             val nowTimeStamp = System.currentTimeMillis()
-            val speed = (nowTotalRxBytes - lastTotalRxBytes) / (nowTimeStamp - lastTimeStamp) * 1000
+            // 墙上时钟会被 NTP 对时或用户改时间拨回，两次采样的时间差可能
+            // 为 0 或负数：原先直接相除，差为 0 时抛 ArithmeticException
+            // 闪退；差为负时算出负网速。差 <= 0 时跳过这次更新。
+            val deltaTime = nowTimeStamp - lastTimeStamp
+            if (deltaTime > 0) {
+                netSpeed =
+                    ((nowTotalRxBytes - lastTotalRxBytes) / deltaTime * 1000).coerceAtLeast(0)
+            }
             lastTimeStamp = nowTimeStamp
             lastTotalRxBytes = nowTotalRxBytes
-
-            netSpeed = speed
         }
     }
 
