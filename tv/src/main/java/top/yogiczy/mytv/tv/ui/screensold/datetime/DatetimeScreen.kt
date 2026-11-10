@@ -33,6 +33,9 @@ fun DatetimeScreen(
     var timeText by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
 
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val timeFormatWithSeconds = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+
     LaunchedEffect(Unit) {
         while (true) {
             val timestamp = System.currentTimeMillis()
@@ -52,8 +55,8 @@ fun DatetimeScreen(
 
             if (visible) {
                 timeText = when (showModeProvider()) {
-                    Configs.UiTimeShowMode.ALWAYS -> SimpleDateFormat("HH:mm", Locale.getDefault())
-                    else -> SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                    Configs.UiTimeShowMode.ALWAYS -> timeFormat
+                    else -> timeFormatWithSeconds
                 }.format(timestamp)
             }
 
