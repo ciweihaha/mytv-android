@@ -40,7 +40,7 @@ fun EpgProgrammeItem(
     focusOnLive: Boolean = true,
 ) {
     val programme = epgProgrammeProvider()
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     var isFocused by remember { mutableStateOf(false) }
 
