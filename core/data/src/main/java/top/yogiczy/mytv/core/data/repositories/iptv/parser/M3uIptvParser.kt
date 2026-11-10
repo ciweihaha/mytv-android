@@ -102,8 +102,10 @@ class M3uIptvParser : IptvParser {
                             }
                         } 
                     }
-                    // 记录解析结果
-                    logger.i("解析结果: name=$name, epgName=$epgName, groupNames=$groupNames, logo=$logo, httpUserAgent=$httpUserAgent, httpReferrer=$httpReferrer, httpOrigin=$httpOrigin, playbackType=$playbackType, playbackFormat=$playbackFormat")
+                    // 逐频道日志只写 logcat（v 级不进应用内日志历史）：
+                    // 原先每频道一条 INFO，应用内日志只留 100 条，一次刷新
+                    // 就把历史全顶成解析流水，真正的报错全被挤出去
+                    logger.v("解析结果: name=$name, epgName=$epgName, groupNames=$groupNames, logo=$logo, httpUserAgent=$httpUserAgent, httpReferrer=$httpReferrer, httpOrigin=$httpOrigin, playbackType=$playbackType, playbackFormat=$playbackFormat")
 
                     addedChannels = groupNames.map { groupName ->
                         IptvParser.ChannelItem(
@@ -141,8 +143,8 @@ class M3uIptvParser : IptvParser {
                     } else if (line.startsWith("#") || line.startsWith("//")) {
                         return@forEach
                     } else{
-                        // 记录URL行
-                        logger.i("解析URL行: $line")
+                        // 记录URL行（v 级：每行一条 INFO 会冲掉 100 条的应用内日志历史）
+                        logger.v("解析URL行: $line")
                         val trimmedUrl = line.trim()
                         
                         // 检查是否是webview链接
@@ -156,7 +158,7 @@ class M3uIptvParser : IptvParser {
                                 ) 
                             })
                         } else {
-                            logger.i("普通URL: $trimmedUrl, hybridType=None")
+                            logger.v("普通URL: $trimmedUrl, hybridType=None")
                             channelList.addAll(addedChannels.map { it.copy(url = trimmedUrl) })
                         }
                     }
