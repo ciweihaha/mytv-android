@@ -1,8 +1,8 @@
 package top.yogiczy.mytv.tv.ui.screen.main
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
@@ -62,7 +62,7 @@ fun MainScreen(
     onBackPressed: () -> Unit = {},
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val uiState by mainViewModel.uiState.collectAsState()
+    val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     
     mainViewModel.needRefresh = { settingsViewModel.refresh() }
 
