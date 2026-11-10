@@ -1,6 +1,6 @@
 [versions]
 agp = "9.5.0"
-coil = "3.6.3"
+coil = "2.7.0"
 desugar_jdk_libs = "2.1.5"
 coreKtx = "1.16.0"
 kotlin = "2.4.21"
@@ -31,9 +31,8 @@ compileSdk = "37"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
-coil-svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil" }
-coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+coil-svg = { module = "io.coil-kt:coil-svg", version.ref = "coil" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 android-material = {module = "com.google.android.material:material", version.ref = "android_material"}
