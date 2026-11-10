@@ -41,7 +41,10 @@ abstract class FileCacheRepository(
 
     protected suspend fun setCacheInputStream(data: InputStream) = withContext(Dispatchers.IO) {
         val file = getCacheFile()
-        writeAtomically(file) { tmp -> tmp.outputStream().use { data.copyTo(it) } }
+        // 刷新流用完必须关：原来只关了输出流，输入流读完也不关；
+        // 节目单刷新走网络流（ResponseBody.byteStream），不关连接回不了
+        // 共用池，每次刷新漏一个连接（第 52 轮修的是错误分支，成功分支一直漏着）
+        writeAtomically(file) { tmp -> tmp.outputStream().use { out -> data.use { input -> input.copyTo(out) } } }
     }
 
     /**

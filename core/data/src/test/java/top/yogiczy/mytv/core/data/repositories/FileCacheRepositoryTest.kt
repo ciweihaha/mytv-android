@@ -9,7 +9,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import top.yogiczy.mytv.core.data.utils.Globals
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.InputStream
 
 class FileCacheRepositoryTest {
     @get:Rule
@@ -29,6 +31,9 @@ class FileCacheRepositoryTest {
                 refreshCount++
                 value.byteInputStream()
             }.readBytes().decodeToString()
+
+        suspend fun getStreamFrom(stream: InputStream): String =
+            getOrRefreshInputStream(0) { stream }.use { it.readBytes().decodeToString() }
     }
 
     @Before
@@ -70,6 +75,22 @@ class FileCacheRepositoryTest {
         assertEquals(1, repo.refreshCount)
         assertTrue(File(Globals.cacheDir, "test.bin").exists())
         assertFalse(File(Globals.cacheDir, "test.bin.tmp").exists())
+    }
+
+    @Test
+    fun getOrRefreshInputStream_closesRefreshStream() = runBlocking {
+        val repo = TestRepo("test.bin")
+        var closed = false
+        // 模拟网络来的刷新流：旧代码读完不关，连接回不了共用池
+        val tracking = object : ByteArrayInputStream("hello".toByteArray()) {
+            override fun close() {
+                closed = true
+                super.close()
+            }
+        }
+        assertEquals("hello", repo.getStreamFrom(tracking))
+        assertTrue(closed)
+        assertEquals("hello", File(Globals.cacheDir, "test.bin").readText())
     }
 
     @Test
