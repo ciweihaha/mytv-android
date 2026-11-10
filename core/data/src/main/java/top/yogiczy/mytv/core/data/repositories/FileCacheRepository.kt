@@ -116,7 +116,11 @@ abstract class FileCacheRepository(
 
     open suspend fun clearCache() = withContext(Dispatchers.IO) {
         try {
-            getCacheFile().delete()
+            val file = getCacheFile()
+            file.delete()
+            // 原子写崩溃后残留的 .tmp：只删目标文件的话它会一直留在缓存
+            // 目录里，“清除缓存”也清不掉，崩溃多了越积越多
+            File(file.absoluteFile.parent, "${file.name}.tmp").delete()
         } catch (ex: Exception) {
             ex.printStackTrace()
         }

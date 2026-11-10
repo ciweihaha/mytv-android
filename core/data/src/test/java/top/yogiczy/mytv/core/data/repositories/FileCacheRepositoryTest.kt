@@ -71,4 +71,15 @@ class FileCacheRepositoryTest {
         assertTrue(File(Globals.cacheDir, "test.bin").exists())
         assertFalse(File(Globals.cacheDir, "test.bin.tmp").exists())
     }
+
+    @Test
+    fun clearCache_alsoDeletesOrphanedTempFile() = runBlocking {
+        val repo = TestRepo("test.json")
+        repo.get(Long.MAX_VALUE, "v1")
+        // 模拟原子写中途崩溃残留的 .tmp
+        File(Globals.cacheDir, "test.json.tmp").writeText("partial")
+        repo.clearCache()
+        assertFalse(File(Globals.cacheDir, "test.json").exists())
+        assertFalse(File(Globals.cacheDir, "test.json.tmp").exists())
+    }
 }
