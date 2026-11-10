@@ -395,9 +395,10 @@ fun LiveChannelsChannelInfoNetSpeed(
     modifier: Modifier = Modifier,
     netSpeed: Long = rememberNetSpeed(),
 ) {
+    val decimalFormat = remember { DecimalFormat("#.#") }
     Text(
         text = if (netSpeed < 1024 * 999) "${netSpeed / 1024}KB/s"
-        else "${DecimalFormat("#.#").format(netSpeed / 1024 / 1024f)}MB/s",
+        else "${decimalFormat.format(netSpeed / 1024 / 1024f)}MB/s",
         modifier = modifier.sizeIn(minWidth = 60.dp),
         maxLines = 1,
     )
