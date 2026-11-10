@@ -271,11 +271,15 @@ private fun AppThemeWrapperImage(
             contentDescription = null,
         )
     } else {
-        runCatching {
+        // Kotlin 2.4 编译器不许 runCatching 里调 @Composable：先解码（可能失败），
+        // 解码成功才画图；解码失败不画，与原来（异常被 runCatching 吃掉）行为一致。
+        val imageBitmap = runCatching {
             val imageBytes = Base64.decode(model, Base64.DEFAULT)
             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            val imageBitmap = bitmap.asImageBitmap()
+            bitmap.asImageBitmap()
+        }.getOrNull()
 
+        if (imageBitmap != null) {
             Image(
                 bitmap = imageBitmap,
                 contentScale = contentScale,
