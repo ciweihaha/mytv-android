@@ -44,7 +44,7 @@ fun EpgScreen(
 ) {
     val screenAutoCloseState = rememberScreenAutoCloseState(onTimeout = onClose)
 
-    val dateFormat = SimpleDateFormat("E MM-dd", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("E MM-dd", Locale.getDefault()) }
     val epg = epgProvider()
     val programDayGroup = epg.programmeList.groupBy { dateFormat.format(it.startAt) }
     var currentDay by remember { mutableStateOf(dateFormat.format(System.currentTimeMillis())) }
