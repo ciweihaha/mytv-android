@@ -153,18 +153,19 @@ class DownloaderTest {
                     "http://127.0.0.1:${server.port}/big", target.path
                 ) { seen.add(it) }
             }
-            // 回调是异步发的：等 99（最后一个值）到了再断言，另留一点
-            // 时间给可能乱序到达的尾部回调
+            // 回调是异步发的：等 100（读满时的最后一个值）到了再断言，
+            // 另留一点时间给可能乱序到达的尾部回调；calcDownloadProgress
+            // 只把 >100 钳到 99，读满正好 100 时会回调 100
             val deadline = System.currentTimeMillis() + 5000
-            while (System.currentTimeMillis() < deadline && !seen.contains(99)) {
+            while (System.currentTimeMillis() < deadline && !seen.contains(100)) {
                 Thread.sleep(50)
             }
             Thread.sleep(200)
             assertTrue(seen.isNotEmpty())
-            assertEquals(99, seen.maxOrNull())
+            assertEquals(100, seen.maxOrNull())
             // 无重复值（去重是关键性质；回调异步发，不断言顺序）
             assertEquals(seen.toSet().size, seen.size)
-            assertTrue(seen.size <= 100)
+            assertTrue(seen.size <= 101)
         } finally {
             server.stop()
         }
