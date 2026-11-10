@@ -471,16 +471,22 @@ class Media3VideoPlayer(
         }
     }
 
-    private fun Int.fromIndexFindTrack(type: @C.TrackType Int): Pair<TrackGroup, Int> {
+    /**
+     * 按展平后的轨道下标找轨道组。下标越界（轨道列表还是旧频道
+     * 的、切台后新流轨道变少，或重建播放器时当前轨道为空）时
+     * 返回 null，调用方直接忽略这次选择：原先用 first()，
+     * 越界直接抛 NoSuchElementException 闪退。
+     */
+    private fun Int.fromIndexFindTrack(type: @C.TrackType Int): Pair<TrackGroup, Int>? {
         val groups = videoPlayer.currentTracks.groups
             .filter { group -> group.mediaTrackGroup.type == type }
             .map { it.mediaTrackGroup }
 
         var trackCount = 0
-        val group = groups.first { group ->
+        val group = groups.firstOrNull { group ->
             trackCount += group.length
             this < trackCount
-        }
+        } ?: return null
 
         val trackIndex = this - (trackCount - group.length)
 
@@ -633,7 +639,7 @@ class Media3VideoPlayer(
             return
         }
 
-        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_VIDEO)
+        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_VIDEO) ?: return
 
         videoPlayer.trackSelectionParameters = videoPlayer.trackSelectionParameters
             .buildUpon()
@@ -652,7 +658,7 @@ class Media3VideoPlayer(
             return
         }
 
-        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_AUDIO)
+        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_AUDIO) ?: return
 
         videoPlayer.trackSelectionParameters = videoPlayer.trackSelectionParameters
             .buildUpon()
