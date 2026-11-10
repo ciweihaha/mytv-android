@@ -36,9 +36,11 @@ android {
         // 否则用到 Logger 的解析器无法在 JVM 单测里跑
         unitTests.isReturnDefaultValues = true
     }
+}
 
-    kotlinOptions {
-        jvmTarget = "11"
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
