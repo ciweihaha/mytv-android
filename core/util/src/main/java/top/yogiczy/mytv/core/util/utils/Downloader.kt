@@ -93,13 +93,19 @@ object Downloader {
                 ?: throw Exception("下载文件失败：服务器返回空数据")
             return object : ForwardingSource(body.source()) {
                 var totalBytesRead = 0L
+                var lastProgress = -1
 
                 override fun read(sink: okio.Buffer, byteCount: Long): Long {
                     val bytesRead = super.read(sink, byteCount)
                     totalBytesRead += if (bytesRead != -1L) bytesRead else 0
                     val progress = calcDownloadProgress(totalBytesRead, contentLength())
-                    progressScope.launch {
-                        onProgressCb?.invoke(progress)
+                    // 百分比不变时不回调：原来每读 8KB 就调一次，100MB 下载要
+                    // 触发上万次 Snackbar 状态更新；百分比最多变 100 次
+                    if (progress != lastProgress) {
+                        lastProgress = progress
+                        progressScope.launch {
+                            onProgressCb?.invoke(progress)
+                        }
                     }
                     return bytesRead
                 }

@@ -5,6 +5,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -13,6 +14,7 @@ import java.io.File
 import java.io.InputStreamReader
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.util.Collections
 
 /**
  * 下载进度计算测试：总长度未知或为 0 时不得除零崩溃。
@@ -60,6 +62,24 @@ class DownloaderTest {
                                 out.write("partial".toByteArray())
                                 out.flush()
                                 // 不发完就断开：socket.use 关闭连接
+                            }
+
+                            requestLine.startsWith("GET /big ") -> {
+                                // 1MB 定长：每 8KB 读一次，整数百分比大量重复，
+                                // 进度回调去重后应严格递增、无重复值
+                                val size = 1_000_000
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nContent-Length: $size\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                val chunk = ByteArray(8192) { 0x41 }
+                                var remaining = size
+                                while (remaining > 0) {
+                                    val n = minOf(chunk.size, remaining)
+                                    out.write(chunk, 0, n)
+                                    remaining -= n
+                                }
+                                out.flush()
                             }
 
                             else -> {
@@ -116,6 +136,35 @@ class DownloaderTest {
             // 失败时目标路径不得留下残缺文件，否则更新页会拿它去安装
             assertFalse(target.exists())
             assertFalse(File(dir, "latest.apk.tmp").exists())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadTo_progressCallback_onlyOnChange() {
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "big.bin")
+            val seen = Collections.synchronizedList(mutableListOf<Int>())
+            runBlocking {
+                Downloader.downloadTo(
+                    "http://127.0.0.1:${server.port}/big", target.path
+                ) { seen.add(it) }
+            }
+            // 回调是异步发的：等 99（最后一个值）到了再断言，另留一点
+            // 时间给可能乱序到达的尾部回调
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline && !seen.contains(99)) {
+                Thread.sleep(50)
+            }
+            Thread.sleep(200)
+            assertTrue(seen.isNotEmpty())
+            assertEquals(99, seen.maxOrNull())
+            // 无重复值（去重是关键性质；回调异步发，不断言顺序）
+            assertEquals(seen.toSet().size, seen.size)
+            assertTrue(seen.size <= 100)
         } finally {
             server.stop()
         }
