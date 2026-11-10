@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.LocalContentColor
@@ -47,13 +48,15 @@ fun ChannelInfo(
             Text(
                 text = channel.name,
                 style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.alignByBaseline(),
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .alignByBaseline(),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            // FIXME 频道名称过长导致Tag异常
             Row(
                 // FIXME 没对齐，临时解决
                 modifier = Modifier.padding(bottom = 6.dp),
