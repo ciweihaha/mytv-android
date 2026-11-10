@@ -24,7 +24,7 @@ fun DashboardTime(modifier: Modifier = Modifier) {
         }
     }
 
-    val timeFormat = SimpleDateFormat("MM/dd EEE HH:mm:ss", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("MM/dd EEE HH:mm:ss", Locale.getDefault()) }
     Text(timeFormat.format(timestamp), modifier = modifier)
 }
 
