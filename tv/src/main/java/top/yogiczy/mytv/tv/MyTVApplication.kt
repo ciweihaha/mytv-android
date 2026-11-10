@@ -38,7 +38,6 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
             .components {
                 add(SvgDecoder.Factory())
             }
-            .crossfade(true)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .memoryCache {
                 MemoryCache.Builder(this)
