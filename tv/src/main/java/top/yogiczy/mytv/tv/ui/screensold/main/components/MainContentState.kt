@@ -64,6 +64,18 @@ class MainContentState(
     private var _currentPlaybackEpgProgramme by mutableStateOf<EpgProgramme?>(null)
     val currentPlaybackEpgProgramme get() = _currentPlaybackEpgProgramme
 
+    // 拼回放地址用的格式器：切台每次都新建 7 个，提到类里只建一次。
+    // 这个类只在主线程用（改的都是界面状态），格式器不是线程安全的也不能多线程共用，
+    // 但这里单线程用没问题。
+    private val playbackTimeFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+    private val playbackYearFormat = SimpleDateFormat("yyyy", Locale.getDefault())
+    private val playbackMonthFormat = SimpleDateFormat("MM", Locale.getDefault())
+    private val playbackDayFormat = SimpleDateFormat("dd", Locale.getDefault())
+    private val playbackHourFormat = SimpleDateFormat("HH", Locale.getDefault())
+    private val playbackMinuteFormat = SimpleDateFormat("mm", Locale.getDefault())
+    private val playbackSecondFormat = SimpleDateFormat("ss", Locale.getDefault())
+    private val playseekTimeFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
+
     private var _tempChannelScreenHideJob: Job? = null
 
     private var _isTempChannelScreenVisible by mutableStateOf(false)
@@ -359,13 +371,13 @@ class MainContentState(
         _currentPlaybackEpgProgramme?.let { playbackEpg ->
             if(currentChannelLine.playbackType != null){
                 var playbackFormat = currentChannelLine.playbackFormat ?: ""
-                val timeFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                val tfY = SimpleDateFormat("yyyy", Locale.getDefault())
-                val tfM = SimpleDateFormat("MM", Locale.getDefault())
-                val tfD = SimpleDateFormat("dd", Locale.getDefault())
-                val tfH = SimpleDateFormat("HH", Locale.getDefault())
-                val tfm = SimpleDateFormat("mm", Locale.getDefault())
-                val tfS = SimpleDateFormat("ss", Locale.getDefault())
+                val timeFormat = playbackTimeFormat
+                val tfY = playbackYearFormat
+                val tfM = playbackMonthFormat
+                val tfD = playbackDayFormat
+                val tfH = playbackHourFormat
+                val tfm = playbackMinuteFormat
+                val tfS = playbackSecondFormat
                 val nowTime = System.currentTimeMillis()
                 // String.replace 返回新字符串：原先用 apply 包着一串 replace，
                 // 返回值全被丢弃，{utc}、{utcend}、${start} 等占位符从未被替换，
@@ -398,7 +410,7 @@ class MainContentState(
                     else -> url
                 }
             }else{
-                val timeFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
+                val timeFormat = playseekTimeFormat
                 val query = listOf(
                     "playseek=",
                     timeFormat.format(playbackEpg.startAt),
