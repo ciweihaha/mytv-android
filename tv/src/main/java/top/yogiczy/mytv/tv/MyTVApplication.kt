@@ -1,14 +1,15 @@
 package top.yogiczy.mytv.tv
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.decode.SvgDecoder
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.CachePolicy
-import coil.util.DebugLogger
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
+import coil3.svg.SvgDecoder
+import coil3.util.DebugLogger
 import io.sentry.Hint
 import io.sentry.Sentry
 import io.sentry.SentryEvent
@@ -20,7 +21,7 @@ import top.yogiczy.mytv.core.data.utils.Globals
 import kotlin.system.exitProcess
 import com.tencent.smtt.sdk.QbSdk
 
-class MyTVApplication : Application(), ImageLoaderFactory {
+class MyTVApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         
@@ -31,16 +32,15 @@ class MyTVApplication : Application(), ImageLoaderFactory {
         
     }
 
-    override fun newImageLoader(): ImageLoader {
-        return ImageLoader(this).newBuilder()
+    override fun newImageLoader(context: Context): ImageLoader {
+        return ImageLoader.Builder(context)
             .logger(DebugLogger())
             .components {
                 add(SvgDecoder.Factory())
             }
-            .crossfade(true)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .memoryCache {
-                MemoryCache.Builder(this)
+                MemoryCache.Builder()
                     // .maxSizePercent(0.25)
                     .build()
             }
