@@ -232,6 +232,36 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_allAttributes_parsed() = runBlocking {
+        // 全部属性一次到位：重构（正则只编译一次）后行为必须和原来一致
+        val data = """
+            #EXTM3U catchup="append" catchup-source="http://example.com/replay?date={date}"
+            #EXTINF:-1 tvg-name="CCTV-1" tvg-logo="http://example.com/logo.png" group-title="央视;高清" http-user-agent="UA-1" http-referrer="https://ref.example.com/" http-origin="https://origin.example.com/",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(3, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-1", channels[0].epgName)
+        assertEquals("央视", channels[0].groupName)
+        assertEquals("http://example.com/logo.png", channels[0].logo)
+        assertEquals("UA-1", channels[0].httpUserAgent)
+        assertEquals("https://ref.example.com/", channels[0].httpReferrer)
+        assertEquals("https://origin.example.com/", channels[0].httpOrigin)
+        assertEquals(1, channels[0].playbackType)
+        assertEquals("http://example.com/replay?date={date}", channels[0].playbackFormat)
+        assertEquals("高清", channels[1].groupName)
+        assertEquals("CCTV-1", channels[1].name)
+        assertEquals("CCTV-2", channels[2].name)
+        assertEquals("央视", channels[2].groupName)
+        assertEquals(null, channels[2].logo)
+        assertEquals(1, channels[2].playbackType)
+        assertEquals("http://example.com/replay?date={date}", channels[2].playbackFormat)
+    }
+
+    @Test
     fun m3u_extvlcoptValueWithEquals_notTruncated() = runBlocking {
         // #EXTVLCOPT 的 http-referrer 带查询参数时同样不能被截断
         val data = """

@@ -11,6 +11,21 @@ class M3uIptvParser : IptvParser {
 
     private val logger = Logger.create("M3uIptvParser")
 
+    // 属性正则只编译一次：原来每行每个属性都 new 一个 Regex，
+    // 大源（几千个频道）一次解析要编译几万次；现在整个类只编一次
+    private companion object {
+        private val catchupRegex = Regex("catchup=\"(.+?)\"")
+        private val catchupSourceRegex = Regex("catchup-source=\"(.+?)\"")
+        private val tvgNameRegex = Regex("tvg-name=\"(.*?)\"")
+        private val groupTitleRegex = Regex("group-title=\"(.+?)\"")
+        private val tvgLogoRegex = Regex("tvg-logo=\"(.+?)\"")
+        private val httpUserAgentRegex = Regex("http-user-agent=\"(.+?)\"")
+        private val httpReferrerRegex = Regex("http-referrer=\"(.+?)\"")
+        private val httpOriginRegex = Regex("http-origin=\"(.+?)\"")
+        private val xTvgUrlRegex = Regex("x-tvg-url=\"(.*?)\"")
+        private val urlTvgRegex = Regex("url-tvg=\"(.*?)\"")
+    }
+
     override fun isSupport(url: String, data: String): Boolean {
         return data.stripPlaylistBom().startsWith("#EXTM3U")
     }
@@ -27,7 +42,7 @@ class M3uIptvParser : IptvParser {
                 if (line.startsWith("#EXTM3U")) {
                     // 解析扩展信息
                     val playbackTypeString =
-                        Regex("catchup=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                        catchupRegex.find(line)?.groupValues?.get(1)?.trim()
                             ?.ifBlank { null } ?: null
                     if (playbackTypeString != null) {
                         logger.i("检测到全局回放类型: $globalPlaybackType")
@@ -41,26 +56,26 @@ class M3uIptvParser : IptvParser {
                             else -> null
                         }
                         if (globalPlaybackType != null) {
-                            globalPlaybackFormat = Regex("catchup-source=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                            globalPlaybackFormat = catchupSourceRegex.find(line)?.groupValues?.get(1)?.trim()
                             ?.ifBlank { null } ?: null
                         }
                     } 
                 } else if (line.startsWith("#EXTINF")) {
                     val name = line.extinfDisplayName()
                     val epgName =
-                        Regex("tvg-name=\"(.*?)\"").find(line)?.groupValues?.get(1)?.trim()
+                        tvgNameRegex.find(line)?.groupValues?.get(1)?.trim()
                             ?.ifBlank { name } ?: name
                     val groupNames =
-                        Regex("group-title=\"(.+?)\"").find(line)?.groupValues?.get(1)?.split(";")
+                        groupTitleRegex.find(line)?.groupValues?.get(1)?.split(";")
                             ?.map { it.trim() }
                             ?: listOf("其他")
-                    val logo = Regex("tvg-logo=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                    val logo = tvgLogoRegex.find(line)?.groupValues?.get(1)?.trim()
                     val httpUserAgent =
-                        Regex("http-user-agent=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                        httpUserAgentRegex.find(line)?.groupValues?.get(1)?.trim()
                     val httpReferrer =
-                        Regex("http-referrer=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                        httpReferrerRegex.find(line)?.groupValues?.get(1)?.trim()
                     val httpOrigin =
-                        Regex("http-origin=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                        httpOriginRegex.find(line)?.groupValues?.get(1)?.trim()
                     var playbackType: Int? = null
                     var playbackFormat: String? = null
                     if(globalPlaybackType != null){
@@ -68,7 +83,7 @@ class M3uIptvParser : IptvParser {
                         playbackFormat = globalPlaybackFormat
                     } else {
                         val playbackTypeString =
-                            Regex("catchup=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                            catchupRegex.find(line)?.groupValues?.get(1)?.trim()
                                 ?.ifBlank { null } ?: null
                         if (playbackTypeString != null) {
                             logger.i("检测到回放类型: $playbackType")
@@ -82,7 +97,7 @@ class M3uIptvParser : IptvParser {
                                 else -> null
                             }
                             if (playbackType != null) {
-                                playbackFormat = Regex("catchup-source=\"(.+?)\"").find(line)?.groupValues?.get(1)?.trim()
+                                playbackFormat = catchupSourceRegex.find(line)?.groupValues?.get(1)?.trim()
                                 ?.ifBlank { null } ?: null
                             }
                         } 
@@ -156,8 +171,8 @@ class M3uIptvParser : IptvParser {
         return lines.firstOrNull { it.startsWith("#EXTM3U") }?.let { defLine ->
             // 取首个非空地址：x-tvg-url 常写多个地址，首项为空时不能直接返回
             // 空串（会生成空地址的 EPG 源导致节目单全空），要跳过并继续找 url-tvg
-            listOf("x-tvg-url", "url-tvg").firstNotNullOfOrNull { attr ->
-                Regex("$attr=\"(.*?)\"").find(defLine)?.groupValues?.get(1)
+            listOf(xTvgUrlRegex, urlTvgRegex).firstNotNullOfOrNull { regex ->
+                regex.find(defLine)?.groupValues?.get(1)
                     ?.split(",")
                     ?.firstOrNull { it.isNotBlank() }
                     ?.trim()
