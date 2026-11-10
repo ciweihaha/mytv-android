@@ -1,9 +1,9 @@
 [versions]
-agp = "9.5.0"
+agp = "8.10.0"
 coil = "2.7.0"
 desugar_jdk_libs = "2.1.5"
 coreKtx = "1.16.0"
-kotlin = "2.4.21"
+kotlin = "2.1.21"
 appcompat = "1.7.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -16,13 +16,14 @@ composeBom = "2025.05.00"
 okhttp = "4.12.0"
 qrose = "1.0.1"
 kotlinx-serialization = "1.8.1"
+ksp = "2.1.21-2.0.1"
 androidasync = "3.1.0"
 compose-foundation = "1.8.0"
 tinypinyin = "2.0.3.RELEASE"
 tvMaterial = "1.1.0-alpha01"
 navigationCompose = "2.9.0"
 android_material = "1.12.0"
-sentry = "6.26.0"
+sentry = "5.6.0"
 quickjs = "1.0.0-alpha13"
 minSdk = "21"
 targetSdk = "35"
@@ -71,7 +72,9 @@ quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 sentry-android-gradle = { id = "io.sentry.android.gradle", version.ref = "sentry" }

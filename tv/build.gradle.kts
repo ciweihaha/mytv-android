@@ -1,10 +1,10 @@
-import com.android.build.api.variant.ApplicationVariant
-import com.android.build.api.variant.FilterConfiguration
+import com.android.build.gradle.internal.api.BaseVariantOutputImpl
 import java.io.FileInputStream
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.sentry.android.gradle)
@@ -49,6 +49,18 @@ android {
             keyAlias = System.getenv("KEY_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
             keyPassword =
                 System.getenv("KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
+        }
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            val ver = defaultConfig.versionName
+            val minSdk = defaultConfig.minSdk
+            val abi = filters.find { it.filterType == "ABI" }?.identifier ?: "all"
+            val flavor = productFlavors.joinToString("-") { it.name }
+
+            (this as BaseVariantOutputImpl).outputFileName =
+                "mytv-android-${project.name}-$ver-${abi}-sdk$minSdk-${flavor}.apk"
         }
     }
 
@@ -114,25 +126,6 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-    }
-}
-
-// 旧版 applicationVariants 在 AGP 9 新 DSL 里已删，改名走新版 Variant API。
-// 文件名格式与原来一致：mytv-android-tv-版本-架构-sdk最低版本-风味.apk
-androidComponents {
-    onVariants { variant ->
-        val appVariant = variant as? ApplicationVariant ?: return@onVariants
-        appVariant.outputs.forEach { output ->
-            // 新版 Variant API 里拿不到 versionName/minSdk，直接用与 defaultConfig 相同的取值。
-            val ver = "1.1.1.${System.getenv("VERSION_CODE")}"
-            val minSdk = libs.versions.minSdk.get().toInt()
-            val abi = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier ?: "all"
-            val flavor = appVariant.flavorName
-
-            output.outputFileName.set(
-                "mytv-android-${project.name}-$ver-${abi}-sdk$minSdk-${flavor}.apk"
-            )
-        }
     }
 }
 
