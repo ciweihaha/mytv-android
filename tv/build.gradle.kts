@@ -123,8 +123,9 @@ androidComponents {
     onVariants { variant ->
         val appVariant = variant as? ApplicationVariant ?: return@onVariants
         appVariant.outputs.forEach { output ->
-            val ver = appVariant.versionName.get()
-            val minSdk = appVariant.minSdk.get()
+            // 新版 Variant API 里拿不到 versionName/minSdk，直接用与 defaultConfig 相同的取值。
+            val ver = "1.1.1.${System.getenv("VERSION_CODE")}"
+            val minSdk = libs.versions.minSdk.get().toInt()
             val abi = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier ?: "all"
             val flavor = appVariant.flavorName
 
