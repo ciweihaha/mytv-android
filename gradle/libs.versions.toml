@@ -24,7 +24,7 @@ navigationCompose = "2.10.2"
 android_material = "1.12.0"
 sentry = "6.26.0"
 quickjs = "1.0.0-alpha13"
-minSdk = "23"
+minSdk = "24"
 targetSdk = "35"
 compileSdk = "37"
 
