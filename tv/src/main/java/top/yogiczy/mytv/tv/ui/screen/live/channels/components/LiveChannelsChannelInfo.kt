@@ -317,7 +317,7 @@ private fun LiveChannelsChannelInfoEpgProgramme(
     programmeProvider: () -> EpgProgramme? = { null },
     showProgress: Boolean = false,
 ) {
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val programme = programmeProvider()
 
     if (programme == null) {
