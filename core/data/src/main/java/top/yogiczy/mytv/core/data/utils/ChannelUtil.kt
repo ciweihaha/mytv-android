@@ -335,12 +335,13 @@ object ChannelUtil {
         return url.replace("pltv", "tvod", ignoreCase = true)
     }
 
+    // 回放地址占位符正则（匹配 {key:格式}）：提到单例里只编译一次，之前每次拼回放地址都重新编译
+    private val playbackFormatRegex = Regex("\\$?\\{\\(?([a-zA-Z]+)\\)?:?([^}]+)\\}")
+
     fun replacePlaybackFormat(playbackFormat: String?, starttime: Long?, nowtime:Long?, endtime:Long?): String? {
         if (playbackFormat.isNullOrEmpty()) return null // 如果格式为空，直接返回 null
-        var regex = Regex("\\$?\\{\\(?([a-zA-Z]+)\\)?:?([^}]+)\\}") // 匹配 {key:格式} 的正则表达式
-        val defaultDateFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()) // 默认时间格式
 
-        return regex.replace(playbackFormat) { matchResult ->
+        return playbackFormatRegex.replace(playbackFormat) { matchResult ->
             val key = matchResult.groupValues[1] // 提取 key，例如 utc 或 end
             val format = matchResult.groupValues[2] // 提取格式字符串
             val time = when (key) {
@@ -359,7 +360,8 @@ object ChannelUtil {
                 val customDateFormat = SimpleDateFormat(format, Locale.getDefault())
                 customDateFormat.format(time) // 使用自定义格式替换占位符
             } catch (e: IllegalArgumentException) {
-                defaultDateFormat.format(time) // 如果格式无效，使用默认格式
+                // 格式无效时才建默认格式器（之前每次调用都先建一个，多数时候根本用不上）
+                SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(time)
             }
         }
     }
