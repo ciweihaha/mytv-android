@@ -10,6 +10,7 @@ import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import coil3.svg.SvgDecoder
 import coil3.util.DebugLogger
+import okio.Path.Companion.toOkioPath
 import io.sentry.Hint
 import io.sentry.Sentry
 import io.sentry.SentryEvent
@@ -47,7 +48,7 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
             .diskCachePolicy(CachePolicy.ENABLED)
             .diskCache {
                 DiskCache.Builder()
-                    .directory(cacheDir.resolve("image_cache"))
+                    .directory(cacheDir.resolve("image_cache").toOkioPath())
                     // .maxSizeBytes(1024 * 1024 * 100)
                     .build()
             }
