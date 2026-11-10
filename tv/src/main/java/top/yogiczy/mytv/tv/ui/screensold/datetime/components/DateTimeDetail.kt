@@ -22,8 +22,8 @@ fun DateTimeDetail(
     modifier: Modifier = Modifier,
     timestamp: Long = rememberTimestamp(),
 ) {
-    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    val dateFormat = SimpleDateFormat("MM/dd EEE", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val dateFormat = remember { SimpleDateFormat("MM/dd EEE", Locale.getDefault()) }
 
     Column(
         modifier = modifier,
