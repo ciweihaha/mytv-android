@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.R
 import java.io.File
+import java.util.Locale
 import kotlin.time.measureTimedValue
 
 object ChannelAlias : Loggable("ChannelAlias") {
@@ -14,11 +15,24 @@ object ChannelAlias : Loggable("ChannelAlias") {
 
     private val nameCache = LruMutableCache<String, String>(128)
 
+    // 别名查表：旧的 findAliasName 每次缓存未命中都要把两张映射表线性扫四遍
+    //（自定义键、自定义别名、默认键、默认别名，共 189 组、2049 个别名），
+    // 大源解析时每个不重名频道都要扫一次；现在建成小写查表，一次 O(1)。
+    // 自定义映射表 refresh() 会换，查表跟着失效重建。
+    @Volatile
+    private var aliasLookup: Map<String, String>? = null
+
+    @Volatile
+    private var normalizedSuffixesCache: List<String>? = null
+
     suspend fun refresh() = withContext(Dispatchers.IO) {
         nameCache.evictAll()
         _aliasMap = runCatching {
             Globals.json.decodeFromString<Map<String, List<String>>>(aliasFile.readText())
         }.getOrElse { emptyMap() }
+        // 先换表再失效：失效放前面，并发解析可能把旧表建成查表缓存下来
+        aliasLookup = null
+        normalizedSuffixesCache = null
         log.d("加载自定义频道名映射表完成，共 ${_aliasMap.values.sumOf { it.size }} 个映射")
     }
 
@@ -43,7 +57,9 @@ object ChannelAlias : Loggable("ChannelAlias") {
     }
 
     private fun getNormalizedSuffixes(): List<String> {
-        return _aliasMap.getOrElse("__suffix") { emptyList() } + defaultAlias.getOrElse("__suffix") { emptyList() }
+        return normalizedSuffixesCache
+            ?: (_aliasMap.getOrElse("__suffix") { emptyList() } + defaultAlias.getOrElse("__suffix") { emptyList() })
+                .also { normalizedSuffixesCache = it }
     }
 
     /**
@@ -68,14 +84,40 @@ object ChannelAlias : Loggable("ChannelAlias") {
     }
 
     private fun findAliasName(name: String): String? {
-        return aliasMap.keys.firstOrNull { it.equals(name, ignoreCase = true) }
-            ?: aliasMap.entries.firstOrNull { entry ->
-                entry.value.any { it.equals(name, ignoreCase = true) }
-            }?.key
-            ?: defaultAlias.keys.firstOrNull { it.equals(name, ignoreCase = true) }
-            ?: defaultAlias.entries.firstOrNull { entry ->
-                entry.value.any { it.equals(name, ignoreCase = true) }
-            }?.key
+        return getAliasLookup()[name.lowercase(Locale.ROOT)]
+    }
+
+    private fun getAliasLookup(): Map<String, String> {
+        return aliasLookup ?: buildAliasLookup(_aliasMap, defaultAlias).also { aliasLookup = it }
+    }
+
+    /**
+     * 把两张映射表建成小写查表（小写名/别名 -> 标准名）。
+     * 优先级与旧的线性扫描一致：自定义键、自定义别名、默认键、默认别名，
+     * 先到的赢；小写比较与忽略大小写比较在频道名（ASCII + 中文）上等价。
+     */
+    internal fun buildAliasLookup(
+        customMap: Map<String, List<String>>,
+        defaultMap: Map<String, List<String>>,
+    ): Map<String, String> {
+        val lookup = LinkedHashMap<String, String>()
+        for (key in customMap.keys) {
+            lookup.putIfAbsent(key.lowercase(Locale.ROOT), key)
+        }
+        for ((key, aliases) in customMap) {
+            for (alias in aliases) {
+                lookup.putIfAbsent(alias.lowercase(Locale.ROOT), key)
+            }
+        }
+        for (key in defaultMap.keys) {
+            lookup.putIfAbsent(key.lowercase(Locale.ROOT), key)
+        }
+        for ((key, aliases) in defaultMap) {
+            for (alias in aliases) {
+                lookup.putIfAbsent(alias.lowercase(Locale.ROOT), key)
+            }
+        }
+        return lookup
     }
 
     private val defaultAlias by lazy {
