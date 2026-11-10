@@ -91,13 +91,29 @@ private fun SearchScreenPreview() {
 private fun Channel.matchesSearchQuery(query: String): Boolean {
     if (query.isEmpty()) return false
     val key = query.lowercase()
-    if (name.lowercase().contains(key)) return true
-
-    val pinyinParts = Pinyin.toPinyin(name, ",").split(",")
-    val initials = pinyinParts.joinToString("") { it.firstOrNull()?.lowercase() ?: "" }
+    val (lowerName, initials, fullPinyin) = SearchPinyinCache.partsFor(name)
+    if (lowerName.contains(key)) return true
     if (initials.contains(key)) return true
-
-    val fullPinyin = pinyinParts.joinToString("") { it.lowercase() }
     return fullPinyin.contains(key)
+}
+
+/**
+ * 频道名拼音只算一次：搜索每敲一个键都要全表过滤，每个频道名都要转一次拼音；
+ * 几千个频道的源，每敲一键就是几千次字典查，全在主线程上，直接拖慢输入。
+ * 按频道名缓存小写名/首字母/全拼，之后每键只剩字符串包含比较。
+ * 条目数跟源里不重名频道数一致；超过 1 万条时清空重建，防止换源攒得多。
+ */
+private object SearchPinyinCache {
+    private val cache = mutableMapOf<String, Triple<String, String, String>>()
+
+    fun partsFor(name: String): Triple<String, String, String> {
+        if (cache.size >= 10_000) cache.clear()
+        return cache.getOrPut(name) {
+            val pinyinParts = Pinyin.toPinyin(name, ",").split(",")
+            val initials = pinyinParts.joinToString("") { it.firstOrNull()?.lowercase() ?: "" }
+            val fullPinyin = pinyinParts.joinToString("") { it.lowercase() }
+            Triple(name.lowercase(), initials, fullPinyin)
+        }
+    }
 }
 
