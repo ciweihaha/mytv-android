@@ -1,4 +1,4 @@
-import com.android.build.gradle.api.BaseVariantOutput
+import com.android.build.gradle.internal.api.BaseVariantOutputImpl
 import com.android.build.gradle.internal.dsl.BaseAppModuleExtension
 import com.android.build.gradle.tasks.PackageAndroidArtifact
 import java.io.FileInputStream
@@ -46,7 +46,7 @@ allprojects {
                 val abi = filters.find { it.filterType == "ABI" }?.identifier ?: "all"
                 val flavor = productFlavors.joinToString("-") { it.name }
 
-                (this as BaseVariantOutput).outputFileName =
+                (this as BaseVariantOutputImpl).outputFileName =
                     "mytv-android-${project.name}-$ver-${abi}-sdk$minSdk-${flavor}.apk"
             }
         }
