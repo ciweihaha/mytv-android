@@ -16,7 +16,6 @@ composeBom = "2025.05.00"
 okhttp = "4.12.0"
 qrose = "1.0.1"
 kotlinx-serialization = "1.8.1"
-ksp = "2.4.21-2.0.1"
 androidasync = "3.1.0"
 compose-foundation = "1.8.0"
 tinypinyin = "2.0.3.RELEASE"
@@ -74,6 +73,5 @@ quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 sentry-android-gradle = { id = "io.sentry.android.gradle", version.ref = "sentry" }
