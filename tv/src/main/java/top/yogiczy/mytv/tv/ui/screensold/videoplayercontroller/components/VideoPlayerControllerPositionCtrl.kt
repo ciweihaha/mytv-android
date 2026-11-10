@@ -112,7 +112,7 @@ private fun VideoPlayerControllerPositionProgress(
 ) {
     val currentPosition = currentPositionProvider()
     val duration = durationProvider()
-    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
     Row(
         modifier = modifier,
