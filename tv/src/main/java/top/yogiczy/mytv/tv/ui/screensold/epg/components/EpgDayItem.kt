@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,7 +28,7 @@ fun EpgDayItem(
 ) {
     val day = dayProvider()
 
-    val dateFormat = SimpleDateFormat("E MM-dd", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("E MM-dd", Locale.getDefault()) }
     val today = dateFormat.format(System.currentTimeMillis())
     val tomorrow =
         dateFormat.format(System.currentTimeMillis() + 24 * 3600 * 1000)
