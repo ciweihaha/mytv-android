@@ -124,7 +124,16 @@ private fun VideoPlayerControllerPositionProgress(
         )
 
         ProgressBar(
-            process = (currentPosition - duration.first) / (duration.second - duration.first).toFloat(),
+            // 零时长（没节目单的频道、无时长信息时起止相等）直接返回 0，
+            // 当前位置在区间外时钳制到 0~1：原先直接相除，零时长会算出
+            // NaN/Infinity、越界会算出负数或 >1，fillMaxWidth 要求比例
+            // 在 0~1 之间，打开播放控制就会布局异常（与 EpgProgramme.progress
+            // 第 26 轮同款问题，这里漏了）。
+            process = run {
+                val span = duration.second - duration.first
+                if (span <= 0L) 0f
+                else ((currentPosition - duration.first) / span.toFloat()).coerceIn(0f, 1f)
+            },
             modifier = Modifier
                 .weight(1f)
                 .height(6.dp),
