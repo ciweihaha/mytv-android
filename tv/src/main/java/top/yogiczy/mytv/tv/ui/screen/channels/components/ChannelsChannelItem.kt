@@ -134,12 +134,18 @@ private fun ChannelsChannelItemLogoWithPreview(
         preview = null
 
         if (showChannelPreview) {
+            // 无线路的频道没有可预览的线路：最后一级兜底用 firstOrNull，
+            // 空列表时跳过预览而不是抛异常（全仓最后一处 lineList.first()，
+            // 多画面那处已改成 firstOrNull，这里漏了；解析出的频道本来就
+            // 至少有一条线路，空列表只可能来自反序列化进来的旧数据）。
             val line = channel.lineList.firstOrNull { line ->
                 Configs.iptvChannelLinePlayableUrlList.contains(line.url)
             } ?: channel.lineList.firstOrNull { line ->
                 Configs.iptvChannelLinePlayableHostList.contains(line.url.urlHost())
-            } ?: channel.lineList.first()
-            preview = M3u8AnalysisUtil.getFirstFrame(line.url)
+            } ?: channel.lineList.firstOrNull()
+            if (line != null) {
+                preview = M3u8AnalysisUtil.getFirstFrame(line.url)
+            }
         }
     }
 
