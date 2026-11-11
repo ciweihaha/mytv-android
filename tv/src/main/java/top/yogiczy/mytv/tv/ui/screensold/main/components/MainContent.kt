@@ -439,7 +439,11 @@ fun MainContent(
             currentChannelProvider = { mainContentState.currentChannel },
             currentChannelLineIdxProvider = { mainContentState.currentChannelLineIdx },
             currentChannelNumberProvider = {
-                (filteredChannelGroupListProvider().channelList.indexOf(mainContentState.currentChannel) + 1).toString()
+                // 当前台不在列表里时下标是 -1，别显示成不存在的“0”号
+                //（快捷操作页里会再补成“00”）；找不到就显示“–”
+                val idx =
+                    filteredChannelGroupListProvider().channelList.indexOf(mainContentState.currentChannel)
+                if (idx < 0) "–" else (idx + 1).toString()
             },
             epgListProvider = epgListProvider,
             currentPlaybackEpgProgrammeProvider = { mainContentState.currentPlaybackEpgProgramme },

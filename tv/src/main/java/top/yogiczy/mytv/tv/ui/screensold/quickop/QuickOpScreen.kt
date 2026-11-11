@@ -78,7 +78,11 @@ fun QuickOpScreen(
     ) {
         QuickOpScreenTop(
             channelNumberProvider = {
-                currentChannelNumberProvider().padStart(2, '0')
+                // 不是数字时不补零：当前台不在列表里时上游传“–”，直接
+                // padStart 会补成“0–”
+                currentChannelNumberProvider().let {
+                    if (it.toIntOrNull() != null) it.padStart(2, '0') else it
+                }
             },
             toSettingsIptvSourceScreen = { toSettingsScreen(SettingsSubCategories.IPTV_SOURCE) },
         )

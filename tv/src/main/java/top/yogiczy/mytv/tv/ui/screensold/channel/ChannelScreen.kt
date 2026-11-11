@@ -68,9 +68,10 @@ fun ChannelScreen(
     ) {
         ChannelScreenTopRight(
             channelNumberProvider = {
-                (channelGroupListProvider().channelIdx(currentChannelProvider()) + 1)
-                    .toString()
-                    .padStart(2, '0')
+                // 当前台不在列表里（切源后上次播的台不在新源里、或所在分组
+                // 被隐藏）时下标是 -1，别显示成不存在的“00”号
+                val idx = channelGroupListProvider().channelIdx(currentChannelProvider())
+                if (idx < 0) "–" else (idx + 1).toString().padStart(2, '0')
             },
         )
 
