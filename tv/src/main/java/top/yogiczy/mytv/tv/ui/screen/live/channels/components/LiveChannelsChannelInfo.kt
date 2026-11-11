@@ -62,6 +62,9 @@ fun LiveChannelsChannelInfo(
     modifier: Modifier = Modifier,
     channelProvider: () -> Channel = { Channel() },
     channelLineIdxProvider: () -> Int = { 0 },
+    // 没台标时占位显示的台号：默认仍用频道自带的序号；调用方会传按
+    // 列表现查的那份——当前台不在列表里时自带的序号是旧号
+    channelNumberProvider: () -> String = { channelProvider().no },
     recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
     isInTimeShiftProvider: () -> Boolean = { false },
     currentPlaybackEpgProgrammeProvider: () -> EpgProgramme? = { null },
@@ -83,7 +86,7 @@ fun LiveChannelsChannelInfo(
                     .aspectRatio(16 / 9f),
                 channelProvider = channelProvider,
             ) {
-                LiveChannelsChannelInfoNo(channelProvider = channelProvider)
+                LiveChannelsChannelInfoNo(channelNumberProvider = channelNumberProvider)
             }
         }
 
@@ -120,10 +123,8 @@ fun LiveChannelsChannelInfo(
 @Composable
 private fun LiveChannelsChannelInfoNo(
     modifier: Modifier = Modifier,
-    channelProvider: () -> Channel = { Channel() },
+    channelNumberProvider: () -> String = { "" },
 ) {
-    val channel = channelProvider()
-
     Surface(
         modifier = modifier.fillMaxSize(),
         colors = SurfaceDefaults.colors(
@@ -132,7 +133,7 @@ private fun LiveChannelsChannelInfoNo(
         shape = MaterialTheme.shapes.medium,
     ) {
         Text(
-            channel.no,
+            channelNumberProvider(),
             style = MaterialTheme.typography.headlineLarge,
             modifier = Modifier.align(Alignment.Center),
         )

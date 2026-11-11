@@ -61,6 +61,7 @@ fun ChannelTempScreen(
                 .padding(childPadding.copy(top = childPadding.top * 2).paddingValues),
             channelProvider = channelProvider,
             channelLineIdxProvider = channelLineIdxProvider,
+            channelNumberProvider = channelNumberProvider,
             recentEpgProgrammeProvider = recentEpgProgrammeProvider,
             isInTimeShiftProvider = isInTimeShiftProvider,
             currentPlaybackEpgProgrammeProvider = currentPlaybackEpgProgrammeProvider,

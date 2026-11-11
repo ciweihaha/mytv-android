@@ -69,6 +69,13 @@ fun QuickOpScreen(
 ) {
     val screenAutoCloseState = rememberScreenAutoCloseState(onTimeout = onClose)
 
+    // 台号：顶部与无台标占位共用同一份——数字补零、“–”不补
+    val channelNumberProvider = {
+        currentChannelNumberProvider().let {
+            if (it.toIntOrNull() != null) it.padStart(2, '0') else it
+        }
+    }
+
     Box(
         modifier = modifier
             .backHandler { onClose() }
@@ -77,19 +84,14 @@ fun QuickOpScreen(
             .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f)),
     ) {
         QuickOpScreenTop(
-            channelNumberProvider = {
-                // 不是数字时不补零：当前台不在列表里时上游传“–”，直接
-                // padStart 会补成“0–”
-                currentChannelNumberProvider().let {
-                    if (it.toIntOrNull() != null) it.padStart(2, '0') else it
-                }
-            },
+            channelNumberProvider = channelNumberProvider,
             toSettingsIptvSourceScreen = { toSettingsScreen(SettingsSubCategories.IPTV_SOURCE) },
         )
 
         QuickOpScreenBottom(
             currentChannelProvider = currentChannelProvider,
             currentChannelLineIdxProvider = currentChannelLineIdxProvider,
+            channelNumberProvider = channelNumberProvider,
             epgListProvider = epgListProvider,
             isInTimeShiftProvider = isInTimeShiftProvider,
             currentPlaybackEpgProgrammeProvider = currentPlaybackEpgProgrammeProvider,
@@ -149,6 +151,7 @@ private fun QuickOpScreenBottom(
     modifier: Modifier = Modifier,
     currentChannelProvider: () -> Channel = { Channel() },
     currentChannelLineIdxProvider: () -> Int = { 0 },
+    channelNumberProvider: () -> String = { "" },
     epgListProvider: () -> EpgList = { EpgList() },
     isInTimeShiftProvider: () -> Boolean = { false },
     currentPlaybackEpgProgrammeProvider: () -> EpgProgramme? = { null },
@@ -191,6 +194,7 @@ private fun QuickOpScreenBottom(
                 modifier = Modifier.padding(start = childPadding.start, end = childPadding.end),
                 channelProvider = currentChannelProvider,
                 channelLineIdxProvider = currentChannelLineIdxProvider,
+                channelNumberProvider = channelNumberProvider,
                 recentEpgProgrammeProvider = {
                     epgListProvider().recentProgramme(currentChannelProvider())
                 },

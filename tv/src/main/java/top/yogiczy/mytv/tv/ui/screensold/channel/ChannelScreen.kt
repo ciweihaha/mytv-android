@@ -159,6 +159,12 @@ private fun ChannelScreenBottom(
                 modifier = Modifier.padding(start = childPadding.start, end = childPadding.end),
                 channelProvider = currentChannelProvider,
                 channelLineIdxProvider = currentChannelLineIdxProvider,
+                channelNumberProvider = {
+                    // 和右上角一致按列表现查：当前台不在列表里时显示“–”，
+                    // 不用频道对象自带的序号（切源后是旧号）
+                    val idx = channelGroupListProvider().channelIdx(currentChannelProvider())
+                    if (idx < 0) "–" else (idx + 1).toString().padStart(2, '0')
+                },
                 recentEpgProgrammeProvider = {
                     epgListProvider().recentProgramme(currentChannelProvider())
                 },
