@@ -351,6 +351,12 @@ class MainContentState(
         // 无线路的频道（如空列表兜底的 Channel.EMPTY）无法播放：直接忽略，
         // 避免 currentChannelLine 下标越界，也不把它记为上次播放
         if (channel.lineList.isEmpty()) return
+        // 换成本列表里的同一台：从收藏（序号固定 -1）或上次播放（旧源的
+        // 序号）拿来的频道对象序号不对，临时频道条、经典选台页右上角、
+        // 台标占位那几处用频道自带的序号显示，会显示“00”或旧号；列表
+        // 里找得到（同名同线路）就用列表那份（带当前源的正确序号），
+        // 找不到才用传进来的
+        val channel = channelGroupListProvider().channelList.firstOrNull { it == channel } ?: channel
         settingsViewModel.iptvChannelLastPlay = channel
         val realLineIdx = getLineIdx(channel.lineList, lineIdx)
 
