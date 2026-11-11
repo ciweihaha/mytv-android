@@ -30,11 +30,15 @@ fun Long.humanizeBytes(): String {
 }
 
 fun String.isIPv6(): Boolean {
-    val urlPattern = Pattern.compile(
-        "^((http|https)://)?(\\[[0-9a-fA-F:]+])(:[0-9]+)?(/.*)?$"
-    )
-    return urlPattern.matcher(this).matches()
+    return ipv6UrlPattern.matcher(this).matches()
 }
+
+// 判 IPv6 的正则：提到文件顶层只编译一次，之前每次调用都重新编译；
+// 4 处调用全在界面重画路径上（频道列表项、直播频道信息、线路项）。
+// Pattern 不可变、线程安全，每次调用新生成 Matcher。
+private val ipv6UrlPattern = Pattern.compile(
+    "^((http|https)://)?(\\[[0-9a-fA-F:]+])(:[0-9]+)?(/.*)?$"
+)
 
 fun String.compareVersion(version2: String): Int {
     fun parseVersion(version: String): Pair<List<Int>, String?> {
