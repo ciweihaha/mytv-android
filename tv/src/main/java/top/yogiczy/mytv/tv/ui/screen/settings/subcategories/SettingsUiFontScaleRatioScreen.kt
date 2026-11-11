@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +36,7 @@ fun SettingsUiFontScaleRatioScreen(
     val scaleRatioList = (5..20).map { it * 0.1f }
 
     val childPadding = rememberChildPadding()
+    val decimalFormat = remember { DecimalFormat("#.#") }
 
     AppScreen(
         modifier = Modifier.padding(top = 10.dp),
@@ -55,7 +57,7 @@ fun SettingsUiFontScaleRatioScreen(
                         .handleKeyEvents(onSelect = { onScaleRatioChanged(scaleRatio) }),
                     headlineContent = {
                         Text(
-                            text = "×${DecimalFormat("#.#").format(scaleRatio)}",
+                            text = "×${decimalFormat.format(scaleRatio)}",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                         )
