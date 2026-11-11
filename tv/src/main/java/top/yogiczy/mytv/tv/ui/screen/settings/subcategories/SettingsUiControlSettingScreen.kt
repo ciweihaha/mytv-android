@@ -33,6 +33,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsCategoryScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsListItem
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
+import top.yogiczy.mytv.tv.ui.utils.ifElse
 import top.yogiczy.mytv.core.data.entities.actions.KeyDownAction
 import top.yogiczy.mytv.tv.ui.material.SimplePopup
 import top.yogiczy.mytv.tv.ui.rememberChildPadding
@@ -75,6 +76,7 @@ fun SettingsUiControlSettingScreen(
             SettingsUiControlSettingItem(
                 titleProvider = {"上键"},
                 firstItemFocusRequester = firstItemFocusRequester,
+                isFirstItem = true,
                 valueProvider = keyDownEventUpProvider,
                 onValueChanged = {
                     popupConfig = KeyActionConfig(
@@ -242,12 +244,13 @@ fun SettingsUiControlSettingItem(
     modifier: Modifier = Modifier,
     titleProvider: () -> String,
     firstItemFocusRequester: FocusRequester = remember { FocusRequester() },
+    isFirstItem: Boolean = false,
     valueProvider: () -> KeyDownAction,
     onValueChanged: (KeyDownAction) -> Unit = {},
 ){
     val currentValue = valueProvider()
     SettingsListItem(
-        modifier = Modifier.focusRequester(firstItemFocusRequester),
+        modifier = Modifier.ifElse(isFirstItem, Modifier.focusRequester(firstItemFocusRequester)),
         headlineContent = titleProvider(),
         trailingContent =  currentValue.label,
         onSelect = {
