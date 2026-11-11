@@ -70,14 +70,18 @@ class Media3VideoPlayer(
     private val contentTypeAttempts = mutableMapOf<Int, Boolean>()
     private var updatePositionJob: Job? = null
 
-    private val onCuesListeners = mutableListOf<(ImmutableList<Cue>) -> Unit>()
+    // 字幕只接一个视图：一个播放器实例只对应一个 VideoPlayerScreen，
+    // 注册写在 AndroidView 的 update 里、每次重组都会再跑一次；原来用
+    // 列表只追加不去重，重组一次就多一个重复监听，字幕每次更新都要对
+    // 同一个视图重复 setCues、列表越攒越长；改成单槽，后注册直接覆盖
+    private var onCuesListener: ((ImmutableList<Cue>) -> Unit)? = null
 
     private fun triggerCues(cues: ImmutableList<Cue>) {
-        onCuesListeners.forEach { it(cues) }
+        onCuesListener?.invoke(cues)
     }
 
     fun onCues(listener: (ImmutableList<Cue>) -> Unit) {
-        onCuesListeners.add(listener)
+        onCuesListener = listener
     }
 
     private fun getPlayer(): ExoPlayer {
@@ -126,7 +130,8 @@ class Media3VideoPlayer(
     }
 
     private fun reInitPlayer() {
-        onCuesListeners.clear()
+        // 只重建内部的 ExoPlayer，包装类和字幕视图都还在：监听不能清，
+        // 清了软解兜底后字幕就断了、要等下次重组才偶然重新注册回来
         videoPlayer.removeListener(playerListener)
         videoPlayer.removeAnalyticsListener(metadataListener)
         videoPlayer.removeAnalyticsListener(eventLogger)
@@ -581,7 +586,7 @@ class Media3VideoPlayer(
     }
 
     override fun release() {
-        onCuesListeners.clear()
+        onCuesListener = null
         // 位置轮询协程只在 stop() 里取消：release() 后它仍会每 500ms
         // 访问已释放的播放器，先停掉
         updatePositionJob?.cancel()
