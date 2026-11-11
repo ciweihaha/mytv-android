@@ -29,11 +29,15 @@ fun EpgDayItem(
     val day = dayProvider()
 
     val dateFormat = remember { SimpleDateFormat("E MM-dd", Locale.getDefault()) }
-    val today = dateFormat.format(System.currentTimeMillis())
-    val tomorrow =
-        dateFormat.format(System.currentTimeMillis() + 24 * 3600 * 1000)
-    val dayAfterTomorrow =
-        dateFormat.format(System.currentTimeMillis() + 48 * 3600 * 1000)
+    val (today, tomorrow, dayAfterTomorrow) = remember {
+        val now = System.currentTimeMillis()
+        Triple(
+            dateFormat.format(now),
+            dateFormat.format(now + 24 * 3600 * 1000),
+            dateFormat.format(now + 48 * 3600 * 1000),
+        )
+    }
+    val lines = remember(day) { day.split(" ") }
 
     DenseListItem(
         modifier = modifier
@@ -45,8 +49,6 @@ fun EpgDayItem(
         selected = isSelectedProvider(),
         onClick = {},
         headlineContent = {
-            val lines = day.split(" ")
-
             Text(
                 when (day) {
                     today -> "今天"
