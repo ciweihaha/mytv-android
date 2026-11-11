@@ -72,7 +72,7 @@ suspend fun <T> String.request(
         // 读完再关（节目单就是这么走的），不能提前关；但 action 中途抛了
         // （如节目单拉取读魔数字节时断网），没人再关这个 response，连接
         // 回不了共用池，反复失败会把池漏光
-        return try {
+        try {
             action(response, response.request)
         } catch (e: Throwable) {
             response.closeQuietly()
