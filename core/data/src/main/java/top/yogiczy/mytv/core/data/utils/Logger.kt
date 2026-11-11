@@ -53,15 +53,23 @@ class Logger private constructor(
     companion object {
         fun create(tag: String) = Logger(tag)
 
-        private var _history = mutableListOf<HistoryItem>()
+        private val _history = mutableListOf<HistoryItem>()
+        private val historyLock = Any()
+        // 历史记录多线程读写：记日志的调用在各 IO 线程上，读的
+        // 地方（设置页日志组合期间遍历、本地服务两个接口序列化）
+        // 直接拿原列表会和 add 撞上抛 ConcurrentModificationException；
+        // 这里读返回快照、写加锁原地裁剪，不再整个换列表
         val history: List<HistoryItem>
-            get() = _history
+            get() = synchronized(historyLock) { _history.toList() }
 
         fun addHistoryItem(item: HistoryItem) {
             if (listOf(LevelType.INFO, LevelType.WARN, LevelType.ERROR).contains(item.level)) {
-                _history.add(item)
-                if (_history.size > Constants.LOG_HISTORY_MAX_SIZE) {
-                    _history = _history.takeLast(Constants.LOG_HISTORY_MAX_SIZE).toMutableList()
+                synchronized(historyLock) {
+                    _history.add(item)
+                    if (_history.size > Constants.LOG_HISTORY_MAX_SIZE) {
+                        _history.subList(0, _history.size - Constants.LOG_HISTORY_MAX_SIZE)
+                            .clear()
+                    }
                 }
             }
         }
