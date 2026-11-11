@@ -126,6 +126,22 @@ class GitReleaseParserTest {
     }
 
     @Test
+    fun gitee_picksOriginalAllAbiApkRegardlessOfOrder() = runBlocking {
+        // 和 GitHub 解析保持一致：附件顺序不保证，写死 [0] 会取到
+        // arm64 专版或伪装版；全架构原版即使排在后面也要挑出来
+        val data = singlePayload(
+            "V2.2.0.219",
+            listOf(
+                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23-original.apk", "https://example.com/arm64.apk"),
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-disguised.apk", "https://example.com/disguised.apk"),
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-original.apk", "https://example.com/original.apk"),
+            ).joinToString(","),
+        )
+        val release = giteeParser.parse(data)
+        assertEquals("https://example.com/original.apk", release.downloadUrl)
+    }
+
+    @Test
     fun gitee_missingTagThrowsClearError() {
         val data = """{"body": "notes", "assets": [${asset("mytv.apk", "https://example.com/mytv.apk")}]}"""
         assertThrows(IllegalStateException::class.java) {
@@ -142,5 +158,20 @@ class GitReleaseParserTest {
         val release = customParser.parse(data)
         assertEquals("1.1.1.135", release.version)
         assertEquals("https://ghp.ci/https://example.com/mytv.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun custom_picksOriginalAllAbiApkRegardlessOfOrder() = runBlocking {
+        // 和 GitHub 解析保持一致：附件顺序不保证，写死 [0] 会取到
+        // arm64 专版或伪装版；全架构原版即使排在后面也要挑出来
+        val data = singlePayload(
+            "v2.2.0.219",
+            listOf(
+                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23-original.apk", "https://example.com/arm64.apk"),
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-original.apk", "https://example.com/original.apk"),
+            ).joinToString(","),
+        )
+        val release = customParser.parse(data)
+        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
     }
 }

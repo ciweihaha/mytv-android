@@ -72,24 +72,3 @@ internal fun JsonArray.pickDownloadUrl(vararg preferredKeywords: String): String
     }
     return (preferred ?: anyApk ?: candidates.first()).second
 }
-
-/**
- * 取附件列表里第 index 个附件的下载地址（保留旧行为），但附件不足或
- * 字段缺失时抛带明确原因的异常，而不是越界 / NPE。
- */
-internal fun JsonArray.downloadUrlAt(index: Int): String {
-    val assets = mapNotNull { it as? JsonObject }
-    if (assets.isEmpty()) {
-        throw IllegalStateException("发行版没有任何附件")
-    }
-    if (index !in assets.indices) {
-        throw IllegalStateException(
-            "发行版附件不足：需要第 ${index + 1} 个附件，实际只有 ${assets.size} 个"
-        )
-    }
-    val url = assets[index].optionalString("browser_download_url")
-    if (url.isBlank()) {
-        throw IllegalStateException("发行版附件缺少下载地址")
-    }
-    return url
-}

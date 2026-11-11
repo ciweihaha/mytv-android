@@ -17,8 +17,11 @@ class CustomGitReleaseParser : GitReleaseParser {
 
         return GitRelease(
             version = json.requiredString("tag_name").stripVersionPrefix(),
+            // 和 GitHub 解析保持一致：附件按上传顺序排列，不保证固定位置，
+            // 写死 [0] 会取到 arm64 专版或伪装版，全架构原版在后面；
+            // 按文件名挑原版全架构 APK，顺序变化也不影响
             downloadUrl = Constants.GITHUB_PROXY +
-                json.requiredArray("assets").downloadUrlAt(0),
+                json.requiredArray("assets").pickDownloadUrl("original", "all"),
             description = json.optionalString("body"),
         )
     }
