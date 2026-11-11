@@ -276,4 +276,54 @@ class IptvParserTest {
         assertEquals("https://example.com/?a=b&c=d", channels[0].httpReferrer)
         assertEquals("Mozilla/5.0", channels[0].httpUserAgent)
     }
+
+    @Test
+    fun m3u_extinfWithoutComma_fallsBackToTvgName() = runBlocking {
+        // 残缺行：没有逗号后的显示名时退到 tvg-name，不再把整行当频道名
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视"
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-1", channels[0].epgName)
+        assertEquals("CCTV-2", channels[1].name)
+    }
+
+    @Test
+    fun m3u_extinfWithoutCommaAndTvgName_skipped() = runBlocking {
+        // 残缺行：既没显示名又没 tvg-name，直接跳过；且下一行 URL 不会
+        // 误填到上一条频道上造成重复
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 group-title="央视"
+            http://example.com/garbage.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-2", channels[1].name)
+        assertTrue(channels.none { it.url == "http://example.com/garbage.m3u8" })
+    }
+
+    @Test
+    fun m3u_extinfBlankName_fallsBackToTvgName() = runBlocking {
+        // 逗号后显示名空白时同样退到 tvg-name
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",
+            http://example.com/cctv1.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+    }
 }

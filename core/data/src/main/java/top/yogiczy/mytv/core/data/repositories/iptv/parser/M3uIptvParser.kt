@@ -61,10 +61,19 @@ class M3uIptvParser : IptvParser {
                         }
                     } 
                 } else if (line.startsWith("#EXTINF")) {
-                    val name = line.extinfDisplayName()
-                    val epgName =
+                    // 残缺行：既没有逗号后的显示名、又没有 tvg-name，直接跳过，
+                    // 不把整行当频道名；同时清空待填 URL 的占位，避免下一行
+                    // URL 误填到上一条频道上造成重复
+                    val displayName = line.extinfDisplayName()?.ifBlank { null }
+                    val tvgName =
                         tvgNameRegex.find(line)?.groupValues?.get(1)?.trim()
-                            ?.ifBlank { name } ?: name
+                            ?.ifBlank { null }
+                    val name = displayName ?: tvgName
+                    if (name == null) {
+                        addedChannels = emptyList()
+                        return@forEach
+                    }
+                    val epgName = tvgName ?: name
                     val groupNames =
                         groupTitleRegex.find(line)?.groupValues?.get(1)?.split(";")
                             ?.map { it.trim() }
