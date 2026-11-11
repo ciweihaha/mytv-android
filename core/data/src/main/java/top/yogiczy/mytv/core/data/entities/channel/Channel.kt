@@ -60,7 +60,14 @@ data class Channel(
             logo = "https://live.fanmingming.com/tv/CCTV1.png",
         )
 
-        val EMPTY = Channel()
+        val EMPTY = Channel(
+            // “无频道”哨兵必须没有线路：默认 lineList 自带一条示例线路，
+            // 不传空列表时 EMPTY 也能播——分组全隐藏（过滤后列表为空）时
+            // 直播页/多画面会拿它当真频道，把写死的示例地址播出来；
+            // 三处调用方（换台守卫、多画面取线、频道信息取线）注释里
+            // 都已假定 EMPTY 没有可播线路，这里才对得上
+            lineList = ChannelLineList(),
+        )
     }
 
     val no: String
