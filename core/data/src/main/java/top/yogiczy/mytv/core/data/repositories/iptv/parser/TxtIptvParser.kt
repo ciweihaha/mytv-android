@@ -18,7 +18,11 @@ class TxtIptvParser : IptvParser {
             val channelList = mutableListOf<IptvParser.ChannelItem>()
 
             var groupName: String? = null
-            lines.forEach { line ->
+            lines.forEach { rawLine ->
+                // 行首尾空白先去掉：和 M3U 第 168 轮同类问题——带缩进的注释行
+                //（如 "  # 央视,高清"）旧实现认不出 # 开头，逗号切分后会变成一条
+                // 名字 "# 央视"、地址 "高清" 的垃圾频道
+                val line = rawLine.trim()
                 if (line.isBlank() || line.startsWith("#") || line.startsWith("//")) return@forEach
 
                 if (line.contains("#genre#")) {

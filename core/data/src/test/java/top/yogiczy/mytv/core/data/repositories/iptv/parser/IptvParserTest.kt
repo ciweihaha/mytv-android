@@ -170,6 +170,18 @@ class IptvParserTest {
     }
 
     @Test
+    fun txt_indentedCommentLine_skipped() = runBlocking {
+        // 行首带空格的注释行：旧实现认不出 # 开头，逗号切分后会变成一条
+        // 名字 "# 央视"、地址 "高清" 的垃圾频道；带缩进的正常频道行不受影响
+        val txtData = "央视,#genre#\n  # 央视,高清\nCCTV-1,http://example.com/cctv1\n  CCTV-2,http://example.com/cctv2"
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-2", channels[1].name)
+        assertEquals("http://example.com/cctv2", channels[1].url)
+    }
+
+    @Test
     fun txt_genreLineWithoutGroupName_keepsPreviousGroup() = runBlocking {
         // `,#genre#` 不应产生空分组名：其后的频道仍归上一个分组
         val txtData = "央视,#genre#\nCCTV-1,http://example.com/1\n,#genre#\nCCTV-2,http://example.com/2"
