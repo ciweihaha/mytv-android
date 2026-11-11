@@ -4,6 +4,7 @@ import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -32,7 +33,6 @@ class DebounceState internal constructor(
 fun rememberDebounceState(
     @IntRange(from = 0) wait: Long,
     func: () -> Unit = {},
-) = DebounceState(wait = wait, func = func).also {
+) = remember { DebounceState(wait = wait, func = func) }.also {
     LaunchedEffect(it) { it.observe() }
-    it.send()
 }
