@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -32,8 +33,15 @@ class SnackbarUIState(
     private var _currentData by mutableStateOf(SnackbarData(text = ""))
     val currentData get() = _currentData
 
+    private var showJob: Job? = null
+
     fun show(text: String, data: SnackbarData = SnackbarData()) {
-        coroutineScope.launch {
+        // 连发时旧的那次可能还卡在等旧条目收起的延迟里：不取消的话它会
+        // 在新消息已经显示出来之后再把旧文案写回来（比如收藏键 300 毫秒
+        // 内连按三次，最后显示的会是中间那次、和实际状态反过来）；
+        // 先取消旧任务，最后一次 show 一定赢
+        showJob?.cancel()
+        showJob = coroutineScope.launch {
             if (_visible && _currentData.id != data.id) {
                 _visible = false
                 delay(AnimationConstants.DefaultDurationMillis.toLong())
