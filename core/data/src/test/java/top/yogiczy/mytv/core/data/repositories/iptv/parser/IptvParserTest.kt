@@ -231,6 +231,16 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_epgUrl_indentedHeaderLine_found() = runBlocking {
+        // #EXTM3U 行本身带缩进：parse() 每行都 trim，频道能解析出来；
+        // getEpgUrl 不 trim 就找不到首行、返回 null，源里明明写了
+        // x-tvg-url，节目单却加载不出来
+        val data = "  #EXTM3U x-tvg-url=\"http://example.com/epg.xml\"\n" +
+            "#EXTINF:-1,CCTV-1\nhttp://example.com/cctv1.m3u8"
+        assertEquals("http://example.com/epg.xml", m3uParser.getEpgUrl(data))
+    }
+
+    @Test
     fun m3u_kodipropValueWithEquals_notTruncated() = runBlocking {
         // 旧实现用 split("=").last() 取值，license_key 里带 `=`（URL 参数、
         // base64 填充）会被截断为空串，DRM 频道播不了

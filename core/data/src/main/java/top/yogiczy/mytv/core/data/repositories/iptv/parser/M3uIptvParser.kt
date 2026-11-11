@@ -198,7 +198,10 @@ class M3uIptvParser : IptvParser {
 
     override suspend fun getEpgUrl(data: String): String? {
         val lines = data.stripPlaylistBom().split("\r\n", "\n")
-        return lines.firstOrNull { it.startsWith("#EXTM3U") }?.let { defLine ->
+        // 行首先 trim：parse() 里每行都 trim，手写带缩进的源 #EXTM3U 行
+        // 本身带空格时也能解析出频道；这里不 trim 就找不到首行、返回
+        // null，源里明明写了 x-tvg-url，节目单却加载不出来
+        return lines.firstOrNull { it.trim().startsWith("#EXTM3U") }?.let { defLine ->
             // 取首个非空地址：x-tvg-url 常写多个地址，首项为空时不能直接返回
             // 空串（会生成空地址的 EPG 源导致节目单全空），要跳过并继续找 url-tvg
             listOf(xTvgUrlRegex, urlTvgRegex).firstNotNullOfOrNull { regex ->
