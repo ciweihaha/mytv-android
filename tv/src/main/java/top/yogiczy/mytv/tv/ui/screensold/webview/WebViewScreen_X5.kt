@@ -72,6 +72,11 @@ fun WebViewScreen_X5(
     // 只在 host 变化时读一次
     val context = getContext()
     val blacklist = remember(urlHost) { readBlacklist(context, urlHost) }
+    // 只在地址变了时才加载：AndroidView 的 update 每次重组都跑，
+    // 占位文案一变就会重组，原先每次重组都 loadUrl，网页反复重载、放不下去；
+    // 记的是“上次要求加载的地址”——页面跳转后当前地址会变，用当前地址比对
+    // 会在下次重组时又把原地址重载一遍
+    val lastLoadedUrl = remember { object { var value: String? = null } }
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier
@@ -152,7 +157,12 @@ fun WebViewScreen_X5(
                     )
                 }
             },
-            update = { it.loadUrl(actualUrl) },
+            update = {
+                if (lastLoadedUrl.value != actualUrl) {
+                    lastLoadedUrl.value = actualUrl
+                    it.loadUrl(actualUrl)
+                }
+            },
         )
 
         Visibility({ placeholderVisible }) {
