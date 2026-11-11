@@ -56,7 +56,6 @@ fun SettingsPermissionsScreen(
             val (hasPermission, requestPermission) = rememberReadExternalStoragePermission()
 
             SettingsListItem(
-                modifier = Modifier.focusRequester(firstItemFocusRequester),
                 headlineContent = "读取外部存储/管理全部文件",
                 trailingContent = {
                     if (hasPermission) {
