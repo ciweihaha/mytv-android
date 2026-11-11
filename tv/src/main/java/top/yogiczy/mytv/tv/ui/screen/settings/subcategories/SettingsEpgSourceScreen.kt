@@ -240,7 +240,10 @@ private fun SettingsEpgSourceActions(
                     imageVector = Icons.Outlined.Add,
                     onSelected = onSetCurrent,
                     disabled = currentEpgSource == epgSource,
-                    modifier = Modifier.focusOnLaunched(),
+                    modifier = Modifier.ifElse(
+                        currentEpgSource != epgSource,
+                        Modifier.focusOnLaunched(),
+                    ),
                 )
             }
 
@@ -249,6 +252,10 @@ private fun SettingsEpgSourceActions(
                     title = "删除",
                     imageVector = Icons.Outlined.DeleteOutline,
                     onSelected = onDelete,
+                    modifier = Modifier.ifElse(
+                        currentEpgSource == epgSource,
+                        Modifier.focusOnLaunched(),
+                    ),
                 )
             }
 

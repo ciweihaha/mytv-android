@@ -349,7 +349,10 @@ private fun SettingsIptvSourceActions(
                     imageVector = Icons.Outlined.Add,
                     onSelected = onSetCurrent,
                     disabled = currentIptvSource == iptvSource,
-                    modifier = Modifier.focusOnLaunched(),
+                    modifier = Modifier.ifElse(
+                        currentIptvSource != iptvSource,
+                        Modifier.focusOnLaunched(),
+                    ),
                 )
             }
 
@@ -358,6 +361,10 @@ private fun SettingsIptvSourceActions(
                     title = "删除",
                     imageVector = Icons.Outlined.DeleteOutline,
                     onSelected = onDelete,
+                    modifier = Modifier.ifElse(
+                        currentIptvSource == iptvSource,
+                        Modifier.focusOnLaunched(),
+                    ),
                 )
             }
 
