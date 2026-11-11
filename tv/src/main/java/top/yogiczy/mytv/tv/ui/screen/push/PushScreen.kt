@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -30,9 +34,14 @@ fun PushScreen(
     settingsViewModel: SettingsViewModel = settingsVM,
     onBackPressed: () -> Unit = {},
 ) {
+    // 服务地址每秒重算一次：IP 变了（开机时 Wi-Fi 还没拿到地址、中途换网）
+    // 显示的地址和二维码就跟着变；地址没变时赋值相等，不会多画
+    var serverUrl by remember { mutableStateOf(HttpServer.serverUrl) }
+
     LaunchedEffect(Unit) {
         while (true) {
             settingsViewModel.refresh()
+            serverUrl = HttpServer.serverUrl
             delay(1000)
         }
     }
@@ -43,13 +52,15 @@ fun PushScreen(
         canBack = true,
         onBackPressed = onBackPressed,
     ) {
-        PushContent()
+        PushContent(serverUrl = serverUrl)
     }
 }
 
 @Composable
-fun PushContent(modifier: Modifier = Modifier) {
-    val serverUrl = HttpServer.serverUrl
+fun PushContent(
+    modifier: Modifier = Modifier,
+    serverUrl: String = HttpServer.serverUrl,
+) {
     val context = LocalContext.current
 
     Box(modifier = modifier.fillMaxSize()) {
