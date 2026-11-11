@@ -48,6 +48,7 @@ fun SettingsCloudSyncScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     var syncData by remember { mutableStateOf(debugInitialSyncData) }
+    val timeFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
 
     suspend fun pullSyncData() {
         syncData = null
@@ -126,8 +127,6 @@ fun SettingsCloudSyncScreen(
                             Column {
                                 Text("云端版本：${nnSyncData.version}")
 
-                                val timeFormat =
-                                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                                 Text("推送时间：${timeFormat.format(nnSyncData.syncAt)}")
 
                                 Text("推送设备：${nnSyncData.syncFrom}")
