@@ -21,7 +21,9 @@ object M3u8AnalysisUtil {
         .build()
 
     private suspend fun getFirstTsUrl(m3u8Url: String): String? = withContext(Dispatchers.IO) {
-        if (!m3u8Url.split("?").first().endsWith(".m3u8")) return@withContext null
+        // 后缀判断忽略大小写：全仓其他后缀判断（.xml/.gz/.apk/.ico）
+        // 都是 ignoreCase，大写 .M3U8 的流之前直接拿不到预览帧
+        if (!m3u8Url.split("?").first().endsWith(".m3u8", ignoreCase = true)) return@withContext null
 
         try {
             val request = Request.Builder().url(m3u8Url).build()
