@@ -72,6 +72,13 @@ fun MultiViewItem(
 
     var channelInfoVisible by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
+    // 每画面自己的静音开关：之前菜单按 player.volume == 0f 判断“已静音”，
+    // 可没焦点的画面音量本来就是 0f——在没焦点的画面上开菜单显示的是
+    // “取消静音”，一点就把音量抬到 1f，两个画面同时出声；焦点画面点了
+    // “静音”，焦点一切换，焦点监听又按“有焦点就出声”把音量写回 1f，
+    // 静音悄悄失效。静音状态单独存一份，焦点变化只在“有焦点且没静音”
+    // 时才出声。换台时这一项随频道一起重建，静音跟着复位。
+    var isMuted by remember { mutableStateOf(false) }
     val channelInfoHide =
         rememberDebounceState(Constants.UI_TEMP_CHANNEL_SCREEN_SHOW_DURATION) {
             channelInfoVisible = false
@@ -104,7 +111,7 @@ fun MultiViewItem(
         if (isFocused) channelInfoVisible = true
         channelInfoHide.send()
 
-        player.volume = if (isFocused) 1f else 0f
+        player.volume = if (isFocused && !isMuted) 1f else 0f
     }
 
     Surface(
@@ -165,7 +172,7 @@ fun MultiViewItem(
             viewCountProvider = viewCountProvider,
             isZoomInProvider = { zoomInIndexProvider() == viewIndexProvider() },
             isPlayingProvider = { player.isPlaying },
-            isMutedProvider = { player.volume == 0f },
+            isMutedProvider = { isMuted },
             onAddChannel = {
                 addChannelVisible = true
                 actionsVisible = false
@@ -199,11 +206,13 @@ fun MultiViewItem(
                 actionsVisible = false
             },
             onVideoPlayerMute = {
+                isMuted = true
                 player.volume = 0f
                 actionsVisible = false
             },
             onVideoPlayerUnMute = {
-                player.volume = 1f
+                isMuted = false
+                player.volume = if (isFocused) 1f else 0f
                 actionsVisible = false
             },
             onVideoPlayerReload = {
