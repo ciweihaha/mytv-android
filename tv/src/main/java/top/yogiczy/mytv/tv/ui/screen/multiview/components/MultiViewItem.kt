@@ -84,10 +84,15 @@ fun MultiViewItem(
     var changeChannelVisible by remember { mutableStateOf(false) }
 
     val player = rememberVideoPlayerState()
-    player.onReady { channelInfoHide.send() }
-    player.onIsBuffering { isBuffering ->
-        if (isBuffering) channelInfoVisible = true
-        channelInfoHide.send()
+    // 监听只注册一次：之前直接写在界面体里，每次重画都多注册一次，
+    // 监听列表越攒越长；LaunchedEffect 按 player 实例跑，换播放器
+    // 核心时重新注册，旧实例的监听随它释放一起丢
+    LaunchedEffect(player) {
+        player.onReady { channelInfoHide.send() }
+        player.onIsBuffering { isBuffering ->
+            if (isBuffering) channelInfoVisible = true
+            channelInfoHide.send()
+        }
     }
 
     LaunchedEffect(channel) {
