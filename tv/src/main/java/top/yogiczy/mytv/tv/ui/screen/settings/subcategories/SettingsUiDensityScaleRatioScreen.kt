@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +36,7 @@ fun SettingsUiDensityScaleRatioScreen(
     val scaleRatioList = listOf(0f) + (5..20).map { it * 0.1f }
 
     val childPadding = rememberChildPadding()
+    val decimalFormat = remember { DecimalFormat("#.#") }
 
     AppScreen(
         modifier = Modifier.padding(top = 10.dp),
@@ -57,7 +59,7 @@ fun SettingsUiDensityScaleRatioScreen(
                         Text(
                             text = when (scaleRatio) {
                                 0f -> "自适应"
-                                else -> "×${DecimalFormat("#.#").format(scaleRatio)}"
+                                else -> "×${decimalFormat.format(scaleRatio)}"
                             },
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
