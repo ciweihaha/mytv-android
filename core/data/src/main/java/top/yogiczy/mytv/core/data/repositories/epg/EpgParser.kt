@@ -17,9 +17,23 @@ import java.util.Locale
 import kotlin.time.measureTimedValue
 
 object EpgParser : Loggable("EpgParser") {
-    private fun parseTime(time: String, dateFormat: SimpleDateFormat): Long {
+    /**
+     * 解析节目开始/结束时间：先按带时区的标准格式解析；有些源不写时区
+     * （"20261112010000"）、或时区写成 "+08:00"、或时区前没空格，按
+     * 原格式会抛 ParseException，外层 runCatching 会把整条节目吞掉——
+     * 整个源都不带时区时节目单全空；退回按前 14 位本地时间解析：时区
+     * 丢了但节目还在，总比整条丢掉强。顶层/内部函数方便单元测试直接调用。
+     */
+    internal fun parseTime(
+        time: String,
+        dateFormat: SimpleDateFormat,
+        noZoneDateFormat: SimpleDateFormat,
+    ): Long {
         if (time.length < 14) return 0
-        return dateFormat.parse(time)?.time ?: 0
+        return runCatching { dateFormat.parse(time)?.time ?: 0 }.getOrElse {
+            runCatching { noZoneDateFormat.parse(time.substring(0, 14))?.time ?: 0 }
+                .getOrDefault(0)
+        }
     }
 
     private data class ChannelItem(
@@ -53,6 +67,8 @@ object EpgParser : Loggable("EpgParser") {
             val programmeList = mutableListOf<ProgrammeItem>()
             // 同一次解析内复用同一个 SimpleDateFormat（原先每条节目 new 一个）
             val dateFormat = SimpleDateFormat("yyyyMMddHHmmss Z", Locale.getDefault())
+            // 不带时区的退路格式：parseTime 兜底用，同样只建一次
+            val noZoneDateFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
 
             var eventType = parser.eventType
             while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -118,8 +134,8 @@ object EpgParser : Loggable("EpgParser") {
                                             programmeList.add(
                                                 ProgrammeItem(
                                                     channel,
-                                                    parseTime(start, dateFormat),
-                                                    parseTime(stop, dateFormat),
+                                                    parseTime(start, dateFormat, noZoneDateFormat),
+                                                    parseTime(stop, dateFormat, noZoneDateFormat),
                                                     it
                                                 )
                                             )
