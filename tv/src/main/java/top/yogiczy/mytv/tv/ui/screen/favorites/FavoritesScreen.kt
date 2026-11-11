@@ -58,7 +58,13 @@ fun FavoritesScreen(
 
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
     val currentChannelGroup = remember(currentChannelGroupIdx, channelFavoriteGroupList) {
-        channelFavoriteGroupList.getOrElse(currentChannelGroupIdx) { ChannelGroup() }
+        // 当前分组被删光后序号可能越界（比如在 B 源分组里把最后一个收藏取消掉，
+        // 分组列表缩回只剩“全部”和 A）：越界就回落到“全部”，别显示空白分组
+        val safeIdx = currentChannelGroupIdx.coerceIn(
+            0,
+            (channelFavoriteGroupList.size - 1).coerceAtLeast(0),
+        )
+        channelFavoriteGroupList.getOrElse(safeIdx) { ChannelGroup() }
     }
 
     AppScreen(
