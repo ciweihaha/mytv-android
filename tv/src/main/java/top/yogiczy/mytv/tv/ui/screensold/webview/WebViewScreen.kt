@@ -217,12 +217,10 @@ class MyWebViewInterface(
 }
 
 fun readAssetFile(context: Context, fileName: String): String {
-    val inputStream = context.assets.open(fileName)
-    val size = inputStream.available()
-    val buffer = ByteArray(size)
-    inputStream.read(buffer)
-    inputStream.close()
-    return String(buffer, Charsets.UTF_8)
+    // read(byte[]) 不保证一次读满：资源在包里是压缩存放的，解压流一次
+    // 可能只吐出一部分，返回值丢弃后 buffer 尾部就留着没填上的零字节；
+    // 改成读到文件尾为止，use 保证不管成败都关流
+    return context.assets.open(fileName).use { it.readBytes().toString(Charsets.UTF_8) }
 }
 
 fun readBlacklist(context: Context, urlHost: String): List<String> {
