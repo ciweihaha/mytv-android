@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -74,10 +75,12 @@ private fun MonitorFpsChart(
 ) {
     val fpsList = fpsListProvider()
 
+    val density = LocalDensity.current
+    val barSpacing = remember(density) { with(density) { 2.dp.toPx() } } // 柱状条之间的间距
+
     Canvas(
         modifier = modifier,
     ) {
-        val barSpacing = 2.dp.toPx() // 柱状条之间的间距
         val barWidth = (size.width - (fpsList.size - 1) * barSpacing) / fpsList.size // 每个柱状条的宽度
         val maxBarHeight = size.height // 柱状图的最大高度
 
