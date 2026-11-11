@@ -68,7 +68,16 @@ suspend fun <T> String.request(
             throw Exception("${response.code}: ${response.message}")
         }
 
-        action(response, response.request)
+        // action 抛错时 response 也要关：成功分支返回的 body 流由调用方
+        // 读完再关（节目单就是这么走的），不能提前关；但 action 中途抛了
+        // （如节目单拉取读魔数字节时断网），没人再关这个 response，连接
+        // 回不了共用池，反复失败会把池漏光
+        return try {
+            action(response, response.request)
+        } catch (e: Throwable) {
+            response.closeQuietly()
+            throw e
+        }
     }
 }
 
