@@ -40,6 +40,7 @@ import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelGroupIdx
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelIdx
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.match
@@ -207,7 +208,12 @@ fun ClassicChannelScreen(
         }
     }
 
-    ChannelScreenTopRight(channelNumberProvider = { currentChannelProvider().no })
+    ChannelScreenTopRight(channelNumberProvider = {
+        // 和选台页一致按列表现查：当前台不在列表里时显示“–”，不用
+        // 频道对象自带的序号（切源后是旧号）
+        val idx = channelGroupListProvider().channelIdx(currentChannelProvider())
+        if (idx < 0) "–" else (idx + 1).toString().padStart(2, '0')
+    })
 
     // Visibility({ !epgListVisible }) {
     //     Box(Modifier.fillMaxSize()) {

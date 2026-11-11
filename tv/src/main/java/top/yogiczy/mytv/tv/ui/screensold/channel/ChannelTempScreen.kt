@@ -26,6 +26,9 @@ fun ChannelTempScreen(
     modifier: Modifier = Modifier,
     channelProvider: () -> Channel = { Channel() },
     channelLineIdxProvider: () -> Int = { 0 },
+    // 台号默认仍用频道自带的序号；主界面会传按列表现查的那份——
+    // 当前台不在列表里时自带的序号是旧号，列表现查的显示“–”
+    channelNumberProvider: () -> String = { channelProvider().no },
     recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
     isInTimeShiftProvider: () -> Boolean = { false },
     currentPlaybackEpgProgrammeProvider: () -> EpgProgramme? = { null },
@@ -38,7 +41,7 @@ fun ChannelTempScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = childPadding.top, end = childPadding.end),
-            channelNumberProvider = { channelProvider().no },
+            channelNumberProvider = channelNumberProvider,
         )
 
         LiveChannelsChannelInfo(

@@ -94,6 +94,15 @@ fun MainContent(
         }
     }
 
+    // 当前台号：按列表现查（和选台页一致）；当前台不在列表里时显示
+    // “–”，不用频道对象自带的序号（切源后是旧号、收藏播台时是 -1
+    // 的“00”）。临时频道条、快捷操作页共用这一份。
+    val channelNumberProvider = {
+        val idx =
+            filteredChannelGroupListProvider().channelList.indexOf(mainContentState.currentChannel)
+        if (idx < 0) "–" else (idx + 1).toString()
+    }
+
     Box(
         modifier = modifier
             .popupable()
@@ -259,6 +268,7 @@ fun MainContent(
         ChannelTempScreen(
             channelProvider = { mainContentState.currentChannel },
             channelLineIdxProvider = { mainContentState.currentChannelLineIdx },
+            channelNumberProvider = channelNumberProvider,
             recentEpgProgrammeProvider = {
                 epgListProvider().recentProgramme(mainContentState.currentChannel)
             },
@@ -438,13 +448,7 @@ fun MainContent(
         QuickOpScreen(
             currentChannelProvider = { mainContentState.currentChannel },
             currentChannelLineIdxProvider = { mainContentState.currentChannelLineIdx },
-            currentChannelNumberProvider = {
-                // 当前台不在列表里时下标是 -1，别显示成不存在的“0”号
-                //（快捷操作页里会再补成“00”）；找不到就显示“–”
-                val idx =
-                    filteredChannelGroupListProvider().channelList.indexOf(mainContentState.currentChannel)
-                if (idx < 0) "–" else (idx + 1).toString()
-            },
+            currentChannelNumberProvider = channelNumberProvider,
             epgListProvider = epgListProvider,
             currentPlaybackEpgProgrammeProvider = { mainContentState.currentPlaybackEpgProgramme },
             videoPlayerMetadataProvider = { videoPlayerState.metadata },
