@@ -152,6 +152,10 @@ class IjkVideoPlayer(
         cacheSurfaceView = surfaceView
         cacheSurfaceTexture?.release()
         cacheSurfaceTexture = null
+        // 渲染模式是直播生效的设置：切到 SurfaceView 时立刻把画面接上，
+        // 原先只缓存、等下次 onPrepared 才 setDisplay，播放中从 TextureView
+        // 切过来会一直黑屏到下次换台；Media3 那边也是设置时立刻接上
+        player.setDisplay(surfaceView.holder)
     }
 
     override fun setVideoTextureView(textureView: TextureView) {
