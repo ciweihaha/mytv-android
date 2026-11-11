@@ -67,7 +67,14 @@ object EpgParser : Loggable("EpgParser") {
                     XmlPullParser.START_TAG -> {
                         when (parser.name) {
                             "channel" -> {
-                                lastChannel = ChannelItem(parser.getAttributeValue(null, "id"))
+                                // 缺 id 的 channel 直接记空串：getAttributeValue
+                                // 找不到属性回 null，ChannelItem.id 是非空
+                                // String，Kotlin 会在传参时抛 NPE；这行又
+                                // 不在 runCatching 里，一条坏 channel 会让
+                                // 整份节目单解析失败、整个源的节目单都加载
+                                // 不出来；记空串后该台仍能按名匹配，其余频
+                                // 道也不受影响
+                                lastChannel = ChannelItem(parser.getAttributeValue(null, "id").orEmpty())
                             }
 
                             "display-name" -> {
