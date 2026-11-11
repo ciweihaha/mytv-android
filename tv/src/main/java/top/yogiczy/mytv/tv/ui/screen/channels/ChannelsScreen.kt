@@ -16,7 +16,6 @@ import androidx.tv.material3.Text
 import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
-import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGrid
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGroupList
