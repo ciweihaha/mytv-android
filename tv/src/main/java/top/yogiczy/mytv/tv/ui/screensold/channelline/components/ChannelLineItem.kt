@@ -20,6 +20,7 @@ import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.RadioButton
 import androidx.tv.material3.Text
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
@@ -32,7 +33,6 @@ import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.focusOnLaunchedSaveable
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import top.yogiczy.mytv.tv.ui.utils.ifElse
-import java.io.IOException
 import kotlin.system.measureTimeMillis
 
 @Composable
@@ -121,7 +121,12 @@ private fun rememberLineDelay(line: ChannelLine): Long {
                                 input.read(ByteArray(1024))
                             }
                         }
-                    } catch (_: IOException) {
+                    } catch (e: Exception) {
+                        // 非 2xx 时 request 抛的是普通 Exception（不是 IOException）：
+                        // 原来只抓 IOException，404/403 这类死线路探针失败也不记错，
+                        // 延迟一直是 0、不显示“超时”，和“还没测出来”分不出来；
+                        // 取消异常重新抛，不记错
+                        if (e is CancellationException) throw e
                         hasError = true
                     }
                 }
