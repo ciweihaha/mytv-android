@@ -11,6 +11,17 @@ import kotlinx.serialization.Serializable
 data class ChannelGroupList(
     val value: List<ChannelGroup> = emptyList(),
 ) : List<ChannelGroup> by value {
+    /**
+     * 摊平后的全量频道列表：第一次访问时拼好记下来，之后直接拿同一份。
+     * 之前是扩展属性，每访问一次就 flatMap 重拼一次；搜索每敲一个字、
+     * 主界面取台号、源管理每项（先取个数再算线路数，连拼两次）都在拼。
+     * data class 不可变，同一份实例摊平的结果永远不变，缓存安全；
+     * copy() 出新实例时才重算。
+     */
+    val channelList: ChannelList by lazy {
+        ChannelList(value.asSequence().flatMap { it.channelList.asSequence() }.toList())
+    }
+
     companion object {
         val EXAMPLE = ChannelGroupList(List(20) { groupIdx ->
             ChannelGroup(
@@ -37,9 +48,6 @@ data class ChannelGroupList(
         fun ChannelGroupList.channelFirstOrNull() = this.firstOrNull()?.channelList?.firstOrNull()
 
         fun ChannelGroupList.channelLastOrNull() = this.lastOrNull()?.channelList?.lastOrNull()
-
-        val ChannelGroupList.channelList: ChannelList
-            get() = ChannelList(this.asSequence().flatMap { it.channelList.asSequence() }.toList())
     }
 
     fun withMetadata(): ChannelGroupList {
