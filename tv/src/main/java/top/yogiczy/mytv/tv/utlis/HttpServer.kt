@@ -471,19 +471,33 @@ object HttpServer : Loggable("HttpServer") {
         }
     }
 
+    // 局域网文件接口只允许读写应用自己的 cache/file 目录：/api/file/content 原先接受
+    // 任意绝对路径，同网段任何人都能读应用私有文件（配置、订阅源）或往任意位置写文件；
+    // 与 content-with-dir 接口保持一致，只放行这两个目录内的文件（规范化后比较，.. 与
+    // 符号链接越出目录会被拒绝）。网页端编辑本地订阅源走的正是这两个目录（content 类型
+    // 的源文件建在 fileDir 下），不受影响；file 类型源若指向目录外，网页端编辑会被拒绝，
+    // 但订阅本身照常能播。
+    private fun isAllowedFile(file: File): Boolean {
+        return FsUtil.isWithin(file, Globals.fileDir) || FsUtil.isWithin(file, Globals.cacheDir)
+    }
+
     private fun handleFileContentGet(
         request: AsyncHttpServerRequest,
         response: AsyncHttpServerResponse
     ) {
         val path = request.query.getString("path")
 
-        val file = File(path).takeIf { it.isFile } ?: run {
+        val file = File(path)
+        if (!isAllowedFile(file)) {
+            return response.code(400).send("Invalid path")
+        }
+
+        val targetFile = file.takeIf { it.isFile } ?: run {
             return response.code(404).send("File not found")
         }
 
-        // 流式发送，不再整文件 readText() 进内存：该接口接受任意绝对路径，
-        // 请求大文件时会把应用内存撑爆
-        wrapResponse(response).sendFile(file)
+        // 流式发送，不再整文件 readText() 进内存：请求大文件时会把应用内存撑爆
+        wrapResponse(response).sendFile(targetFile)
     }
 
     private fun handleFileContentPost(
@@ -495,6 +509,9 @@ object HttpServer : Loggable("HttpServer") {
         val content = body.get("content").toString()
 
         val file = File(path)
+        if (!isAllowedFile(file)) {
+            return response.code(400).send("Invalid path")
+        }
 
         if (file.exists()) {
             file.writeText(content)
