@@ -92,6 +92,7 @@ fun FavoritesScreen(
                 onChannelSelected = onChannelSelected,
                 onChannelFavoriteToggle = onChannelFavoriteToggle,
                 epgListProvider = epgListProvider,
+                inFavoriteMode = true,
                 updateTopBarVisibility = updateTopBarVisibility,
             )
         }
