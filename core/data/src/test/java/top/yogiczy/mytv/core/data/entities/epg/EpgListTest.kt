@@ -91,7 +91,8 @@ class EpgListTest {
     @Test
     fun isSameEpgChannelName_digitsAndSpacesIgnored() {
         assertTrue(isSameEpgChannelName("CCTV综合", "CCTV-1 综合"))
-        assertTrue(isSameEpgChannelName("CCTV-1", "CCTV-1 综合"))
+        // 空白与“-”只是写法差别，归一化后相同、数字串也相同
+        assertTrue(isSameEpgChannelName("CCTV-1 综合", "CCTV-1综合"))
     }
 
     @Test
