@@ -85,11 +85,21 @@ abstract class FileCacheRepository(
         val useCache = !expired && cached != null && cached.available() > 0
         cached?.close()
 
-        if (!useCache) {
-            setCacheInputStream(refreshOp())
-        }
+        if (useCache) return@withContext getCacheInputStream()!!
 
-        getCacheInputStream()!!
+        // 刷新失败时用磁盘上的旧文件顶上：不断网时本来就会刷新成功；
+        // 断网时旧节目单还能看，总比直接报错强；没旧文件时才抛错
+        try {
+            setCacheInputStream(refreshOp())
+            getCacheInputStream()!!
+        } catch (ex: Exception) {
+            val stale = getCacheInputStream()
+            if (stale != null && stale.available() > 0) stale
+            else {
+                stale?.close()
+                throw ex
+            }
+        }
     }
 
     protected suspend fun getOrRefresh(cacheTime: Long, refreshOp: suspend () -> String): String {
@@ -103,18 +113,20 @@ abstract class FileCacheRepository(
         isExpired: (lastModified: Long, cacheData: String?) -> Boolean,
         refreshOp: suspend () -> String,
     ): String {
-        var data = getCacheData()
+        // 开头先把旧数据读出来记着：没过期直接返回；过期去刷新，
+        // 刷新失败（断网）时用它顶上，不再重读磁盘、也不直接抛错——
+        // 断网时旧单/旧节目单还能看；没旧数据时才抛错
+        val staleData = getCacheData()
 
-        if (isExpired(getCacheFile().lastModified(), data)) {
-            data = null
+        if (!isExpired(getCacheFile().lastModified(), staleData) && !staleData.isNullOrBlank()) {
+            return staleData
         }
 
-        if (data.isNullOrBlank()) {
-            data = refreshOp()
-            setCacheData(data)
+        return try {
+            refreshOp().also { setCacheData(it) }
+        } catch (ex: Exception) {
+            if (!staleData.isNullOrBlank()) staleData else throw ex
         }
-
-        return data
     }
 
     open suspend fun clearCache() = withContext(Dispatchers.IO) {
