@@ -68,13 +68,50 @@ class EpgTest {
     }
 
     @Test
-    fun recentProgramme_noLive_returnsEmpty() {
+    fun recentProgramme_noLive_nextIsUpcoming() {
+        // 当天第一个节目还没开始：没有正在播的节目，但下一个节目是已知
+        // 的；原来 next 也返回空，选台页“稍后播放”只能显示“精彩节目”占位
         val now = System.currentTimeMillis()
         val epg = Epg(
             channelList = listOf("CCTV-1"),
             programmeList = EpgProgrammeList(
                 listOf(
                     EpgProgramme(startAt = now + 3600_000, endAt = now + 7200_000, title = "稍后"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme()
+        assertNull(recent.now)
+        assertEquals("稍后", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_inGap_nextIsUpcoming() {
+        // 当前时间落在两个节目之间的空档：now 为空，next 是空档后第一个节目
+        val now = System.currentTimeMillis()
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = now - 7200_000, endAt = now - 3600_000, title = "已播"),
+                    EpgProgramme(startAt = now + 3600_000, endAt = now + 7200_000, title = "稍后"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme()
+        assertNull(recent.now)
+        assertEquals("稍后", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_afterLast_returnsEmpty() {
+        // 当天最后一个节目也播完了：后面没有节目，now 和 next 都为空
+        val now = System.currentTimeMillis()
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = now - 7200_000, endAt = now - 3600_000, title = "已播"),
                 )
             ),
         ).sortedProgrammes()

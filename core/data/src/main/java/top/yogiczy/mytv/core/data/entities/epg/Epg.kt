@@ -61,7 +61,14 @@ data class Epg(
                     now = programmeList[liveProgramIndex],
                     next = programmeList.getOrNull(liveProgramIndex + 1)
                 )
-                else EpgProgrammeRecent()
+                // 当前时间落在两个节目之间的空档（或当天第一个节目还没
+                // 开始）：没有正在播的节目，但下一个节目是已知的；原来
+                // next 也返回空，选台页“稍后播放”只能显示“精彩节目”
+                // 占位；二分查找返回的负值里藏着插入点，第一个开始时间
+                // 在现在的节目就是下一个
+                else EpgProgrammeRecent(
+                    next = programmeList.getOrNull(-liveProgramIndex - 1)
+                )
             }
             log.v("recentProgramme: ${channelList.firstOrNull()}", null, t.duration)
 
