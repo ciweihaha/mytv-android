@@ -31,7 +31,13 @@ class GithubGistSyncRepository(
                             )
                         ).toRequestBody()
                     )
-            }) { _ -> true } ?: false
+            }) { body ->
+                // 推送成功也要关响应体：body 不读不关，连接回不了共用池，
+                // 每次推送都会漏一个连接（和 OkHttpExtensions 里修过的
+                // 错误分支是同一类问题，只是这里走的是成功分支）
+                body.close()
+                true
+            } ?: false
         } catch (ex: Exception) {
             log.e("推送云端失败", ex)
             // 按接口契约返回 false 而不是抛异常：调用方按返回值提示成败
