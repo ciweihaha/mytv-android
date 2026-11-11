@@ -161,6 +161,15 @@ class IptvParserTest {
     }
 
     @Test
+    fun txt_blankNameSkipped() = runBlocking {
+        // 逗号前名字空白的行直接跳过，不产生无名频道
+        val txtData = "央视,#genre#\n,http://example.com/garbage\nCCTV-1,http://example.com/cctv1\n ,http://example.com/garbage2"
+        val channels = txtParser.parse(txtData)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+    }
+
+    @Test
     fun txt_genreLineWithoutGroupName_keepsPreviousGroup() = runBlocking {
         // `,#genre#` 不应产生空分组名：其后的频道仍归上一个分组
         val txtData = "央视,#genre#\nCCTV-1,http://example.com/1\n,#genre#\nCCTV-2,http://example.com/2"
