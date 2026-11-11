@@ -104,23 +104,29 @@ fun SimplePopup(
     val popupState = LocalPopupState.current
 
     if (visible) {
-        popupState.add(
-            PopupState(
-                key = key,
-                composableReference = {
-                    PopupContent(
-                        modifier = modifier
-                            .focusProperties { exit = { FocusRequester.Cancel } },
-                        visibleProvider = visibleProvider,
-                        onDismissRequest = onDismissRequest,
-                        withBackground = true,
-                        content = content,
-                    )
-                },
-            ),
-        )
+        // 同一个弹窗每次重画都会重新执行这里：不按 key 去重，同一份
+        // 弹窗会被反复加进列表，背景越叠越暗、每份还各推一个焦点请求；
+        // 关闭时下面又只删第一份，攒下的重复项会一直留着、弹窗关不掉
+        if (popupState.none { it.key == key }) {
+            popupState.add(
+                PopupState(
+                    key = key,
+                    composableReference = {
+                        PopupContent(
+                            modifier = modifier
+                                .focusProperties { exit = { FocusRequester.Cancel } },
+                            visibleProvider = visibleProvider,
+                            onDismissRequest = onDismissRequest,
+                            withBackground = true,
+                            content = content,
+                        )
+                    },
+                ),
+            )
+        }
     } else {
-        popupState.remove(popupState.find { it.key == key })
+        // 按 key 全删：只删第一份的话，前面攒下的重复项还会留在列表里
+        popupState.removeAll { it.key == key }
     }
 }
 
