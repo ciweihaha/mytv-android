@@ -90,6 +90,10 @@ data class CloudSyncData(
                 // 旧代码只用 startsWith 判断，前缀相同即可越出目录写任意位置
                 ?.filter { FsUtil.isWithin(File(it.key), Globals.fileDir) }
                 ?.forEach { entry ->
+                    // 恢复到新设备时子目录可能还没建：先建目录，否则
+                    // writeText 抛文件找不到，整个应用云端数据中断、
+                    // 后面的别名文件也写不上（推送那头同款问题已修过）
+                    File(entry.key).parentFile?.mkdirs()
                     File(entry.key).writeText(entry.value)
                 }
             that.extraChannelNameAlias?.let {
