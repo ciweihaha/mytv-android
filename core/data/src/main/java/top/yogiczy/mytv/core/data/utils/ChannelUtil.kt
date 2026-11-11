@@ -276,36 +276,40 @@ object ChannelUtil {
             ?: emptyList())
     }
 
+    // 网页混合线路的官网域名表：只建一次，之前每次判定都现建一个 26 项数组
+    private val hybridWebViewUrlProviders = arrayOf(
+        "brtn.cn",
+        "jstv.com",
+        "kankanews.com",
+        "cztv.com",
+        "hbtv.com.cn",
+        "gdtv.cn",
+        "gxtv.cn",
+        "hljtv.com",
+        "hnntv.cn",
+        "hntv.tv",
+        "fjtv.net",
+        "gzstv.com",
+        "jxntv.cn",
+        "ahtv.cn",
+        "hebtv.com",
+        "iqilu.com",
+        "jlntv.cn",
+        "sxtvs.com",
+        "gstv.com.cn",
+        "nxtv.com.cn",
+        "nmtv.cn",
+        "yntv.cn",
+        "sxrtv.com",
+        "qhbtv.com",
+        "vtibet.cn",
+        "xjtvs.com.cn"
+    )
+
+    // 回放地址关键词：只建一次，之前每次判定都现建一个小列表
+    private val playbackUrlKeywords = listOf("pltv", "tvod")
+
     fun getHybridWebViewUrlProvider(url: String): String {
-        val specificUrls = arrayOf(
-            "brtn.cn",
-            "jstv.com",
-            "kankanews.com",
-            "cztv.com",
-            "hbtv.com.cn",
-            "gdtv.cn",
-            "gxtv.cn",
-            "hljtv.com",
-            "hnntv.cn",
-            "hntv.tv",
-            "fjtv.net",
-            "gzstv.com",
-            "jxntv.cn",
-            "ahtv.cn",
-            "hebtv.com",
-            "iqilu.com",
-            "jlntv.cn",
-            "sxtvs.com",
-            "gstv.com.cn",
-            "nxtv.com.cn",
-            "nmtv.cn",
-            "yntv.cn",
-            "sxrtv.com",
-            "qhbtv.com",
-            "vtibet.cn",
-            "xjtvs.com.cn"
-        )
-        
         try {
             // 处理webview://前缀
             val processedUrl = if (url.startsWith("webview://")) {
@@ -318,7 +322,7 @@ object ChannelUtil {
             return when {
                 host.contains("cctv.com") -> "官网"
                 host.contains("yangshipin.cn") -> "央视频"
-                specificUrls.any { host.contains(it) } -> "官网"
+                hybridWebViewUrlProviders.any { host.contains(it) } -> "官网"
                 else -> "其它"
             }
         } catch (e: Exception) {
@@ -328,7 +332,7 @@ object ChannelUtil {
     }
 
     fun urlSupportPlayback(url: String): Boolean {
-        return url.startsWith("rtsp://") && listOf("pltv", "tvod").any { url.contains(it, ignoreCase = true) }
+        return url.startsWith("rtsp://") && playbackUrlKeywords.any { url.contains(it, ignoreCase = true) }
     }
 
     fun urlToCanPlayback(url: String): String {
