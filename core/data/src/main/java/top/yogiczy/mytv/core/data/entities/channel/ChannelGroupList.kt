@@ -40,7 +40,11 @@ data class ChannelGroupList(
         fun ChannelGroupList.channelGroupIdx(channel: Channel) =
             this.indexOfFirst { group -> group.channelList.any { it == channel } }
 
-        fun ChannelGroupList.chanelGroup(channel: Channel) = this[channelGroupIdx(channel)]
+        // 找不到时返回 null，不要直接取下标：channelGroupIdx 找不到返回 -1，
+        // 收藏切换传进来的频道若已过期（源刷新/切源后线路变了、分组被隐藏），
+        // 旧写法 this[-1] 直接抛 IndexOutOfBoundsException 闪退
+        fun ChannelGroupList.chanelGroup(channel: Channel) =
+            getOrNull(channelGroupIdx(channel))
 
         fun ChannelGroupList.channelIdx(channel: Channel) =
             channelList.indexOfFirst { it == channel }

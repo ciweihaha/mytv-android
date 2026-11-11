@@ -112,7 +112,7 @@ fun MainScreen(
             val favoriteChannel = ChannelFavorite(
                 channel = channel,
                 iptvSourceName = settingsViewModel.iptvSourceCurrent.name,
-                groupName = filteredChannelGroupListProvider().chanelGroup(channel).name,
+                groupName = filteredChannelGroupListProvider().chanelGroup(channel)?.name ?: "其他",
             )
 
             settingsViewModel.iptvChannelFavoriteList =

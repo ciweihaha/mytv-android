@@ -1,7 +1,9 @@
 package top.yogiczy.mytv.core.data.entities.channel
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 
 class ChannelGroupListTest {
     @Test
@@ -52,5 +54,32 @@ class ChannelGroupListTest {
     @Test
     fun withMetadata_emptyList() {
         assertEquals(0, ChannelGroupList().withMetadata().size)
+    }
+
+    @Test
+    fun chanelGroup_channelPresent_returnsItsGroup() {
+        val channel = Channel.EXAMPLE.copy(name = "C1")
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(listOf(channel))),
+                ChannelGroup(name = "B", channelList = ChannelList(listOf(Channel.EXAMPLE.copy(name = "C2")))),
+            )
+        )
+
+        assertEquals("A", list.chanelGroup(channel)?.name)
+    }
+
+    @Test
+    fun chanelGroup_channelAbsent_returnsNullInsteadOfThrowing() {
+        // 源刷新/切源后线路变了、或分组被隐藏：收藏切换传进来的过期频道
+        // 已不在当前列表里，旧实现 this[-1] 直接闪退
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(listOf(Channel.EXAMPLE.copy(name = "C1")))),
+            )
+        )
+
+        assertNull(list.chanelGroup(Channel.EXAMPLE.copy(name = "不存在的频道")))
+        assertNull(ChannelGroupList().chanelGroup(Channel.EXAMPLE))
     }
 }
