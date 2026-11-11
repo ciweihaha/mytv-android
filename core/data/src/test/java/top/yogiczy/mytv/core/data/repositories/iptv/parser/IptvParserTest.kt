@@ -407,4 +407,25 @@ class IptvParserTest {
         assertEquals("CCTV-5", channels[1].epgName)
         assertEquals("央视频道", channels[1].groupName)
     }
+
+    @Test
+    fun m3u_tvgId_parsed() = runBlocking {
+        // tvg-id 和节目单 channel 的 id 是同一套：名字写法不同时靠它
+        // 兜底匹配节目单；属性名同样不区分大小写；没有 tvg-id 的行记空串
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-id="cctv1" tvg-name="CCTV综合" group-title="央视",CCTV综合
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 TVG-ID="cctv5" tvg-name="CCTV-5" group-title="央视",CCTV-5
+            http://example.com/cctv5.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(3, channels.size)
+        assertEquals("cctv1", channels[0].tvgId)
+        assertEquals("CCTV综合", channels[0].epgName)
+        assertEquals("cctv5", channels[1].tvgId)
+        assertEquals("", channels[2].tvgId)
+    }
 }

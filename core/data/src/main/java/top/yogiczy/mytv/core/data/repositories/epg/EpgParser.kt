@@ -142,6 +142,7 @@ object EpgParser : Loggable("EpgParser") {
             val programmesByChannel = programmeList.groupBy { it.channel }
             EpgList(channelList.map { channel ->
                 Epg(
+                    id = channel.id,
                     channelList = channel.displayNames,
                     logo = channel.icon,
                     programmeList = EpgProgrammeList(

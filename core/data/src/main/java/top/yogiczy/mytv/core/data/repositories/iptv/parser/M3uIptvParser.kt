@@ -20,6 +20,7 @@ class M3uIptvParser : IptvParser {
         private val catchupRegex = Regex("catchup=\"(.+?)\"", RegexOption.IGNORE_CASE)
         private val catchupSourceRegex = Regex("catchup-source=\"(.+?)\"", RegexOption.IGNORE_CASE)
         private val tvgNameRegex = Regex("tvg-name=\"(.*?)\"", RegexOption.IGNORE_CASE)
+        private val tvgIdRegex = Regex("tvg-id=\"(.*?)\"", RegexOption.IGNORE_CASE)
         private val groupTitleRegex = Regex("group-title=\"(.+?)\"", RegexOption.IGNORE_CASE)
         private val tvgLogoRegex = Regex("tvg-logo=\"(.+?)\"", RegexOption.IGNORE_CASE)
         private val httpUserAgentRegex = Regex("http-user-agent=\"(.+?)\"", RegexOption.IGNORE_CASE)
@@ -81,6 +82,11 @@ class M3uIptvParser : IptvParser {
                         return@forEach
                     }
                     val epgName = tvgName ?: name
+                    // tvg-id 和节目单 channel 的 id 是同一套：名字写法不同
+                    // 时（直播源“CCTV综合”、节目单“CCTV-1 综合”），节目
+                    // 单按名查不到，靠它兜底；没有 tvg-id 的行记空串，走原
+                    // 来的按名查；属性名同样不区分大小写
+                    val tvgId = tvgIdRegex.find(line)?.groupValues?.get(1)?.trim().orEmpty()
                     val groupNames =
                         groupTitleRegex.find(line)?.groupValues?.get(1)?.split(";")
                             ?.map { it.trim() }
@@ -126,12 +132,13 @@ class M3uIptvParser : IptvParser {
                     // 逐频道日志只写 logcat（v 级不进应用内日志历史）：
                     // 原先每频道一条 INFO，应用内日志只留 100 条，一次刷新
                     // 就把历史全顶成解析流水，真正的报错全被挤出去
-                    logger.v("解析结果: name=$name, epgName=$epgName, groupNames=$groupNames, logo=$logo, httpUserAgent=$httpUserAgent, httpReferrer=$httpReferrer, httpOrigin=$httpOrigin, playbackType=$playbackType, playbackFormat=$playbackFormat")
+                    logger.v("解析结果: name=$name, epgName=$epgName, tvgId=$tvgId, groupNames=$groupNames, logo=$logo, httpUserAgent=$httpUserAgent, httpReferrer=$httpReferrer, httpOrigin=$httpOrigin, playbackType=$playbackType, playbackFormat=$playbackFormat")
 
                     addedChannels = groupNames.map { groupName ->
                         IptvParser.ChannelItem(
                             name = name,
                             epgName = epgName,
+                            tvgId = tvgId,
                             groupName = groupName,
                             url = "",
                             logo = logo,

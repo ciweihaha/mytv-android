@@ -40,6 +40,12 @@ interface IptvParser {
         val groupName: String,
         val name: String,
         val epgName: String = name,
+        /**
+         * 节目单频道 id（M3U 的 tvg-id 属性）：和节目单 XMLTV channel 的
+         * id 是同一套；频道名写法和节目单不一样时，节目单按名查不到，
+         * 靠它兜底匹配；没有 tvg-id 的行记空串，走原来的按名查
+         */
+        val tvgId: String = "",
         val url: String,
         val logo: String? = null,
         val httpUserAgent: String? = null,
@@ -62,6 +68,7 @@ interface IptvParser {
                             name = channelName,
                             standardName = ChannelAlias.standardChannelName(channelName),
                             epgName = ChannelAlias.standardChannelName(first.epgName),
+                            tvgId = first.tvgId,
                             lineList = ChannelLineList(
                                 channelList.distinctBy { it.url }
                                     .map {

@@ -23,6 +23,13 @@ data class Channel(
     val epgName: String = "",
 
     /**
+     * 节目单频道 id（直播源 tvg-id）：与节目单 XMLTV channel 的 id
+     * 是同一套；频道名写法和节目单不一样时，节目单按名查不到，靠它
+     * 兜底匹配；没有 tvg-id 的频道记空串，走原来的按名查
+     */
+    val tvgId: String = "",
+
+    /**
      * 线路列表
      */
     val lineList: ChannelLineList = ChannelLineList(listOf(ChannelLine.EXAMPLE)),

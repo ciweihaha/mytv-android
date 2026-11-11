@@ -11,6 +11,13 @@ import kotlin.time.measureTimedValue
 @Serializable
 data class Epg(
     /**
+     * 节目单频道 id（XMLTV channel 的 id 属性）：与直播源 tvg-id 是
+     * 同一套；频道名写法和节目单不一样时，节目单按名查不到，靠它兜底
+     * 匹配；解析时不带 id 的节目单记空串，不参与按 id 匹配
+     */
+    val id: String = "",
+
+    /**
      * 频道名称
      */
     val channelList: List<String> = emptyList(),
