@@ -192,7 +192,9 @@ object HttpServer : Loggable("HttpServer") {
     ) {
         wrapResponse(response).apply {
             setContentType(contentType)
-            send(context.resources.openRawResource(id).readBytes().decodeToString())
+            // 读完就关：readBytes() 不关流，每次打开网页推送页都漏一个
+            // 文件描述符；同仓 WebViewScreen 同款调用已是 .use 写法
+            send(context.resources.openRawResource(id).use { it.readBytes().decodeToString() })
         }
     }
 
@@ -204,7 +206,9 @@ object HttpServer : Loggable("HttpServer") {
     ) {
         wrapResponse(response).apply {
             setContentType(contentType)
-            send(context.assets.open(filename).reader().readText())
+            // 读完就关：readText() 不关 reader，每次打开远程配置页都漏一个
+            // 文件描述符；同仓 WebViewScreen 同款调用已是 .use 写法
+            send(context.assets.open(filename).reader().use { it.readText() })
         }
     }
 
