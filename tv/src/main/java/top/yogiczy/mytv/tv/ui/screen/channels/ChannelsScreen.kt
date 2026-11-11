@@ -34,7 +34,12 @@ fun ChannelsScreen(
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
     val channelGroupList = channelGroupListProvider()
     val currentChannelGroup = remember(currentChannelGroupIdx, channelGroupList) {
-        channelGroupList.getOrElse(currentChannelGroupIdx) { ChannelGroup() }
+        // 换订阅源后分组可能变少，记住的序号越界就回落到第一个分组，别显示空白
+        val safeIdx = currentChannelGroupIdx.coerceIn(
+            0,
+            (channelGroupList.size - 1).coerceAtLeast(0),
+        )
+        channelGroupList.getOrElse(safeIdx) { ChannelGroup() }
     }
 
     AppScreen(
