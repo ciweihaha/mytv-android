@@ -32,8 +32,9 @@ fun ChannelsScreen(
     onBackPressed: () -> Unit = {},
 ) {
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
-    val currentChannelGroup = remember(currentChannelGroupIdx) {
-        channelGroupListProvider().getOrElse(currentChannelGroupIdx) { ChannelGroup() }
+    val channelGroupList = channelGroupListProvider()
+    val currentChannelGroup = remember(currentChannelGroupIdx, channelGroupList) {
+        channelGroupList.getOrElse(currentChannelGroupIdx) { ChannelGroup() }
     }
 
     AppScreen(
