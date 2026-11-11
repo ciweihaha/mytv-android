@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -41,7 +42,12 @@ fun ChannelItemList(
     val currentChannel = currentChannelProvider()
 
     val childPadding = rememberChildPadding()
-    val listState = rememberLazyListState(max(0, channelList.indexOf(currentChannel) - 2))
+    // 初始滚动位置只算一次记下来：之前每次重画都要全表扫一遍找当前频道下标，
+    // 而这个下标只在列表第一次打开时有用一次，之后滚动位置列表自己就记住了
+    val initialIndex = remember(channelList, currentChannel) {
+        max(0, channelList.indexOf(currentChannel) - 2)
+    }
+    val listState = rememberLazyListState(initialIndex)
     var hasItemFocused by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(listState) {

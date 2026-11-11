@@ -55,7 +55,12 @@ fun ChannelItemGrid(
 
     var key by remember { mutableIntStateOf(0) }
     val channelList = remember(key) { channelListProvider() }
-    val listState = rememberLazyGridState(max(0, channelList.indexOf(currentChannel)))
+    // 初始滚动位置只算一次记下来：之前每次重画都要全表扫一遍找当前频道下标，
+    // 而这个下标只在列表第一次打开时有用一次，之后滚动位置列表自己就记住了
+    val initialIndex = remember(channelList, currentChannel) {
+        max(0, channelList.indexOf(currentChannel))
+    }
+    val listState = rememberLazyGridState(initialIndex)
 
     var hasItemFocused by remember { mutableStateOf(false) }
 
