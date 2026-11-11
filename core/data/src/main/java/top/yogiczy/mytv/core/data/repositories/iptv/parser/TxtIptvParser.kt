@@ -33,7 +33,10 @@ class TxtIptvParser : IptvParser {
                     // 会被截断；地址为空的行直接跳过（旧代码会加一条播不了的空地址）
                     val sepIndex = line.indexOfFirst { it == ',' || it == '，' }
                     if (sepIndex < 0) return@forEach
+                    // 名字空白的行直接跳过：`,http://…` 会产生一条无名频道，
+                    // 在选台列表里就是一条空白的垃圾条目（与 M3U 残缺行同类问题）
                     val name = line.substring(0, sepIndex).trim()
+                    if (name.isBlank()) return@forEach
                     val urlPart = line.substring(sepIndex + 1)
                     if (urlPart.isBlank()) return@forEach
                     // 先 trim 再判空：尾部 `#`、连续 `##` 会产生空分段，旧代码
