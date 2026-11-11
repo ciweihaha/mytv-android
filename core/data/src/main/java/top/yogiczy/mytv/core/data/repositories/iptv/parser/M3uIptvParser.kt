@@ -81,6 +81,11 @@ class M3uIptvParser : IptvParser {
                     val groupNames =
                         groupTitleRegex.find(line)?.groupValues?.get(1)?.split(";")
                             ?.map { it.trim() }
+                            // 空分段不要：group-title 里多余的分号（`;;`、尾部
+                            // `;`）会切出空串，频道会被分进一个名字空白的分
+                            // 组、选台页多一个空白页签；全空时退回“其他”
+                            ?.filter { it.isNotBlank() }
+                            ?.ifEmpty { listOf("其他") }
                             ?: listOf("其他")
                     val logo = tvgLogoRegex.find(line)?.groupValues?.get(1)?.trim()
                     val httpUserAgent =

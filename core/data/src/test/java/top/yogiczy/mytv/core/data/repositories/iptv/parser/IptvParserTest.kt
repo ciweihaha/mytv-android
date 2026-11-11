@@ -283,6 +283,25 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_groupTitleBlankSegments_filtered() = runBlocking {
+        // group-title 里多余的分号（`;;`、尾部分号）不应产生空分组名，
+        // 否则频道会被分进一个名字空白的分组、选台页多一个空白页签
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视;;卫视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视;",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(3, channels.size)
+        assertEquals("央视", channels[0].groupName)
+        assertEquals("卫视", channels[1].groupName)
+        assertEquals("央视", channels[2].groupName)
+        assertTrue(channels.none { it.groupName.isBlank() })
+    }
+
+    @Test
     fun m3u_extvlcoptValueWithEquals_notTruncated() = runBlocking {
         // #EXTVLCOPT 的 http-referrer 带查询参数时同样不能被截断
         val data = """
