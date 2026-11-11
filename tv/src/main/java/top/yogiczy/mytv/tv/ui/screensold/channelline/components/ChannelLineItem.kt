@@ -98,7 +98,10 @@ private fun rememberLineDelay(line: ChannelLine): Long {
     var elapsedTime by remember { mutableLongStateOf(0) }
     var hasError by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    // 列表项按下标复用：同一下标换了另一条线路时也要重测，否则显示的是旧线路的延迟
+    LaunchedEffect(line.url) {
+        elapsedTime = 0
+        hasError = false
         runCatching {
             withContext(Dispatchers.IO) {
                 elapsedTime = measureTimeMillis {
@@ -110,7 +113,14 @@ private fun rememberLineDelay(line: ChannelLine): Long {
                                     line.httpReferrer?.let { header("Referer", it) } // 添加 Referer 请求头
                                     line.httpOrigin?.let { header("Origin", it) } // 添加 Origin 请求头
                                 }
-                        }) { body -> body.string() }
+                        }) { body ->
+                            // 只读一小段确认通路：原先 body.string() 会把整条响应读进内存，
+                            // 线路是直连直播流（flv/ts）时响应永远不结束，探针协程挂住不说，
+                            // 内存会一直涨到 OOM；测延迟本来也只需要首字节时间
+                            body.byteStream().use { input ->
+                                input.read(ByteArray(1024))
+                            }
+                        }
                     } catch (_: IOException) {
                         hasError = true
                     }
