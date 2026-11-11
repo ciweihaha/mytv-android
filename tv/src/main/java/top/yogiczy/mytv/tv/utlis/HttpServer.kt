@@ -48,7 +48,10 @@ object HttpServer : Loggable("HttpServer") {
         File(Globals.cacheDir, "uploaded_apk.apk").apply { deleteOnExit() }
     }
 
-    val serverUrl by lazy { "http://${getLocalIpAddress()}:${SERVER_PORT}" }
+    // 服务地址每次现算：开机自启时服务先起来、Wi-Fi 还没拿到地址，或中途
+    // 换网换 IP 时，lazy 缓存会把第一次算出的地址（可能是 127.0.0.1）定格
+    // 整个进程；推送页每秒刷新一次，地址变了显示就跟着变
+    val serverUrl get() = "http://${getLocalIpAddress()}:${SERVER_PORT}"
 
     fun start(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
