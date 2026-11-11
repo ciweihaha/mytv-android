@@ -70,6 +70,16 @@ class Media3VideoPlayer(
     private val contentTypeAttempts = mutableMapOf<Int, Boolean>()
     private var updatePositionJob: Job? = null
 
+    // 无声重试计数：BEHIND_LIVE_WINDOW / DECODING_FAILED / IO_UNSPECIFIED
+    // 出错时原来无条件 seek + prepare；死线（解码一直失败、IO 一直
+    // 报错）会无限循环，界面永远只转圈、不报错也不换线。连续 3 次都
+    // 到不了 READY 就上报错误，走界面换线逻辑
+    private var silentRetryCount = 0
+
+    private companion object {
+        const val MAX_SILENT_RETRY = 3
+    }
+
     // 字幕只接一个视图：一个播放器实例只对应一个 VideoPlayerScreen，
     // 注册写在 AndroidView 的 update 里、每次重组都会再跑一次；原来用
     // 列表只追加不去重，重组一次就多一个重复监听，字幕每次更新都要对
@@ -321,12 +331,24 @@ class Media3VideoPlayer(
 
         override fun onPlayerError(ex: androidx.media3.common.PlaybackException) {
             when (ex.errorCode) {
-                // 如果是直播加载位置错误，尝试重新播放
+                // 如果是直播加载位置错误，尝试重新播放；连续多次都到不了
+                // READY 说明这条线已死，不再无声重试，上报错误让界面换线
                 androidx.media3.common.PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW,
                 androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED,
                 androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> {
-                    videoPlayer.seekToDefaultPosition()
-                    videoPlayer.prepare()
+                    silentRetryCount++
+                    if (silentRetryCount >= MAX_SILENT_RETRY) {
+                        silentRetryCount = 0
+                        triggerError(
+                            PlaybackException(
+                                ex.errorCodeName.replace("ERROR_CODE", "MEDIA3_ERROR"),
+                                ex.errorCode
+                            )
+                        )
+                    } else {
+                        videoPlayer.seekToDefaultPosition()
+                        videoPlayer.prepare()
+                    }
                 }
 
                 // 当解析容器不支持时，尝试使用其他解析容器
@@ -378,6 +400,7 @@ class Media3VideoPlayer(
                 triggerError(null)
                 triggerBuffering(true)
             } else if (playbackState == Player.STATE_READY) {
+                silentRetryCount = 0
                 triggerReady()
                 triggerDuration(videoPlayer.duration)
 
@@ -604,6 +627,7 @@ class Media3VideoPlayer(
             videoPlayer.stop()
 
         contentTypeAttempts.clear()
+        silentRetryCount = 0
         currentChannelLine = line
         prepare(null)
     }
