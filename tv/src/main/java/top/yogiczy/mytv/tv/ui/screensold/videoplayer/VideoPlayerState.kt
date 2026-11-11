@@ -64,6 +64,11 @@ class VideoPlayerState(
     fun prepare(line: ChannelLine) {
         error = null
         metadata = VideoPlayer.Metadata()
+        // 画面比例只在新流准备时回到设置里的默认值：之前放在 onReady
+        // 里，Media3 每次重缓冲恢复（BUFFERING → READY）都会再触发
+        // onReady，用户中途调好的比例会被悄悄打回默认值；挪到这里后，
+        // 换台/换线路/重载才回到默认值，重缓冲不再动它
+        displayMode = defaultDisplayModeProvider()
         instance.prepare(line)
     }
 
@@ -137,7 +142,6 @@ class VideoPlayerState(
         instance.onReady {
             onReadyListeners.forEach { it.invoke() }
             error = null
-            displayMode = defaultDisplayModeProvider()
         }
         instance.onBuffering {
             isBuffering = it
