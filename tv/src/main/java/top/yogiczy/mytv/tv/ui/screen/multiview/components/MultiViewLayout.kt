@@ -41,6 +41,13 @@ fun MultiViewLayout(
     zoomInIndex: Int? = null,
     content: @Composable BoxScope.(Int) -> Unit = { PreviewMultiViewLayoutItem(index = it) },
 ) {
+    // 每格的缩放比只算一次：之前每项都各算一次，不放大时 9 项算出来全一样，
+    // 放大时也只有“放大格”和“普通格”两种值
+    val normalScaleRatio =
+        if (zoomInIndex != null) calculateScaleRatioWithZoomIn(count, false)
+        else calculateScaleRatio(count)
+    val zoomInScaleRatio = zoomInIndex?.let { calculateScaleRatioWithZoomIn(count, true) }
+
     Box(modifier = modifier.fillMaxSize()) {
         Layout(
             modifier = Modifier.align(Alignment.Center),
@@ -52,10 +59,10 @@ fun MultiViewLayout(
                                 .padding(2.dp)
                                 .ifElse(zoomInIndex == index, Modifier.layoutId("zoomInItem")),
                         ) {
-                            val scaleRatio =
-                                if (zoomInIndex != null)
-                                    calculateScaleRatioWithZoomIn(count, index == zoomInIndex)
-                                else calculateScaleRatio(count)
+                            val scaleRatio = when (index) {
+                                zoomInIndex -> zoomInScaleRatio ?: normalScaleRatio
+                                else -> normalScaleRatio
+                            }
 
                             CompositionLocalProvider(
                                 LocalDensity provides Density(
