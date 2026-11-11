@@ -192,7 +192,7 @@ fun Modifier.handleKeyEvents(
     onSettings: (() -> Unit)? = null,
     onNumber: ((Int) -> Unit)? = null,
 ) = handleKeyEvents(
-    onKeyTap = mapOf(
+    onKeyTap = mutableMapOf(
         KeyEvent.KEYCODE_DPAD_LEFT to onLeft,
         KeyEvent.KEYCODE_DPAD_RIGHT to onRight,
         KeyEvent.KEYCODE_DPAD_UP to onUp,
@@ -226,11 +226,13 @@ fun Modifier.handleKeyEvents(
         KeyEvent.KEYCODE_8 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(8) } },
         KeyEvent.KEYCODE_9 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(9) } },
     ).apply {
+        // mapOf 出来的是只读表，apply 里写 `key to value` 只会造出
+        // 几个用完就扔的键值对，根本加不进表；改成可变表才能真加上
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-            KeyEvent.KEYCODE_SYSTEM_NAVIGATION_LEFT to onLeft
-            KeyEvent.KEYCODE_SYSTEM_NAVIGATION_RIGHT to onRight
-            KeyEvent.KEYCODE_SYSTEM_NAVIGATION_UP to onUp
-            KeyEvent.KEYCODE_SYSTEM_NAVIGATION_DOWN to onDown
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_LEFT, onLeft)
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_RIGHT, onRight)
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_UP, onUp)
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_DOWN, onDown)
         }
     },
     onKeyLongTap = mapOf(
