@@ -91,7 +91,9 @@ private fun getErrorCodeDesc(error: String): String? {
         "MEDIA3_ERROR_DRM_SYSTEM_ERROR" -> "DRM系统错误，请检查视频源。"
         "MEDIA3_ERROR_DRM_DEVICE_REVOKED" -> "DRM设备被吊销，请检查视频源。"
         "MEDIA3_ERROR_DRM_LICENSE_EXPIRED" -> "DRM授权已过期，请检查视频源。"
-        else -> error
+        // 没在表里的错误码不补第三行：原来 else 分支直接返回原文，
+        // 界面第二行已经显示过原文了，未知错误码会把同一串连着显示两遍
+        else -> null
     }
 }
 
