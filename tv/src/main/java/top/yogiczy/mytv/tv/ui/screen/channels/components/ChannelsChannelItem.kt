@@ -191,12 +191,19 @@ fun ChannelsChannelItemLogo(
 ) {
     val channel = channelProvider()
 
-    val logo = if (settingsVM.iptvChannelLogoOverride || channel.logo.isNullOrBlank()) {
-        settingsVM.iptvChannelLogoProvider
-            .replace("{name}", channel.epgName)
-            .replace("{name|lowercase}", channel.epgName.lowercase())
-            .replace("{name|uppercase}", channel.epgName.uppercase())
-    } else channel.logo
+    val logo = remember(
+        channel.epgName,
+        channel.logo,
+        settingsVM.iptvChannelLogoOverride,
+        settingsVM.iptvChannelLogoProvider,
+    ) {
+        if (settingsVM.iptvChannelLogoOverride || channel.logo.isNullOrBlank()) {
+            settingsVM.iptvChannelLogoProvider
+                .replace("{name}", channel.epgName)
+                .replace("{name|lowercase}", channel.epgName.lowercase())
+                .replace("{name|uppercase}", channel.epgName.uppercase())
+        } else channel.logo
+    }
 
     SubcomposeAsyncImage(
         modifier = modifier,
