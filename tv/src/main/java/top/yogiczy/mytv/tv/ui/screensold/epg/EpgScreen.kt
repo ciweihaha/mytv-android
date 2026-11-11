@@ -46,7 +46,7 @@ fun EpgScreen(
 
     val dateFormat = remember { SimpleDateFormat("E MM-dd", Locale.getDefault()) }
     val epg = epgProvider()
-    val programDayGroup = epg.programmeList.groupBy { dateFormat.format(it.startAt) }
+    val programDayGroup = remember(epg) { epg.programmeList.groupBy { dateFormat.format(it.startAt) } }
     var currentDay by remember { mutableStateOf(dateFormat.format(System.currentTimeMillis())) }
 
     Drawer(
