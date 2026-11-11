@@ -176,7 +176,9 @@ fun SettingsIptvScreen(
             SettingsListItem(
                 headlineContent = "网页源央视频Cookie",
                 supportingContent = "登录到央视频以收看付费频道",
-                trailingContent = settingsViewModel.iptvHybridYangshipinCookie.take(50)+"...",
+                trailingContent = settingsViewModel.iptvHybridYangshipinCookie.let { cookie ->
+                    if (cookie.length > 50) cookie.take(50) + "..." else cookie
+                },
                 remoteConfig = true,
             )
         }
