@@ -249,6 +249,10 @@ class MainContentState(
             
             if (settingsViewModel.iptvChannelChangeCrossGroup) {
                 // 跨分组切换逻辑
+                // 频道列表为空（源全部加载失败或已清空）时无频道可切，保持当前频道；
+                // 不能兜底成 Channel()：它默认自带一条示例线路（假地址 1.2.3.4），
+                // 换台守卫认不出它是假的，会真去播、还会把它记成上次播放
+                if (channelGroupList.channelList.isEmpty()) return _currentChannel
                 val currentIdx = channelGroupList.channelIdx(_currentChannel)
                 val prevIdx = if (currentIdx <= 0) {
                     if (settingsViewModel.iptvChannelChangeListLoop) 
@@ -259,7 +263,7 @@ class MainContentState(
                     currentIdx - 1
                 }
                 channelGroupList.channelList.getOrElse(prevIdx) {
-                    channelGroupList.channelLastOrNull() ?: Channel()
+                    channelGroupList.channelLastOrNull() ?: _currentChannel
                 }
             } else {
                 // 分组内切换逻辑
@@ -291,6 +295,9 @@ class MainContentState(
             
             if (settingsViewModel.iptvChannelChangeCrossGroup) {
                 // 跨分组切换逻辑
+                // 同上：列表为空时无频道可切，保持当前频道，不能兜底成 Channel()
+                //（默认自带一条示例线路假地址，会真去播并记成上次播放）
+                if (channelGroupList.channelList.isEmpty()) return _currentChannel
                 val currentIdx = channelGroupList.channelIdx(_currentChannel)
                 val nextIdx = if (currentIdx >= channelGroupList.channelList.size - 1) {
                     if (settingsViewModel.iptvChannelChangeListLoop) 
@@ -301,7 +308,7 @@ class MainContentState(
                     currentIdx + 1
                 }
                 channelGroupList.channelList.getOrElse(nextIdx) {
-                    channelGroupList.channelFirstOrNull() ?: Channel()
+                    channelGroupList.channelFirstOrNull() ?: _currentChannel
                 }
             } else {
                 // 分组内切换逻辑
