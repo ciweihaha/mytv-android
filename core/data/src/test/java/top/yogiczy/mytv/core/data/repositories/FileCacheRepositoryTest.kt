@@ -34,6 +34,13 @@ class FileCacheRepositoryTest {
 
         suspend fun getStreamFrom(stream: InputStream): String =
             getOrRefreshInputStream(0) { stream }.use { it.readBytes().decodeToString() }
+
+        suspend fun getFailing(cacheTime: Long): String =
+            getOrRefresh(cacheTime) { throw RuntimeException("network down") }
+
+        suspend fun getStreamFailing(cacheTime: Long): String =
+            getOrRefreshInputStream(cacheTime) { throw RuntimeException("network down") }
+                .readBytes().decodeToString()
     }
 
     @Before
@@ -91,6 +98,35 @@ class FileCacheRepositoryTest {
         assertEquals("hello", repo.getStreamFrom(tracking))
         assertTrue(closed)
         assertEquals("hello", File(Globals.cacheDir, "test.bin").readText())
+    }
+
+    @Test
+    fun getOrRefresh_fallsBackToStaleDataWhenRefreshFails() = runBlocking {
+        val repo = TestRepo("test.json")
+        assertEquals("v1", repo.get(Long.MAX_VALUE, "v1"))
+        // 过期后刷新失败：不断网时本来会拿到 v2，断网时旧的 v1 顶上
+        assertEquals("v1", repo.getFailing(0))
+        assertEquals("v1", File(Globals.cacheDir, "test.json").readText())
+    }
+
+    @Test(expected = RuntimeException::class)
+    fun getOrRefresh_throwsWhenNoStaleDataAndRefreshFails() = runBlocking {
+        val repo = TestRepo("test.json")
+        repo.getFailing(0)
+    }
+
+    @Test
+    fun getOrRefreshInputStream_fallsBackToStaleDataWhenRefreshFails() = runBlocking {
+        val repo = TestRepo("test.bin")
+        assertEquals("hello", repo.getStream(Long.MAX_VALUE, "hello"))
+        assertEquals("hello", repo.getStreamFailing(0))
+        assertEquals("hello", File(Globals.cacheDir, "test.bin").readText())
+    }
+
+    @Test(expected = RuntimeException::class)
+    fun getOrRefreshInputStream_throwsWhenNoStaleDataAndRefreshFails() = runBlocking {
+        val repo = TestRepo("test.bin")
+        repo.getStreamFailing(0)
     }
 
     @Test
