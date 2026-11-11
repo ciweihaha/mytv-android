@@ -126,9 +126,11 @@ fun Modifier.handleDragGestures(
         detectVerticalDragGestures(
             onDragEnd = {
                 if (verticalDragOffset.absoluteValue > distanceThreshold.toPx()) {
-                    if (verticalTracker.calculateVelocity().y > speedThreshold.toPx()) {
+                    val velocityY = verticalTracker.calculateVelocity().y
+                    val speedPx = speedThreshold.toPx()
+                    if (velocityY > speedPx) {
                         currentOnSwipeDown()
-                    } else if (verticalTracker.calculateVelocity().y < -speedThreshold.toPx()) {
+                    } else if (velocityY < -speedPx) {
                         currentOnSwipeUp()
                     }
                 }
@@ -142,9 +144,11 @@ fun Modifier.handleDragGestures(
             detectHorizontalDragGestures(
                 onDragEnd = {
                     if (horizontalDragOffset.absoluteValue > distanceThreshold.toPx()) {
-                        if (horizontalTracker.calculateVelocity().x > speedThreshold.toPx()) {
+                        val velocityX = horizontalTracker.calculateVelocity().x
+                        val speedPx = speedThreshold.toPx()
+                        if (velocityX > speedPx) {
                             currentOnSwipeRight()
-                        } else if (horizontalTracker.calculateVelocity().x < -speedThreshold.toPx()) {
+                        } else if (velocityX < -speedPx) {
                             currentOnSwipeLeft()
                         }
                     }
