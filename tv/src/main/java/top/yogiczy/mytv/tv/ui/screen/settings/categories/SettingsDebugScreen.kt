@@ -39,7 +39,7 @@ fun SettingsDebugScreen(
         item {
             SettingsListItem(
                 headlineContent = "显示FPS",
-                supportingContent = "在屏幕左上角显示fps和柱状图",
+                supportingContent = "在屏幕右下角显示fps和柱状图",
                 trailingContent = {
                     Switch(settingsViewModel.debugShowFps, null)
                 },
