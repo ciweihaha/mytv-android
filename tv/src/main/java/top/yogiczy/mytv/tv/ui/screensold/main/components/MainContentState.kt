@@ -212,7 +212,6 @@ class MainContentState(
     private fun getPrevFavoriteChannel(): Channel? {
         if (!settingsViewModel.iptvChannelFavoriteListVisible) return null
 
-        val channelGroupList = channelGroupListProvider()
         val favoriteChannelList = favoriteChannelListProvider()
 
         if (_currentChannel !in favoriteChannelList) return null
@@ -221,14 +220,16 @@ class MainContentState(
 
         return favoriteChannelList.getOrElse(currentIdx - 1) {
             if (settingsViewModel.iptvChannelChangeListLoop) favoriteChannelList.lastOrNull()
-            else channelGroupList.channelLastOrNull()
+            // 循环关着时（默认）到头就停在当前台：原来是跳到整个源的最
+            // 后一个台，和“首尾循环”开关的说明、和非收藏路径到头停住
+            // 的行为都对不上
+            else _currentChannel
         }
     }
 
     private fun getNextFavoriteChannel(): Channel? {
         if (!settingsViewModel.iptvChannelFavoriteListVisible) return null
 
-        val channelGroupList = channelGroupListProvider()
         val favoriteChannelList = favoriteChannelListProvider()
 
         if (_currentChannel !in favoriteChannelList) return null
@@ -237,7 +238,8 @@ class MainContentState(
 
         return favoriteChannelList.getOrElse(currentIdx + 1) {
             if (settingsViewModel.iptvChannelChangeListLoop) favoriteChannelList.firstOrNull()
-            else channelGroupList.channelFirstOrNull()
+            // 同上：循环关着时到尾就停在当前台，不跳到整个源的第一个台
+            else _currentChannel
         }
     }
 
