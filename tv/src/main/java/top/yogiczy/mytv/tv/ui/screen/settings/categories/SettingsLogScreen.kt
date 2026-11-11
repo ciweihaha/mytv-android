@@ -2,6 +2,7 @@ package top.yogiczy.mytv.tv.ui.screen.settings.categories
 
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,7 +21,7 @@ fun SettingsLogScreen(
     historyItemList: List<Logger.HistoryItem> = Logger.history,
     onBackPressed: () -> Unit = {},
 ) {
-    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
     SettingsCategoryScreen(
         modifier = modifier,
