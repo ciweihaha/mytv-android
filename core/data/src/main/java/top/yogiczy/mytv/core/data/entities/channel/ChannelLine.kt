@@ -23,8 +23,11 @@ data class ChannelLine(
 
     val playableUrl: String
         get() = url.substringBefore("$").let {
-            // 修复部分链接无法播放，实际请求时?将去掉，导致链接无法访问，因此加上一个t
-            if (url.endsWith("?")) "${it}t" else it
+            // 修复部分链接无法播放，实际请求时?将去掉，导致链接无法访问，因此加上一个t。
+            // 判尾部 "?" 要按去掉 $ 线路名后的地址判：带 $ 后缀的地址
+            //（如 "http://…? $线路1"）按原地址判会被后缀挡住，播的还是
+            // 以裸 "?" 结尾的地址
+            if (it.endsWith("?")) "${it}t" else it
         }
 
     companion object {
