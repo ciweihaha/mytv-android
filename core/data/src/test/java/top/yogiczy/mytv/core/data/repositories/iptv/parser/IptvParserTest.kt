@@ -385,4 +385,26 @@ class IptvParserTest {
         assertEquals(1, channels.size)
         assertEquals("CCTV-1", channels[0].name)
     }
+
+    @Test
+    fun m3u_mixedCaseAttributeNames_areRecognized() = runBlocking {
+        // 属性名大小写混写：有源把属性写成 TVG-NAME / Tvg-Name /
+        // GROUP-TITLE；区分大小写时 tvg-name、group-title 全取不到，
+        // 节目单名退到显示名、分组退到“其他”
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 TVG-NAME="CCTV-1 综合" GROUP-TITLE="央视频道",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 Tvg-Name="CCTV-5" Group-Title="央视频道",CCTV-5
+            http://example.com/cctv5.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-1 综合", channels[0].epgName)
+        assertEquals("央视频道", channels[0].groupName)
+        assertEquals("CCTV-5", channels[1].name)
+        assertEquals("CCTV-5", channels[1].epgName)
+        assertEquals("央视频道", channels[1].groupName)
+    }
 }

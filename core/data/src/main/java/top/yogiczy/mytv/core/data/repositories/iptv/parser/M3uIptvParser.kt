@@ -14,16 +14,19 @@ class M3uIptvParser : IptvParser {
     // 属性正则只编译一次：原来每行每个属性都 new 一个 Regex，
     // 大源（几千个频道）一次解析要编译几万次；现在整个类只编一次
     private companion object {
-        private val catchupRegex = Regex("catchup=\"(.+?)\"")
-        private val catchupSourceRegex = Regex("catchup-source=\"(.+?)\"")
-        private val tvgNameRegex = Regex("tvg-name=\"(.*?)\"")
-        private val groupTitleRegex = Regex("group-title=\"(.+?)\"")
-        private val tvgLogoRegex = Regex("tvg-logo=\"(.+?)\"")
-        private val httpUserAgentRegex = Regex("http-user-agent=\"(.+?)\"")
-        private val httpReferrerRegex = Regex("http-referrer=\"(.+?)\"")
-        private val httpOriginRegex = Regex("http-origin=\"(.+?)\"")
-        private val xTvgUrlRegex = Regex("x-tvg-url=\"(.*?)\"")
-        private val urlTvgRegex = Regex("url-tvg=\"(.*?)\"")
+        // 属性名不区分大小写：有源把属性写成 TVG-NAME / Tvg-Name /
+        // GROUP-TITLE；区分大小写时 tvg-name、group-title 全取不到，
+        // 频道名退到逗号后、节目单名丢了、分组退到“其他”
+        private val catchupRegex = Regex("catchup=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val catchupSourceRegex = Regex("catchup-source=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val tvgNameRegex = Regex("tvg-name=\"(.*?)\"", RegexOption.IGNORE_CASE)
+        private val groupTitleRegex = Regex("group-title=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val tvgLogoRegex = Regex("tvg-logo=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val httpUserAgentRegex = Regex("http-user-agent=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val httpReferrerRegex = Regex("http-referrer=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val httpOriginRegex = Regex("http-origin=\"(.+?)\"", RegexOption.IGNORE_CASE)
+        private val xTvgUrlRegex = Regex("x-tvg-url=\"(.*?)\"", RegexOption.IGNORE_CASE)
+        private val urlTvgRegex = Regex("url-tvg=\"(.*?)\"", RegexOption.IGNORE_CASE)
     }
 
     override fun isSupport(url: String, data: String): Boolean {
