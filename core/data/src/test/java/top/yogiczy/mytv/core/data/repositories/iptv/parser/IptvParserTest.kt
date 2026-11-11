@@ -324,6 +324,25 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_indentedLines_parsed() = runBlocking {
+        // 行首带空格：#EXTINF 行带缩进时，旧实现认不出标记、把整行当 URL
+        // 处理，频道直接丢掉；#KODIPROP 行带缩进时还会多出一路垃圾地址
+        val data = "#EXTM3U\n" +
+            "  #EXTINF:-1 tvg-name=\"CCTV-1\" group-title=\"央视\",CCTV-1\n" +
+            "http://example.com/cctv1.m3u8\n" +
+            "  #EXTINF:-1 tvg-name=\"CCTV-2\" group-title=\"央视\",CCTV-2\n" +
+            "  #KODIPROP:inputstream.adaptive.manifest_type=mpd\n" +
+            "http://example.com/cctv2.mpd"
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("http://example.com/cctv1.m3u8", channels[0].url)
+        assertEquals("CCTV-2", channels[1].name)
+        assertEquals("http://example.com/cctv2.mpd", channels[1].url)
+        assertEquals("mpd", channels[1].manifestType)
+    }
+
+    @Test
     fun m3u_extinfBlankName_fallsBackToTvgName() = runBlocking {
         // 逗号后显示名空白时同样退到 tvg-name
         val data = """

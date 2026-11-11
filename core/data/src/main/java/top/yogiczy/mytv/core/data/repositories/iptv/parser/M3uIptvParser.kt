@@ -37,7 +37,11 @@ class M3uIptvParser : IptvParser {
             var globalPlaybackType: Int? = null
             var globalPlaybackFormat: String? = null
             var addedChannels: List<IptvParser.ChannelItem> = listOf()
-            lines.forEach { line ->
+            lines.forEach { rawLine ->
+                // 行首尾空白先去掉：手写/带缩进的源里 #EXTINF、#KODIPROP 行带前导
+                // 空格时，旧实现认不出标记、会把整行当 URL 处理——#EXTINF 行带缩
+                // 进会让整条频道直接丢掉，#KODIPROP 行带缩进还会多出一路垃圾地址
+                val line = rawLine.trim()
                 if (line.isBlank()) return@forEach
                 if (line.startsWith("#EXTM3U")) {
                     // 解析扩展信息
