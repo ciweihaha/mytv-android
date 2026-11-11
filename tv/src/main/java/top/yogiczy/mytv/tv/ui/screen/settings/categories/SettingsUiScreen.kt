@@ -1,6 +1,7 @@
 package top.yogiczy.mytv.tv.ui.screen.settings.categories
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.tooling.preview.Preview
@@ -25,6 +26,8 @@ fun SettingsUiScreen(
     toUiVideoPlayerSubtitleSettingsScreen: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
+    val decimalFormat = remember { DecimalFormat("#.#") }
+
     SettingsCategoryScreen(
         modifier = modifier,
         header = { Text("设置 / 界面") },
@@ -124,7 +127,7 @@ fun SettingsUiScreen(
                 headlineContent = "界面整体缩放比例",
                 trailingContent = when (scaleRatio) {
                     0f -> "自适应"
-                    else -> "×${DecimalFormat("#.#").format(scaleRatio)}"
+                    else -> "×${decimalFormat.format(scaleRatio)}"
                 },
                 onSelect = toUiDensityScaleRatioScreen,
                 link = true,
@@ -136,7 +139,7 @@ fun SettingsUiScreen(
 
             SettingsListItem(
                 headlineContent = "界面字体缩放比例",
-                trailingContent = "×${DecimalFormat("#.#").format(scaleRatio)}",
+                trailingContent = "×${decimalFormat.format(scaleRatio)}",
                 onSelect = toUiFontScaleRatioScreen,
                 link = true,
             )
