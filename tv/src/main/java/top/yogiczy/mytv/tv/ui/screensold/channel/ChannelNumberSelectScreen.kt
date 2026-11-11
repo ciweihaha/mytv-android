@@ -59,6 +59,10 @@ class ChannelNumberSelectState(
     val channelNumber get() = _channelNumber
 
     fun input(no: Int) {
+        // 最多 4 位：debounce 按 4 位设计（第 4 位后立即确认）；不封顶时
+        // 按键连发可攒出 5 位以上数字，debounce 超时变负数抛异常，攒到
+        // 10 位以上确认处的 toInt() 也会抛异常闪退
+        if (_channelNumber.length >= 4) return
         _channelNumber += no.toString()
         channel.trySend(_channelNumber)
     }
@@ -67,7 +71,7 @@ class ChannelNumberSelectState(
 
     @OptIn(FlowPreview::class)
     suspend fun observe() {
-        channel.consumeAsFlow().debounce { (4 - it.length) * 1000L }.collect {
+        channel.consumeAsFlow().debounce { maxOf(0L, (4 - it.length) * 1000L) }.collect {
             onConfirm(it)
             _channelNumber = ""
         }
