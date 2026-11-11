@@ -190,15 +190,17 @@ fun ChannelsChannelItemLogo(
     placeholder: @Composable () -> Unit = {},
 ) {
     val channel = channelProvider()
+    val logoOverride = settingsVM.iptvChannelLogoOverride
+    val logoProvider = settingsVM.iptvChannelLogoProvider
 
     val logo = remember(
         channel.epgName,
         channel.logo,
-        settingsVM.iptvChannelLogoOverride,
-        settingsVM.iptvChannelLogoProvider,
+        logoOverride,
+        logoProvider,
     ) {
-        if (settingsVM.iptvChannelLogoOverride || channel.logo.isNullOrBlank()) {
-            settingsVM.iptvChannelLogoProvider
+        if (logoOverride || channel.logo.isNullOrBlank()) {
+            logoProvider
                 .replace("{name}", channel.epgName)
                 .replace("{name|lowercase}", channel.epgName.lowercase())
                 .replace("{name|uppercase}", channel.epgName.uppercase())
