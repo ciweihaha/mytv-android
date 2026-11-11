@@ -88,6 +88,10 @@ class IptvRepository(private val source: IptvSource) :
 
             return Globals.json.decodeFromString<ChannelGroupList>(json).also { groupList ->
                 log.i("加载订阅源（${source.name}）：${groupList.size}个分组，${groupList.sumOf { it.channelList.size }}个频道")
+                // 空源直接报错：原来解析出 0 个频道也进 Ready，主界面黑屏、
+                // 上下键也切不到台，又没有任何提示；现在走报错那条路，错误页
+                // 有重试按钮和换源入口
+                checkChannelGroupListNotEmpty(groupList)
             }
         } catch (ex: Exception) {
             log.e("加载订阅源（${source.name}）失败", ex)
@@ -112,6 +116,16 @@ class IptvRepository(private val source: IptvSource) :
         suspend fun clearAllCache() = withContext(Dispatchers.IO) {
             IptvSource.cacheDir.deleteRecursively()
         }
+    }
+}
+
+/**
+ * 直播源里一个频道都没有时报错：空文件、或源里全是解析不出的行。
+ * 顶层函数方便单元测试直接调用。
+ */
+internal fun checkChannelGroupListNotEmpty(groupList: ChannelGroupList) {
+    if (groupList.sumOf { it.channelList.size } == 0) {
+        throw IllegalStateException("直播源里没有频道，请检查直播源链接")
     }
 }
 
