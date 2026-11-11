@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -39,7 +40,14 @@ fun EpgProgrammeItemList(
     val epgProgrammeList = epgProgrammeListProvider()
     val itemFocusRequesterList = List(epgProgrammeList.size) { FocusRequester() }
 
-    val listState = LazyListState(max(0, epgProgrammeList.indexOfFirst { it.isLive() } - 2))
+    // 滚动状态要记住：原先每次重组都新建 LazyListState，节目单滚到后面
+    // 再切一次焦点（经典面板里节目单得焦/失焦会改宽度、整个面板重组），
+    // 滚动位置就跳回“正在播”前面两行；全仓其他列表都用 remember，
+    // 这里是唯一漏掉的。只在节目列表内容变了（换天、换台）时才重算
+    // 初始位置，其他重组保留用户滚到的位置
+    val listState = remember(epgProgrammeList) {
+        LazyListState(max(0, epgProgrammeList.indexOfFirst { it.isLive() } - 2))
+    }
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }
             .distinctUntilChanged()
