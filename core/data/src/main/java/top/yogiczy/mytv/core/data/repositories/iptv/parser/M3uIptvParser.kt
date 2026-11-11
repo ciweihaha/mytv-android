@@ -45,7 +45,7 @@ class M3uIptvParser : IptvParser {
                         catchupRegex.find(line)?.groupValues?.get(1)?.trim()
                             ?.ifBlank { null } ?: null
                     if (playbackTypeString != null) {
-                        logger.i("检测到全局回放类型: $globalPlaybackType")
+                        logger.i("检测到全局回放类型: $playbackTypeString")
                         globalPlaybackType = when (playbackTypeString.lowercase()) {
                             "disabled" -> null
                             "default" -> 0
@@ -86,7 +86,7 @@ class M3uIptvParser : IptvParser {
                             catchupRegex.find(line)?.groupValues?.get(1)?.trim()
                                 ?.ifBlank { null } ?: null
                         if (playbackTypeString != null) {
-                            logger.i("检测到回放类型: $playbackType")
+                            logger.i("检测到回放类型: $playbackTypeString")
                             playbackType = when (playbackTypeString.lowercase()) {
                                 "disabled" -> null
                                 "default" -> 0
