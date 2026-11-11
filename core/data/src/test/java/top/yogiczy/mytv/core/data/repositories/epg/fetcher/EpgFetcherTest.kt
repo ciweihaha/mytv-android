@@ -17,6 +17,7 @@ import java.util.zip.GZIPOutputStream
 class EpgFetcherTest {
     private val xmlFetcher = XmlEpgFetcher()
     private val gzFetcher = XmlGzEpgFetcher()
+    private val defaultFetcher = DefaultEpgFetcher()
 
     @Test
     fun xml_plain() {
@@ -107,5 +108,24 @@ class EpgFetcherTest {
         val bytes = gzFetcher.fetch(byteArrayOf(0x1f).toResponseBody()).readBytes()
         assertEquals(1, bytes.size)
         assertEquals(0x1f.toByte(), bytes[0])
+    }
+
+    @Test
+    fun default_noSuffixXml_passedThrough() = runBlocking {
+        // 不带后缀的节目单地址走缺省解析：内容是 XML 时应原样交给解析，
+        // 而不是返回一段空 XML 让节目单永远为空
+        assertTrue(defaultFetcher.isSupport("http://example.com/epg"))
+        val xml = "<?xml version=\"1.0\"?><tv></tv>"
+        val stream = defaultFetcher.fetch(xml.toByteArray(Charsets.UTF_8).toResponseBody())
+        assertEquals(xml, stream.readBytes().toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun default_nonXmlBody_passedThrough() = runBlocking {
+        // 非 XML 内容也原样返回：解析失败时由上层走旧缓存兜底，
+        // 不在这里提前丢弃
+        val body = "<html>not epg</html>"
+        val stream = defaultFetcher.fetch(body.toByteArray(Charsets.UTF_8).toResponseBody())
+        assertEquals(body, stream.readBytes().toString(Charsets.UTF_8))
     }
 }
