@@ -110,9 +110,11 @@ class FileCacheRepositoryTest {
     }
 
     @Test(expected = RuntimeException::class)
-    fun getOrRefresh_throwsWhenNoStaleDataAndRefreshFails() = runBlocking {
-        val repo = TestRepo("test.json")
-        repo.getFailing(0)
+    fun getOrRefresh_throwsWhenNoStaleDataAndRefreshFails() {
+        runBlocking {
+            val repo = TestRepo("test.json")
+            repo.getFailing(0)
+        }
     }
 
     @Test
@@ -124,9 +126,11 @@ class FileCacheRepositoryTest {
     }
 
     @Test(expected = RuntimeException::class)
-    fun getOrRefreshInputStream_throwsWhenNoStaleDataAndRefreshFails() = runBlocking {
-        val repo = TestRepo("test.bin")
-        repo.getStreamFailing(0)
+    fun getOrRefreshInputStream_throwsWhenNoStaleDataAndRefreshFails() {
+        runBlocking {
+            val repo = TestRepo("test.bin")
+            repo.getStreamFailing(0)
+        }
     }
 
     @Test
