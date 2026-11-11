@@ -41,7 +41,13 @@ fun VideoPlayerMetadata(
                 Column {
                     Text("视频", style = MaterialTheme.typography.titleMedium)
                     Column(modifier = Modifier.padding(start = 10.dp)) {
-                        nnVideo.width?.let { nnWidth -> Text("分辨率: ${nnWidth}x${nnVideo.height}") }
+                        // 宽高各自独立判空：流只报宽不报高时只判宽会拼出“1920xnull”，
+                        // 两个都有值才显示这一行
+                        nnVideo.width?.let { nnWidth ->
+                            nnVideo.height?.let { nnHeight ->
+                                Text("分辨率: ${nnWidth}x${nnHeight}")
+                            }
+                        }
                         nnVideo.color?.let { nnColor -> Text("颜色空间: $nnColor") }
                         nnVideo.frameRate?.let { nnFrameRate -> Text("帧率: $nnFrameRate") }
                         nnVideo.bitrate?.let { nnBitrate -> Text("码率: ${nnBitrate.humanizeBitrate()}") }
