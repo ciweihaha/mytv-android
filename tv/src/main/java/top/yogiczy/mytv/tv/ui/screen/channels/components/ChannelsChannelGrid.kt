@@ -59,7 +59,10 @@ fun ChannelsChannelGrid(
     val firstItemFocusRequester = remember { FocusRequester() }
     var isFirstItemFocused by remember { mutableStateOf(false) }
 
-    LaunchedEffect(channelList) {
+    // 列表换头才回到顶部：切分组、换源时首个频道变了，回到顶部是对的；
+    // 只是在列表中间增删一个台（比如收藏页取消收藏）时首个频道没变，
+    // 不该把正在翻的位置拽回顶部——之前按整个列表算，取消收藏一次就跳回顶部一次
+    LaunchedEffect(channelList.firstOrNull()) {
         gridState.scrollToItem(0)
     }
 
