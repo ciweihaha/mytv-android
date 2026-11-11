@@ -142,7 +142,11 @@ fun MultiViewItem(
                 .padding(childPadding.top),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (player.volume == 0f) {
+            // 静音图标只跟静音开关走：没焦点的画面音量本来就是 0，
+            // 按音量判断会在所有没焦点的画面上都挂一个静音图标，
+            // 真静音的那格反而找不出来；第 153 轮把静音状态单存一份
+            // 后，图标也得跟这份状态走
+            if (isMuted) {
                 Icon(
                     Icons.AutoMirrored.Filled.VolumeOff,
                     contentDescription = null,
