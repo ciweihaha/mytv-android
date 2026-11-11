@@ -48,13 +48,16 @@ fun SettingsCloudSyncScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     var syncData by remember { mutableStateOf(debugInitialSyncData) }
+    var pullFailed by remember { mutableStateOf(false) }
     val timeFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
 
     suspend fun pullSyncData() {
         syncData = null
+        pullFailed = false
         runCatching { syncData = CloudSync.pull() }
             .onFailure {
                 Snackbar.show("拉取云端失败")
+                pullFailed = true
                 syncData = CloudSyncData.EMPTY
             }
     }
@@ -121,7 +124,9 @@ fun SettingsCloudSyncScreen(
                     }
 
                     syncData?.let { nnSyncData ->
-                        if (nnSyncData == CloudSyncData.EMPTY) {
+                        if (pullFailed) {
+                            Text("拉取失败，请重试")
+                        } else if (nnSyncData == CloudSyncData.EMPTY) {
                             Text("无云端数据")
                         } else {
                             Column {
