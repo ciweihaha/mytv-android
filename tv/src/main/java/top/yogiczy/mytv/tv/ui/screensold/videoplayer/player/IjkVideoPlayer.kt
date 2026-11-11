@@ -50,6 +50,11 @@ class IjkVideoPlayer(
     private var cacheSurfaceTexture: Surface? = null
     private var updateJob: Job? = null
 
+    // 当前音量：IjkMediaPlayer 没有 getVolume，调用方（多画面静音、静音开关）
+    // 读它判断是否静音，所以必须自己存一份；原来 setVolume 是空实现、
+    // getVolume 恒返回 1f，多画面下非焦点画面关不掉声音、静音图标也永远不亮
+    private var volume = 1f
+
     private fun setOption() {
         player.apply {
             setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "allowed_extensions", "ALL")
@@ -102,6 +107,9 @@ class IjkVideoPlayer(
             headers
         )
         setOption()
+        // 切台会 reset()：把上次的音量重新应用回去，否则多画面里已静音的
+        // 画面换台后声音又回来（静音状态只存在调用方的 volume 字段里）
+        player.setVolume(volume, volume)
         player.prepareAsync()
 
         triggerPrepared()
@@ -120,10 +128,12 @@ class IjkVideoPlayer(
     }
 
     override fun setVolume(volume: Float) {
+        this.volume = volume
+        player.setVolume(volume, volume)
     }
 
     override fun getVolume(): Float {
-        return 1f
+        return volume
     }
 
     override fun stop() {
