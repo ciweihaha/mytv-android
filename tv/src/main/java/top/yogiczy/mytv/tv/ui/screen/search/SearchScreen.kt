@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -39,6 +40,17 @@ fun SearchScreen(
 
     var key by rememberSaveable { mutableStateOf("") }
 
+    // 全表过滤只在关键词或频道单变了时才重算：之前 provider 是现场算的，
+    // SearchResult 每次重画（焦点挪动、节目单刷新等）都要把几千个频道重滤一遍
+    val channelGroupList = channelGroupListProvider()
+    val filteredChannelList = remember(key, channelGroupList) {
+        if (key.isEmpty()) {
+            ChannelList()
+        } else {
+            ChannelList(channelGroupList.channelList.filter { it.matchesSearchQuery(key) })
+        }
+    }
+
     AppScreen(
         modifier = modifier,
         header = {
@@ -58,14 +70,7 @@ fun SearchScreen(
             )
 
             SearchResult(
-                channelListProvider = {
-                    if (key.isEmpty()) {
-                        ChannelList()
-                    } else {
-                        val channelList = channelGroupListProvider().channelList
-                        ChannelList(channelList.filter { channel -> channel.matchesSearchQuery(key) })
-                    }
-                },
+                channelListProvider = { filteredChannelList },
                 onChannelSelected = onChannelSelected,
                 onChannelFavoriteToggle = onChannelFavoriteToggle,
                 epgListProvider = epgListProvider,
