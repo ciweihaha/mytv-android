@@ -367,7 +367,9 @@ private fun ChannelsChannelItemTagList(
             )
         }
 
-        if (channel.lineList.all { it.url.isIPv6() }) {
+        // 空列表时 all() 恒为真：无线路的频道（反序列化进来的旧数据可能
+        // 线路为空）会被错打上“IPV6”标签，先判非空再看是不是全是 IPv6
+        if (channel.lineList.isNotEmpty() && channel.lineList.all { it.url.isIPv6() }) {
             ChannelsChannelItemTag(
                 text = "IPV6",
                 isFocusedProvider = isFocusedProvider,
