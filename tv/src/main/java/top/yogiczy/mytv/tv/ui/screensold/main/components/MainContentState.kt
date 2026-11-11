@@ -416,7 +416,10 @@ class MainContentState(
                     "-",
                     timeFormat.format(playbackEpg.endAt),
                 ).joinToString("")
-                url = if (URI(url).query.isNullOrBlank()) "$url?$query" else "$url&$query"
+                // 地址可能含空格、中文等非法字符：java.net.URI 构造直接抛异常，
+                // 点节目单回放时会闪退；解析失败时按无查询串处理（拼 ?）
+                val hasQuery = runCatching { URI(url).query }.getOrNull()?.isNotBlank() == true
+                url = if (hasQuery) "$url&$query" else "$url?$query"
                 if (Configs.iptvPLTVToTVOD){
                     url = ChannelUtil.urlToCanPlayback(url)
                 }
