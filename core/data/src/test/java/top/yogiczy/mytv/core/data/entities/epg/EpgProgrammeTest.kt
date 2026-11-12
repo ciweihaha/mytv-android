@@ -2,6 +2,7 @@ package top.yogiczy.mytv.core.data.entities.epg
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.isValid
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.progress
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.remainingMinutes
 
@@ -36,5 +37,18 @@ class EpgProgrammeTest {
         assertEquals(0, programme.remainingMinutes(2000))
         assertEquals(0, programme.remainingMinutes(3000))
         assertEquals(0, EpgProgramme(startAt = 0, endAt = 0).remainingMinutes(1234567890))
+    }
+
+    @Test
+    fun isValid_onlyPositiveStartAndEndAfterStart() {
+        // 有效：开始 > 0 且结束 > 开始
+        assertEquals(true, EpgProgramme(startAt = 1000, endAt = 2000).isValid())
+        // 解析失败得 0：开始/结束都为 0
+        assertEquals(false, EpgProgramme(startAt = 0, endAt = 0).isValid())
+        // 开始为 0、结束正常：仍是 1970 年的垃圾时间
+        assertEquals(false, EpgProgramme(startAt = 0, endAt = 3600000).isValid())
+        // 结束 <= 开始
+        assertEquals(false, EpgProgramme(startAt = 2000, endAt = 1000).isValid())
+        assertEquals(false, EpgProgramme(startAt = 1000, endAt = 1000).isValid())
     }
 }

@@ -46,6 +46,14 @@ data class EpgProgramme(
         fun EpgProgramme.remainingMinutes(current: Long = System.currentTimeMillis()) =
             ceil((endAt - current) / 60_000f).roundToInt().coerceAtLeast(0)
 
+        /**
+         * 时间是否有效：EPG 里缺 start/stop、解析失败时 parseTime 得 0，
+         * 会产出开始/结束为 0 或结束 <= 开始的节目；这类节目进节目单面板
+         * 会单独成一个 1970-01-01 的日期分组、还挂着“回放”让人点，点了
+         * 是拿 1970 年的时间戳去拼回放地址、播不了。节目单面板只显示有效的。
+         */
+        fun EpgProgramme.isValid() = startAt > 0 && endAt > startAt
+
         val EXAMPLE = EpgProgramme(
             startAt = System.currentTimeMillis() - 3600 * 1000,
             endAt = System.currentTimeMillis() + 3600 * 1000,
