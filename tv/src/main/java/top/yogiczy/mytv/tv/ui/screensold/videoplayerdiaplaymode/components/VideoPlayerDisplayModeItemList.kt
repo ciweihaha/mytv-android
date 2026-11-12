@@ -59,7 +59,9 @@ fun VideoPlayerDisplayModeItemList(
         if (onApplyToGlobal != null) {
             item {
                 ListItem(
-                    modifier = modifier
+                    // 同 227/244 轮：外层列表已用了传进来的宽度（268.dp），
+                    // 关闭行再复用它会把宽度算两次，改用空修饰器
+                    modifier = Modifier
                         .handleKeyEvents(onSelect = onApplyToGlobal),
                     selected = false,
                     onClick = {},
