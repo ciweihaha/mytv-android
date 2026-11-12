@@ -35,8 +35,11 @@ fun ProgressBar(
 
         Box(
             modifier = Modifier
+                // 比例钳到 0~1：fillMaxWidth 要求比例在 0~1 之间，超了会布局异常；
+                // 现在两处调用方各自都钳过了（节目进度、播放位置），但这个组件是
+                // 共用的，钳在里面、以后再有调用方就不用各钳一次、也不会漏
                 .background(colors.progressColor, RoundedCornerShape(2.dp))
-                .fillMaxWidth(process)
+                .fillMaxWidth(process.coerceIn(0f, 1f))
                 .fillMaxHeight()
         )
     }
