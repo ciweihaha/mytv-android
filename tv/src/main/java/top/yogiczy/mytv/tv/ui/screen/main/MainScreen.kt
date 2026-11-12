@@ -314,6 +314,7 @@ fun MainScreen(
             composable(Screens.About()) {
                 AboutScreen(
                     latestVersionProvider = { updateViewModel.latestRelease.version },
+                    checkFailedProvider = { updateViewModel.checkFailed },
                     toUpdateScreen = { navController.navigateSingleTop(Screens.Update()) },
                     onBackPressed = { navController.navigateUp() },
                 )

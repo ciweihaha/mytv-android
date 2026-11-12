@@ -38,6 +38,7 @@ import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 fun AboutScreen(
     modifier: Modifier = Modifier,
     latestVersionProvider: () -> String = { "" },
+    checkFailedProvider: () -> Boolean = { false },
     toUpdateScreen: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
@@ -251,7 +252,9 @@ fun AboutScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (latestVersion.compareVersion(currentVersion) > 0) {
+                            if (checkFailedProvider()) {
+                                Text("检查更新失败")
+                            } else if (latestVersion.compareVersion(currentVersion) > 0) {
                                 Text("新版本: $latestVersion")
                             } else {
                                 Text("无更新")
