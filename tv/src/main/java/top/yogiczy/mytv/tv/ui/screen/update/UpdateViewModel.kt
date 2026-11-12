@@ -34,6 +34,13 @@ class UpdateViewModel(
     val updateDownloaded get() = _updateDownloaded
 
     /**
+     * 上一次检查是否失败：失败时 isUpdateAvailable 仍是 false，
+     * 不靠它区分会把“没查到”说成“已是最新”
+     */
+    private var _checkFailed by mutableStateOf(false)
+    val checkFailed get() = _checkFailed
+
+    /**
      * 消费“已下载待安装”标记：安装尝试后即清除，避免下次打开更新页
      * 时对陈旧的 latest.apk 再次自动弹出安装器。
      */
@@ -52,6 +59,7 @@ class UpdateViewModel(
         try {
             log.i("开始检查更新（${channel}）...")
 
+            _checkFailed = false
             _isChecking = true
             val releaseUrl = Constants.GIT_RELEASE_LATEST_URL[channel] ?: return
             _latestRelease = GitRepository().latestRelease(releaseUrl)
@@ -60,6 +68,7 @@ class UpdateViewModel(
             log.i("最新版本: ${_latestRelease.version}")
         } catch (ex: Exception) {
             log.e("检查更新失败", ex)
+            _checkFailed = true
             _latestRelease = _latestRelease.copy(description = ex.message ?: "检查更新失败")
         } finally {
             _isChecking = false

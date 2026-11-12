@@ -124,7 +124,8 @@ fun UpdateScreen(
                     }
                     else {
                         UpdateActionBtn(
-                            title = "当前为最新版本（点击以返回）",
+                            title = if (updateViewModel.checkFailed) "检查更新失败（点击以返回）"
+                            else "当前为最新版本（点击以返回）",
                             onSelected = onBackPressed,
                         )
                     }

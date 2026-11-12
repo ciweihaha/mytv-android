@@ -137,8 +137,11 @@ fun MainScreen(
             updateViewModel.checkUpdate(BuildConfig.VERSION_NAME, settingsViewModel.updateChannel)
 
             if (!quiet) {
-                if (updateViewModel.isUpdateAvailable) Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
-                else Snackbar.show("当前已是最新版本")
+                when {
+                    updateViewModel.checkFailed -> Snackbar.show("检查更新失败")
+                    updateViewModel.isUpdateAvailable -> Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
+                    else -> Snackbar.show("当前已是最新版本")
+                }
             }
 
             if (!updateViewModel.isUpdateAvailable) return@launch
