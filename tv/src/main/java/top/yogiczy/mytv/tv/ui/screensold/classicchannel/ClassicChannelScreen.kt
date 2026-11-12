@@ -61,6 +61,24 @@ import top.yogiczy.mytv.tv.ui.tooling.PreviewWithLayoutGrids
 import top.yogiczy.mytv.tv.ui.utils.gridColumns
 import kotlin.math.max
 
+/**
+ * 打开经典选台页时初始聚焦的分组：收藏页打开时是“我的收藏”；
+ * 否则是当前台所在的分组；列表还没加载出来时给一个占位分组。
+ * 初始焦点状态与分组列表的初始分组两处共用，之前是两份一样的写法
+ */
+private fun initialFocusedChannelGroup(
+    channelGroupList: ChannelGroupList,
+    channelFavoriteListVisible: Boolean,
+    currentChannel: Channel,
+): ChannelGroup {
+    return if (channelFavoriteListVisible)
+        ClassicPanelScreenFavoriteChannelGroup
+    else if (channelGroupList.isNotEmpty())
+        channelGroupList[max(0, channelGroupList.channelGroupIdx(currentChannel))]
+    else
+        ChannelGroup(name = "尚未加载列表")
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ClassicChannelScreen(
@@ -92,12 +110,11 @@ fun ClassicChannelScreen(
 
     var focusedChannelGroup by remember {
         mutableStateOf(
-            if (channelFavoriteListVisible)
-                ClassicPanelScreenFavoriteChannelGroup
-            else if (channelGroupList.isNotEmpty())
-                channelGroupList[max(0, channelGroupList.channelGroupIdx(currentChannelProvider()))]
-            else
-                ChannelGroup(name = "尚未加载列表")
+            initialFocusedChannelGroup(
+                channelGroupList,
+                channelFavoriteListVisible,
+                currentChannelProvider(),
+            )
         )
     }
     var focusedChannel by remember { mutableStateOf(currentChannelProvider()) }
@@ -126,15 +143,11 @@ fun ClassicChannelScreen(
                         channelGroupList
                 },
                 initialChannelGroupProvider = {
-                    if (channelFavoriteListVisible)
-                        ClassicPanelScreenFavoriteChannelGroup
-                    else if (channelGroupList.isNotEmpty())
-                        channelGroupList[max(
-                            0,
-                            channelGroupList.channelGroupIdx(currentChannelProvider())
-                        )]
-                    else 
-                        ChannelGroup(name = "尚未加载列表")
+                    initialFocusedChannelGroup(
+                        channelGroupList,
+                        channelFavoriteListVisible,
+                        currentChannelProvider(),
+                    )
                 },
                 onChannelGroupFocused = {
                     focusedChannelGroup = it
