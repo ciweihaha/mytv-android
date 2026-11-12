@@ -6,6 +6,7 @@ import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrFirst
 
 class ChannelGroupListTest {
     @Test
@@ -97,6 +98,40 @@ class ChannelGroupListTest {
 
         assertNull(list.channelFirstOrNull())
         assertNull(list.channelLastOrNull())
+    }
+
+    @Test
+    fun getOrFirst_inRange_returnsThatGroup() {
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A"),
+                ChannelGroup(name = "B"),
+            )
+        )
+
+        assertEquals("A", list.getOrFirst(0).name)
+        assertEquals("B", list.getOrFirst(1).name)
+    }
+
+    @Test
+    fun getOrFirst_outOfRange_fallsBackToFirst() {
+        // 换订阅源后分组变少、收藏分组被删光：记住的序号越界就回落到
+        // 第一个分组，别显示空白
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A"),
+                ChannelGroup(name = "B"),
+            )
+        )
+
+        assertEquals("A", list.getOrFirst(5).name)
+        assertEquals("A", list.getOrFirst(-1).name)
+    }
+
+    @Test
+    fun getOrFirst_emptyList_returnsEmptyGroup() {
+        assertEquals(ChannelGroup(), ChannelGroupList().getOrFirst(0))
+        assertEquals(ChannelGroup(), ChannelGroupList().getOrFirst(3))
     }
 
     @Test

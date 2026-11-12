@@ -14,8 +14,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.core.data.entities.channel.Channel
-import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrFirst
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGrid
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGroupList
@@ -34,12 +34,7 @@ fun ChannelsScreen(
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
     val channelGroupList = channelGroupListProvider()
     val currentChannelGroup = remember(currentChannelGroupIdx, channelGroupList) {
-        // 换订阅源后分组可能变少，记住的序号越界就回落到第一个分组，别显示空白
-        val safeIdx = currentChannelGroupIdx.coerceIn(
-            0,
-            (channelGroupList.size - 1).coerceAtLeast(0),
-        )
-        channelGroupList.getOrElse(safeIdx) { ChannelGroup() }
+        channelGroupList.getOrFirst(currentChannelGroupIdx)
     }
 
     AppScreen(

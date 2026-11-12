@@ -19,6 +19,7 @@ import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelFavoriteList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrFirst
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGrid
@@ -58,13 +59,7 @@ fun FavoritesScreen(
 
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
     val currentChannelGroup = remember(currentChannelGroupIdx, channelFavoriteGroupList) {
-        // 当前分组被删光后序号可能越界（比如在 B 源分组里把最后一个收藏取消掉，
-        // 分组列表缩回只剩“全部”和 A）：越界就回落到“全部”，别显示空白分组
-        val safeIdx = currentChannelGroupIdx.coerceIn(
-            0,
-            (channelFavoriteGroupList.size - 1).coerceAtLeast(0),
-        )
-        channelFavoriteGroupList.getOrElse(safeIdx) { ChannelGroup() }
+        channelFavoriteGroupList.getOrFirst(currentChannelGroupIdx)
     }
 
     AppScreen(
