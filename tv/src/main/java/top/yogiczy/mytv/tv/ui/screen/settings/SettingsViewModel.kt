@@ -781,8 +781,6 @@ class SettingsViewModel : ViewModel() {
             }
         )
 
-        _iptvChannelChangeListLoop = Configs.iptvChannelChangeListLoop
-        _iptvChannelChangeCrossGroup = Configs.iptvChannelChangeCrossGroup
         _epgEnable = Configs.epgEnable
     }
 
@@ -813,6 +811,8 @@ class SettingsViewModel : ViewModel() {
         _iptvChannelLinePlayableHostList = Configs.iptvChannelLinePlayableHostList
         _iptvChannelLinePlayableUrlList = Configs.iptvChannelLinePlayableUrlList
         _iptvChannelChangeFlip = Configs.iptvChannelChangeFlip
+        _iptvChannelChangeListLoop = Configs.iptvChannelChangeListLoop
+        _iptvChannelChangeCrossGroup = Configs.iptvChannelChangeCrossGroup
         _iptvChannelNoSelectEnable = Configs.iptvChannelNoSelectEnable
         _epgEnable = Configs.epgEnable
         _epgSourceCurrent = Configs.epgSourceCurrent
