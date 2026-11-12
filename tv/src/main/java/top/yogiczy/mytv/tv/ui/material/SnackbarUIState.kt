@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +62,8 @@ class SnackbarUIState(
     }
 
     companion object {
-        // TODO 这种方法可能违反了 Compose 的规则
+        // 全局单例：由 rememberSnackbarUIState() 在 SideEffect 里登记，
+        // 只在组合成功提交后写，见该函数注释
         lateinit var I: SnackbarUIState
 
         fun isInitialized() = ::I.isInitialized
@@ -72,10 +74,13 @@ class SnackbarUIState(
 fun rememberSnackbarUIState(): SnackbarUIState {
     val coroutineScope = rememberCoroutineScope()
 
-    return remember { SnackbarUIState(coroutineScope) }.also {
-        SnackbarUIState.I = it
-        LaunchedEffect(it) { it.observe() }
-    }
+    val state = remember { SnackbarUIState(coroutineScope) }
+    // 全局单例只在组合提交后登记：直接在组合里写外部状态违反 Compose
+    // 规则——组合可能被丢弃重跑，写进去的可能是没提交的那次组合的实例；
+    // SideEffect 只在组合成功提交后执行，登记的一定是生效的实例
+    SideEffect { SnackbarUIState.I = state }
+    LaunchedEffect(state) { state.observe() }
+    return state
 }
 
 data class SnackbarData(

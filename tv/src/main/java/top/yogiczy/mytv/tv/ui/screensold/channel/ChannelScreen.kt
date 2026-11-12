@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
-import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelIdx
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelNumber
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.recentProgramme
@@ -68,10 +68,7 @@ fun ChannelScreen(
     ) {
         ChannelScreenTopRight(
             channelNumberProvider = {
-                // 当前台不在列表里（切源后上次播的台不在新源里、或所在分组
-                // 被隐藏）时下标是 -1，别显示成不存在的“00”号
-                val idx = channelGroupListProvider().channelIdx(currentChannelProvider())
-                if (idx < 0) "–" else (idx + 1).toString().padStart(2, '0')
+                channelGroupListProvider().channelNumber(currentChannelProvider())
             },
         )
 
@@ -160,10 +157,7 @@ private fun ChannelScreenBottom(
                 channelProvider = currentChannelProvider,
                 channelLineIdxProvider = currentChannelLineIdxProvider,
                 channelNumberProvider = {
-                    // 和右上角一致按列表现查：当前台不在列表里时显示“–”，
-                    // 不用频道对象自带的序号（切源后是旧号）
-                    val idx = channelGroupListProvider().channelIdx(currentChannelProvider())
-                    if (idx < 0) "–" else (idx + 1).toString().padStart(2, '0')
+                    channelGroupListProvider().channelNumber(currentChannelProvider())
                 },
                 recentEpgProgrammeProvider = {
                     epgListProvider().recentProgramme(currentChannelProvider())

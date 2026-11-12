@@ -30,10 +30,8 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.recentProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme
 import top.yogiczy.mytv.tv.ui.rememberChildPadding
-import top.yogiczy.mytv.tv.ui.screen.dashboard.DashboardScreeIptvSource
 import top.yogiczy.mytv.tv.ui.screen.live.channels.components.LiveChannelsChannelInfo
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsSubCategories
-import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.screensold.channel.components.ChannelNumber
 import top.yogiczy.mytv.tv.ui.screensold.components.rememberScreenAutoCloseState
 import top.yogiczy.mytv.tv.ui.screensold.datetime.components.DateTimeDetail
@@ -85,7 +83,6 @@ fun QuickOpScreen(
     ) {
         QuickOpScreenTop(
             channelNumberProvider = channelNumberProvider,
-            toSettingsIptvSourceScreen = { toSettingsScreen(SettingsSubCategories.IPTV_SOURCE) },
         )
 
         QuickOpScreenBottom(
@@ -117,9 +114,7 @@ fun QuickOpScreen(
 private fun QuickOpScreenTop(
     modifier: Modifier = Modifier,
     channelNumberProvider: () -> String = { "" },
-    toSettingsIptvSourceScreen: () -> Unit = {},
 ) {
-    val iptvSourceCurrent = settingsVM.iptvSourceCurrent
     val childPadding = rememberChildPadding()
 
     Row(

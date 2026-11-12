@@ -84,6 +84,10 @@ class VideoPlayerState(
         instance.seekTo(position)
     }
 
+    fun seekBy(deltaMs: Long) {
+        instance.seekBy(deltaMs)
+    }
+
     fun stop() {
         instance.stop()
     }
@@ -129,8 +133,21 @@ class VideoPlayerState(
         onIsBufferingListeners.add(listener)
     }
 
+    init {
+        // 监听桥创建时就注册一份：首播的准备发生在主界面状态的 init 里
+        //（组合还没结束），那时 DisposableEffect 里的 initialize() 还没
+        // 跑；桥只在 initialize() 里注册的话，准备时同步报的错（密钥格
+        // 式不对、类型不支持）没人接——不显示、也不自动换台，直接黑屏
+        // 卡住。initialize() 会先清空再重注册，不会重复
+        registerInstanceListeners()
+    }
+
     fun initialize() {
         instance.initialize()
+        registerInstanceListeners()
+    }
+
+    private fun registerInstanceListeners() {
         instance.onResolution { width, height ->
             if (width > 0 && height > 0) aspectRatio = width.toFloat() / height
         }

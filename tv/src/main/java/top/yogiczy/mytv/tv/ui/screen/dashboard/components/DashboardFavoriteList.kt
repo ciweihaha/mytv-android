@@ -33,6 +33,10 @@ fun DashboardFavoriteList(
 ) {
     val channelFavoriteList = channelFavoriteListProvider()
 
+    // 没收藏时整段不显示：之前只剩“我的收藏”一个空标题挂在那，
+    // 底下什么都没有；收藏是设置里的快照状态，增减会重画、有了就回来
+    if (channelFavoriteList.isEmpty()) return
+
     val childPadding = rememberChildPadding()
 
     Column(

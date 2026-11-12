@@ -15,6 +15,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
@@ -58,16 +60,26 @@
         </activity>
 
         <activity android:name=".CrashHandlerActivity" />
+        <!-- 开机自启接收器：exported 必须为 true，否则系统广播发不到应用内的
+             Receiver，设置里开了开机自启也不会拉起 -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
-            android:exported="false"
+            android:exported="true"
             android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
+
+        <!-- 开机拉起服务：BOOT_COMPLETED 到达时由 BootReceiver 起这个前台
+             服务，再由服务拉起主界面（Android 10+ 禁止后台直接拉界面） -->
+        <service
+            android:name=".BootLaunchService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
 
         <service android:name=".HttpServerService" />
         <service 

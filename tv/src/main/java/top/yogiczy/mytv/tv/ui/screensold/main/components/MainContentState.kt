@@ -162,12 +162,9 @@ class MainContentState(
         }
 
     init {
-        val channelGroupList = channelGroupListProvider()
-
-        changeCurrentChannel(settingsViewModel.iptvChannelLastPlay.isEmptyOrElse {
-            channelGroupList.channelFirstOrNull() ?: Channel.EMPTY
-        })
-
+        // 监听先注册、再首播：首播的准备是同步的，准备里同步报的错
+        //（密钥格式不对、类型不支持）发生时监听还没注册就没人接，
+        // 不显示也不自动换台、直接黑屏卡住；放前面就接得住
         videoPlayerState.onReady {
             settingsViewModel.iptvChannelLinePlayableUrlList += currentChannelLine.url
             settingsViewModel.iptvChannelLinePlayableHostList += currentChannelLine.url.urlHost()
@@ -207,6 +204,12 @@ class MainContentState(
                 }
             }
         }
+
+        val channelGroupList = channelGroupListProvider()
+
+        changeCurrentChannel(settingsViewModel.iptvChannelLastPlay.isEmptyOrElse {
+            channelGroupList.channelFirstOrNull() ?: Channel.EMPTY
+        })
     }
 
     private fun getPrevFavoriteChannel(): Channel? {

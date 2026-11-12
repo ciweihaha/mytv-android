@@ -6,6 +6,8 @@ import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelNumber
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
 
 class ChannelGroupListTest {
     @Test
@@ -100,6 +102,40 @@ class ChannelGroupListTest {
     }
 
     @Test
+    fun getOrClamped_inRange_returnsThatGroup() {
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A"),
+                ChannelGroup(name = "B"),
+            )
+        )
+
+        assertEquals("A", list.getOrClamped(0).name)
+        assertEquals("B", list.getOrClamped(1).name)
+    }
+
+    @Test
+    fun getOrClamped_outOfRange_clampsIntoRange() {
+        // 换订阅源后分组变少、收藏分组被删光：记住的序号越界就钳到
+        // 合法范围内再取，别显示空白；大了取最后一个、负了取第一个
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A"),
+                ChannelGroup(name = "B"),
+            )
+        )
+
+        assertEquals("B", list.getOrClamped(5).name)
+        assertEquals("A", list.getOrClamped(-1).name)
+    }
+
+    @Test
+    fun getOrClamped_emptyList_returnsEmptyGroup() {
+        assertEquals(ChannelGroup(), ChannelGroupList().getOrClamped(0))
+        assertEquals(ChannelGroup(), ChannelGroupList().getOrClamped(3))
+    }
+
+    @Test
     fun chanelGroup_channelPresent_returnsItsGroup() {
         val channel = Channel.EXAMPLE.copy(name = "C1")
         val list = ChannelGroupList(
@@ -124,5 +160,33 @@ class ChannelGroupListTest {
 
         assertNull(list.chanelGroup(Channel.EXAMPLE.copy(name = "不存在的频道")))
         assertNull(ChannelGroupList().chanelGroup(Channel.EXAMPLE))
+    }
+
+    @Test
+    fun channelNumber_presentChannel_returnsTwoDigitNumber() {
+        val channels = (1..10).map { Channel.EXAMPLE.copy(name = "C$it") }
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(channels)),
+            )
+        )
+
+        assertEquals("01", list.channelNumber(channels[0]))
+        assertEquals("09", list.channelNumber(channels[8]))
+        assertEquals("10", list.channelNumber(channels[9]))
+    }
+
+    @Test
+    fun channelNumber_absentChannel_returnsDash() {
+        // 切源后上次播的台不在新源里、或所在分组被隐藏：不在列表里
+        // 的台显示“–”，别显示成不存在的“00”号
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(listOf(Channel.EXAMPLE.copy(name = "C1")))),
+            )
+        )
+
+        assertEquals("–", list.channelNumber(Channel.EXAMPLE.copy(name = "不存在的频道")))
+        assertEquals("–", ChannelGroupList().channelNumber(Channel.EXAMPLE))
     }
 }

@@ -378,7 +378,7 @@ fun MainContent(
             },
             onVideoPlayerPlay = { videoPlayerState.play() },
             onVideoPlayerPause = { videoPlayerState.pause() },
-            onVideoPlayerSeekTo = { videoPlayerState.seekTo(it) },
+            onVideoPlayerSeekBy = { videoPlayerState.seekBy(it) },
             onClose = { mainContentState.isVideoPlayerControllerScreenVisible = false },
         )
     }

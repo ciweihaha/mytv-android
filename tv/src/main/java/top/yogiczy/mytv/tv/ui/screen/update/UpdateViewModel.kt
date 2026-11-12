@@ -1,6 +1,7 @@
 package top.yogiczy.mytv.tv.ui.screen.update
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -109,6 +110,12 @@ class UpdateViewModel(
 }
 
 val updateVM: UpdateViewModel
-    @Composable get() = UpdateViewModel.instance ?: viewModel<UpdateViewModel>().also {
-        UpdateViewModel.instance = it
+    @Composable get() {
+        // 全局单例只在组合提交后登记：直接在组合里写外部状态违反 Compose
+        // 规则（组合可能被丢弃重跑）；SideEffect 只在组合成功提交后执行。
+        // instance 本身要留着：导航的每个页面是各自的 ViewModel 归属，
+        // 单用 viewModel() 会每页各建一个实例，更新状态就不再跨页面共享
+        val vm = UpdateViewModel.instance ?: viewModel<UpdateViewModel>()
+        SideEffect { UpdateViewModel.instance = vm }
+        return vm
     }
