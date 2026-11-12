@@ -22,8 +22,6 @@ import kotlinx.coroutines.delay
 import top.yogiczy.mytv.core.util.utils.actionView
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.components.Qrcode
-import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
-import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
 import top.yogiczy.mytv.tv.utlis.HttpServer
@@ -31,7 +29,6 @@ import top.yogiczy.mytv.tv.utlis.HttpServer
 @Composable
 fun PushScreen(
     modifier: Modifier = Modifier,
-    settingsViewModel: SettingsViewModel = settingsVM,
     onBackPressed: () -> Unit = {},
 ) {
     // 服务地址每秒重算一次：IP 变了（开机时 Wi-Fi 还没拿到地址、中途换网）
@@ -40,7 +37,6 @@ fun PushScreen(
 
     LaunchedEffect(Unit) {
         while (true) {
-            settingsViewModel.refresh()
             serverUrl = HttpServer.serverUrl
             delay(1000)
         }
