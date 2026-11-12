@@ -10,9 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -32,7 +30,6 @@ import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.PopupContent
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
-import top.yogiczy.mytv.tv.ui.material.Visibility
 import top.yogiczy.mytv.tv.ui.screen.Screens
 import top.yogiczy.mytv.tv.ui.screen.about.AboutScreen
 import top.yogiczy.mytv.tv.ui.screen.agreement.AgreementScreen
