@@ -34,6 +34,15 @@ abstract class VideoPlayer(
 
     abstract fun seekTo(position: Long)
 
+    /**
+     * 按相对位移 seek：往前/往后跳多少毫秒。
+     * 不能拿 seekTo(节目内偏移) 实现：直播模式下控制条的“节目内偏移”是
+     * 按节目单起止算的，而播放器时间轴的零点是直播窗口起点，两者差
+     * （节目开始 − 窗口开始）短则几分钟、长则几小时，直接传过去会跳错
+     * 时间；相对位移在两种时间轴上都是一致的。
+     */
+    abstract fun seekBy(deltaMs: Long)
+
     abstract fun setVolume(volume: Float)
 
     abstract fun getVolume(): Float

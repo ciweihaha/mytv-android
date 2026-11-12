@@ -27,7 +27,7 @@ fun VideoPlayerControllerScreen(
     videoPlayerDurationProvider: () -> Pair<Long, Long> = { 0L to 0L },
     onVideoPlayerPlay: () -> Unit = {},
     onVideoPlayerPause: () -> Unit = {},
-    onVideoPlayerSeekTo: (Long) -> Unit = {},
+    onVideoPlayerSeekBy: (Long) -> Unit = {},
     onClose: () -> Unit = {},
 ) {
     Drawer(
@@ -52,7 +52,7 @@ fun VideoPlayerControllerScreen(
             VideoPlayerControllerPositionCtrl(
                 currentPositionProvider = videoPlayerCurrentPositionProvider,
                 durationProvider = videoPlayerDurationProvider,
-                onSeekTo = onVideoPlayerSeekTo,
+                onSeekBy = onVideoPlayerSeekBy,
             )
         }
     }

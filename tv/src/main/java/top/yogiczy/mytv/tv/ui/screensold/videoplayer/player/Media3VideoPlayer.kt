@@ -671,6 +671,10 @@ class Media3VideoPlayer(
         videoPlayer.seekTo(position)
     }
 
+    override fun seekBy(deltaMs: Long) {
+        videoPlayer.seekTo(videoPlayer.currentPosition + deltaMs)
+    }
+
     override fun setVolume(volume: Float) {
         videoPlayer.volume = volume
     }

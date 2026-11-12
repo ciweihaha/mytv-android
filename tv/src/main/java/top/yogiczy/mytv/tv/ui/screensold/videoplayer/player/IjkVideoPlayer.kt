@@ -127,6 +127,10 @@ class IjkVideoPlayer(
         player.seekTo(position)
     }
 
+    override fun seekBy(deltaMs: Long) {
+        player.seekTo(player.currentPosition + deltaMs)
+    }
+
     override fun setVolume(volume: Float) {
         this.volume = volume
         player.setVolume(volume, volume)

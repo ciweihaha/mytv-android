@@ -84,6 +84,10 @@ class VideoPlayerState(
         instance.seekTo(position)
     }
 
+    fun seekBy(deltaMs: Long) {
+        instance.seekBy(deltaMs)
+    }
+
     fun stop() {
         instance.stop()
     }

@@ -40,7 +40,13 @@ fun VideoPlayerControllerPositionCtrl(
     modifier: Modifier = Modifier,
     currentPositionProvider: () -> Long = { 0L },
     durationProvider: () -> Pair<Long, Long> = { 0L to 0L },
-    onSeekTo: (Long) -> Unit = {},
+    /**
+     * 相对位移 seek（毫秒，可正可负）：控制条的 ±1/±10 分钟按钮只动位移。
+     * 不能传“节目内偏移”：直播模式下播放器时间轴的零点是直播窗口起点，
+     * 不是节目开始时间，两者差几分钟到几小时，传偏移会跳错时间；
+     * 传位移则两种时间轴都对得上（见 VideoPlayer.seekBy）。
+     */
+    onSeekBy: (Long) -> Unit = {},
 ) {
     var seekToPosition by remember { mutableStateOf<Long?>(null) }
 
@@ -48,8 +54,10 @@ fun VideoPlayerControllerPositionCtrl(
         wait = 1000L,
         func = {
             seekToPosition?.let { nnSeekToPosition ->
-                val startPosition = durationProvider().first
-                onSeekTo(nnSeekToPosition - startPosition)
+                // 只传相对位移：目标位置 − 当前位置；播放器在自己的时间轴上
+                // 加这个位移，窗口起点在哪都不影响。防抖 1 秒内当前位置最
+                // 多走 1 秒，误差可忽略。
+                onSeekBy(nnSeekToPosition - currentPositionProvider())
                 seekToPosition = null
             }
         },
