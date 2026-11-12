@@ -85,9 +85,14 @@ fun App(
         val (hasPermission, requestPermission) = rememberReadExternalStoragePermission()
         LaunchedEffect(Unit) { if (!hasPermission) requestPermission() }
     }
-    val latestFile = File(Globals.cacheDir, "latest.apk")
-    if (latestFile.exists()) {
-        latestFile.delete()
+    // 启动时清掉上次残留的安装包：只能跑一次，不能写在组合体里——
+    // 组合体重跑（设置变化、切画中画等）都会再删一次，正好撞上下载
+    // 刚完成、还没装的那一刻会把包删掉
+    LaunchedEffect(Unit) {
+        val latestFile = File(Globals.cacheDir, "latest.apk")
+        if (latestFile.exists()) {
+            latestFile.delete()
+        }
     }
 }
 
