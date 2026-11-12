@@ -64,8 +64,15 @@ fun MultiViewScreen(
                         return@MultiViewItem
                     }
 
-                    if (channelList.indexOf(it) == zoomInIndex) zoomInIndex = null
+                    val removedIdx = channelList.indexOf(it)
+                    if (removedIdx == zoomInIndex) zoomInIndex = null
                     channelList.remove(it)
+                    // 被删格在放大格之前：后面的格子前移一位，放大序号也要跟
+                    // 着减一；否则放大落到下一格上，删的是最后一格时序号越
+                    // 界、放大悄悄消失回网格
+                    if (removedIdx >= 0 && zoomInIndex != null && removedIdx < zoomInIndex!!) {
+                        zoomInIndex = zoomInIndex!! - 1
+                    }
 
                     if (channelList.size <= 1) zoomInIndex = null
                 },
@@ -83,6 +90,11 @@ fun MultiViewScreen(
                 onZoomOut = { zoomInIndex = null },
                 onMoveTo = { newIndex ->
                     if (newIndex == index) return@MultiViewItem
+
+                    // 交换的两格里有放大格：放大序号跟着被换的格子走，
+                    // 否则放大留在原序号、落到另一格上
+                    if (zoomInIndex == index) zoomInIndex = newIndex
+                    else if (zoomInIndex == newIndex) zoomInIndex = index
 
                     val temp = channelList[index]
                     channelList[index] = channelList[newIndex]
