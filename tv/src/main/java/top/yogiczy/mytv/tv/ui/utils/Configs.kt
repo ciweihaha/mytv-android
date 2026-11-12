@@ -241,9 +241,6 @@ object Configs {
         /** 播放器 跳过同一VSync渲染多帧 */
         VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC,
 
-        /** 播放器音量均衡 */
-        VIDEO_PLAYER_VOLUME_NORMALIZATION,
-
         /** ==================== 主题 ==================== */
         /** 当前应用主题 */
         THEME_APP_CURRENT,
@@ -697,11 +694,6 @@ object Configs {
         get() = SP.getBoolean(KEY.VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC.name, true)
         set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC.name, value)
 
-    /** 播放器音量均衡 */
-    var videoPlayerVolumeNormalization: Boolean
-        get() = SP.getBoolean(KEY.VIDEO_PLAYER_VOLUME_NORMALIZATION.name, false)
-        set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_VOLUME_NORMALIZATION.name, value)
-
     /** ==================== 主题 ==================== */
     /** 当前应用主题 */
     var themeAppCurrent: AppThemeDef?
@@ -935,7 +927,6 @@ object Configs {
             videoPlayerForceSoftDecode = videoPlayerForceSoftDecode,
             videoPlayerStopPreviousMediaItem = videoPlayerStopPreviousMediaItem,
             videoPlayerSkipMultipleFramesOnSameVSync = videoPlayerSkipMultipleFramesOnSameVSync,
-            videoPlayerVolumeNormalization = videoPlayerVolumeNormalization,
             themeAppCurrent = themeAppCurrent,
             cloudSyncAutoPull = cloudSyncAutoPull,
             cloudSyncProvider = cloudSyncProvider,
@@ -1026,7 +1017,6 @@ object Configs {
         configs.videoPlayerForceSoftDecode?.let { videoPlayerForceSoftDecode = it }
         configs.videoPlayerStopPreviousMediaItem?.let { videoPlayerStopPreviousMediaItem = it }
         configs.videoPlayerSkipMultipleFramesOnSameVSync?.let { videoPlayerSkipMultipleFramesOnSameVSync = it }
-        configs.videoPlayerVolumeNormalization?.let { videoPlayerVolumeNormalization = it }
         configs.themeAppCurrent?.let { themeAppCurrent = it }
         configs.cloudSyncAutoPull?.let { cloudSyncAutoPull = it }
         configs.cloudSyncProvider?.let { cloudSyncProvider = it }
@@ -1115,7 +1105,6 @@ object Configs {
         val videoPlayerForceSoftDecode: Boolean? = null,
         val videoPlayerStopPreviousMediaItem: Boolean? = null,
         val videoPlayerSkipMultipleFramesOnSameVSync: Boolean? = null,
-        val videoPlayerVolumeNormalization : Boolean? = null,
         val themeAppCurrent: AppThemeDef? = null,
         val cloudSyncAutoPull: Boolean? = null,
         val cloudSyncProvider: CloudSyncProvider? = null,

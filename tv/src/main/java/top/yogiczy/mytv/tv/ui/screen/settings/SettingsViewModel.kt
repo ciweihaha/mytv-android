@@ -562,15 +562,6 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _videoPlayerVolumeNormalization by mutableStateOf(false)
-    var videoPlayerVolumeNormalization: Boolean
-        get() = _videoPlayerVolumeNormalization
-        set(value) {
-            _videoPlayerVolumeNormalization = value
-            Configs.videoPlayerVolumeNormalization = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
     private var _networkRetryCount by mutableLongStateOf(Constants.NETWORK_RETRY_COUNT)
     var networkRetryCount: Long
         get() = _networkRetryCount
@@ -869,7 +860,6 @@ class SettingsViewModel : ViewModel() {
         _cloudSyncWebDavUsername = Configs.cloudSyncWebDavUsername
         _cloudSyncWebDavPassword = Configs.cloudSyncWebDavPassword
         // _feiyangAllInOneFilePath = Configs.feiyangAllInOneFilePath
-        _videoPlayerVolumeNormalization = Configs.videoPlayerVolumeNormalization
     }
 
     companion object {
