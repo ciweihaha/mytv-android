@@ -26,8 +26,11 @@ android {
         applicationId = "com.github.mytv.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = "${System.getenv("VERSION_CODE")}".toInt()
-        versionName = "1.1.1.${System.getenv("VERSION_CODE")}"//.${System.getenv("COMMIT_HASH")}"
+        // VERSION_CODE 未设置时默认 1：原先 "${System.getenv("VERSION_CODE")}".toInt()
+        // 在未设环境变量时是 "null".toInt()，配置阶段直接抛 NumberFormatException，
+        // 本地克隆后 ./gradlew assembleDebug 根本跑不起来（CI 设了该变量所以没暴露）
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = "1.1.1.${System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1}"//.${System.getenv("COMMIT_HASH")}"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -68,7 +71,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("release")
+            // 本地没有 keystore 时用默认 debug 签名：debug 原先固定走 release
+            // signingConfig，无 keystore 的环境下 assembleDebug 签名阶段直接失败；
+            // 有 keystore（CI 会生成一次性 keystore）时行为不变
+            signingConfig = signingConfigs.findByName("release")
+                ?.takeIf { it.storeFile?.exists() == true }
+                ?: signingConfigs.getByName("debug")
         }
     }
     splits {
@@ -124,7 +132,7 @@ androidComponents {
         val appVariant = variant as? ApplicationVariant ?: return@onVariants
         appVariant.outputs.forEach { output ->
             // 新版 Variant API 里拿不到 versionName/minSdk，直接用与 defaultConfig 相同的取值。
-            val ver = "1.1.1.${System.getenv("VERSION_CODE")}"
+            val ver = "1.1.1.${System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1}"
             val minSdk = libs.versions.minSdk.get().toInt()
             val abi = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier ?: "all"
             val flavor = appVariant.flavorName

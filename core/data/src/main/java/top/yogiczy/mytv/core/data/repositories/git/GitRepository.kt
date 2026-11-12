@@ -1,7 +1,7 @@
 package top.yogiczy.mytv.core.data.repositories.git
 
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
-import top.yogiczy.mytv.core.data.network.request
+import top.yogiczy.mytv.core.data.network.requestStrict
 import top.yogiczy.mytv.core.data.repositories.git.parser.GitReleaseParser
 import top.yogiczy.mytv.core.data.utils.Loggable
 
@@ -18,7 +18,7 @@ class GitRepository : Loggable("GitRepository") {
 
         try {
             val parser = GitReleaseParser.instances.first { it.isSupport(url) }
-            return url.request { body -> parser.parse(body.string()) }
+            return url.requestStrict { body -> parser.parse(body.string()) }
                 ?: throw IllegalStateException("发行版接口返回空数据")
         } catch (ex: Exception) {
             log.e("获取最新发行版失败", ex)
