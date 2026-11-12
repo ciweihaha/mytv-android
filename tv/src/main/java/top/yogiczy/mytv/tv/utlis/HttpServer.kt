@@ -255,7 +255,7 @@ object HttpServer : Loggable("HttpServer") {
             "content" -> {
                 val file =
                     File(Globals.fileDir, "iptv_source_local_${System.currentTimeMillis()}.txt")
-                file.writeText(content)
+                FsUtil.writeTextAtomically(file, content)
                 newIptvSource = IptvSource(name, file.path, true)
             }
         }
@@ -296,7 +296,8 @@ object HttpServer : Loggable("HttpServer") {
     ) {
         val alias = request.getBody<StringBody>().get()
 
-        ChannelAlias.aliasFile.writeText(alias)
+        // 别名文件也走原子写：写一半被杀不留截断文件（云同步同款写法）
+        FsUtil.writeTextAtomically(ChannelAlias.aliasFile, alias)
         runBlocking {
             IptvRepository.clearAllCache()
             EpgRepository.clearAllCache()
@@ -521,10 +522,10 @@ object HttpServer : Loggable("HttpServer") {
         }
 
         if (file.exists()) {
-            file.writeText(content)
+            FsUtil.writeTextAtomically(file, content)
         } else {
             file.parentFile?.mkdirs()
-            file.writeText(content)
+            FsUtil.writeTextAtomically(file, content)
         }
 
         responseSuccess(response)
@@ -550,10 +551,10 @@ object HttpServer : Loggable("HttpServer") {
             ?: return response.code(400).send("Invalid filename")
 
         if (file.exists()) {
-            file.writeText(content)
+            FsUtil.writeTextAtomically(file, content)
         } else {
             file.parentFile?.mkdirs()
-            file.writeText(content)
+            FsUtil.writeTextAtomically(file, content)
         }
 
         wrapResponse(response).send(file.path)
