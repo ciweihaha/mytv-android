@@ -773,8 +773,9 @@ class SettingsViewModel : ViewModel() {
     init {
         runCatching { refresh() }
 
-        // 删除过期的预约
-        _epgChannelReserveList = EpgProgrammeReserveList(
+        // 删除过期的预约：走 setter 写回本地存储；直接改 _epgChannelReserveList
+        // 只动内存，过期记录会一直留在存里、每次启动重新读进来再清一遍
+        epgChannelReserveList = EpgProgrammeReserveList(
             _epgChannelReserveList.filter {
                 System.currentTimeMillis() < it.startAt + 60 * 1000
             }
