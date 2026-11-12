@@ -6,7 +6,7 @@ import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
-import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrFirst
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
 
 class ChannelGroupListTest {
     @Test
@@ -101,7 +101,7 @@ class ChannelGroupListTest {
     }
 
     @Test
-    fun getOrFirst_inRange_returnsThatGroup() {
+    fun getOrClamped_inRange_returnsThatGroup() {
         val list = ChannelGroupList(
             listOf(
                 ChannelGroup(name = "A"),
@@ -109,14 +109,14 @@ class ChannelGroupListTest {
             )
         )
 
-        assertEquals("A", list.getOrFirst(0).name)
-        assertEquals("B", list.getOrFirst(1).name)
+        assertEquals("A", list.getOrClamped(0).name)
+        assertEquals("B", list.getOrClamped(1).name)
     }
 
     @Test
-    fun getOrFirst_outOfRange_fallsBackToFirst() {
-        // 换订阅源后分组变少、收藏分组被删光：记住的序号越界就回落到
-        // 第一个分组，别显示空白
+    fun getOrClamped_outOfRange_clampsIntoRange() {
+        // 换订阅源后分组变少、收藏分组被删光：记住的序号越界就钳到
+        // 合法范围内再取，别显示空白；大了取最后一个、负了取第一个
         val list = ChannelGroupList(
             listOf(
                 ChannelGroup(name = "A"),
@@ -124,14 +124,14 @@ class ChannelGroupListTest {
             )
         )
 
-        assertEquals("A", list.getOrFirst(5).name)
-        assertEquals("A", list.getOrFirst(-1).name)
+        assertEquals("B", list.getOrClamped(5).name)
+        assertEquals("A", list.getOrClamped(-1).name)
     }
 
     @Test
-    fun getOrFirst_emptyList_returnsEmptyGroup() {
-        assertEquals(ChannelGroup(), ChannelGroupList().getOrFirst(0))
-        assertEquals(ChannelGroup(), ChannelGroupList().getOrFirst(3))
+    fun getOrClamped_emptyList_returnsEmptyGroup() {
+        assertEquals(ChannelGroup(), ChannelGroupList().getOrClamped(0))
+        assertEquals(ChannelGroup(), ChannelGroupList().getOrClamped(3))
     }
 
     @Test

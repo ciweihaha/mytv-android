@@ -59,11 +59,11 @@ data class ChannelGroupList(
         fun ChannelGroupList.channelLastOrNull() =
             this.lastOrNull { it.channelList.isNotEmpty() }?.channelList?.lastOrNull()
 
-        // 记住的分组序号可能越界就回落到第一个分组，别显示空白：
+        // 记住的分组序号可能越界，钳到合法范围内再取，别显示空白：
         // 换订阅源后分组变少（全部频道页）、当前分组被删光（收藏页在
         // B 源分组里把最后一个收藏取消掉，分组列表缩回只剩“全部”和 A）；
-        // 空列表回落一个空分组
-        fun ChannelGroupList.getOrFirst(index: Int): ChannelGroup {
+        // 大了取最后一个、负了取第一个；空列表回落一个空分组
+        fun ChannelGroupList.getOrClamped(index: Int): ChannelGroup {
             val safeIdx = index.coerceIn(0, (size - 1).coerceAtLeast(0))
             return getOrElse(safeIdx) { ChannelGroup() }
         }

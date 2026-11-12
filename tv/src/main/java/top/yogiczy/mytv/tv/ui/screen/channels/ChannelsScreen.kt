@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
-import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrFirst
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGrid
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGroupList
@@ -34,7 +34,7 @@ fun ChannelsScreen(
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
     val channelGroupList = channelGroupListProvider()
     val currentChannelGroup = remember(currentChannelGroupIdx, channelGroupList) {
-        channelGroupList.getOrFirst(currentChannelGroupIdx)
+        channelGroupList.getOrClamped(currentChannelGroupIdx)
     }
 
     AppScreen(

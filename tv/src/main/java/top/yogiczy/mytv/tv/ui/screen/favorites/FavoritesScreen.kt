@@ -19,7 +19,7 @@ import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelFavoriteList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
-import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrFirst
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGrid
@@ -59,7 +59,7 @@ fun FavoritesScreen(
 
     var currentChannelGroupIdx by rememberSaveable { mutableIntStateOf(0) }
     val currentChannelGroup = remember(currentChannelGroupIdx, channelFavoriteGroupList) {
-        channelFavoriteGroupList.getOrFirst(currentChannelGroupIdx)
+        channelFavoriteGroupList.getOrClamped(currentChannelGroupIdx)
     }
 
     AppScreen(
