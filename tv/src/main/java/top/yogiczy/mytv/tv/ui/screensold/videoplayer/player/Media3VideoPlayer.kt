@@ -697,17 +697,24 @@ class Media3VideoPlayer(
     }
     
     override fun selectSubtitleTrack(track: Metadata.Subtitle?) {
-        if (track?.language == null) {  
+        // 和视频/音频轨一样按展平后的轨道下标选：原来按 language 选，
+        // 容器没标语言的字幕轨 language 是 null，点它等于关字幕、永远选不上；
+        // 两条同语言的字幕轨也分不清点的到底是哪条。index 为空（点“关闭”）
+        // 才是关字幕。
+        if (track?.index == null) {
             videoPlayer.trackSelectionParameters = videoPlayer.trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .build()
             return
         }
+
+        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_TEXT) ?: return
+
         videoPlayer.trackSelectionParameters = videoPlayer.trackSelectionParameters
             .buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-            .setPreferredTextLanguage(track.language)
+            .setOverrideForType(TrackSelectionOverride(group, trackIndex))
             .build()
     }
 
