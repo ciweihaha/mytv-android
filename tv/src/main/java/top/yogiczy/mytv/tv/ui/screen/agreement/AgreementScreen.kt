@@ -99,7 +99,8 @@ fun AgreementScreen(
 
                             Button(
                                 modifier = Modifier
-                                    .handleKeyEvents(onSelect = onDisagree),
+                                    .handleKeyEvents(onSelect = onDisagree)
+                                    .clickableNoIndication { onDisagree() },
                                 colors = btnColors,
                                 onClick = { },
                             ) {
