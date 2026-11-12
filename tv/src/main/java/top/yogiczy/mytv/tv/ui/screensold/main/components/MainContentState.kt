@@ -500,8 +500,12 @@ class MainContentState(
         channel: Channel = _currentChannel,
         lineIdx: Int? = _currentChannelLineIdx,
     ): Boolean {
+        // 无线路的频道（如空列表兜底的 Channel.EMPTY）没有可播线路：
+        // getLineIdx 在空列表上算出 0，下标取值直接越界；换台守卫
+        // 同款问题已在 changeCurrentChannel 里拦过，这里补上
+        if (channel.lineList.isEmpty()) return false
         val currentLineIdx = getLineIdx(channel.lineList, lineIdx)
-        return channel.lineList[currentLineIdx].playbackType != null || 
+        return channel.lineList[currentLineIdx].playbackType != null ||
         ChannelUtil.urlSupportPlayback(channel.lineList[currentLineIdx].url)
     }
 }
