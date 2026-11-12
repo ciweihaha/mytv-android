@@ -10,7 +10,6 @@ import com.tencent.smtt.sdk.TbsListener;
 import top.yogiczy.mytv.core.data.utils.Logger
 import java.io.File
 import java.net.URL
-import java.util.concurrent.Executors
 import android.os.Build
 import android.widget.Toast;
 
@@ -68,6 +67,10 @@ class X5CorePreLoadService : JobIntentService() {
         if (downloadUrl != null) {
             try {
                 val file = File(apkPath)
+                // 0 字节文件一定是之前下载失败留下的残渣，直接删掉重下
+                if (file.exists() && file.length() == 0L) {
+                    file.delete()
+                }
                 // 下载 APK 文件
                 if(file.exists()) {
                     log.i("APK 文件已存在，跳过下载")
@@ -76,17 +79,25 @@ class X5CorePreLoadService : JobIntentService() {
                     runOnUiThread {
                         Toast.makeText(this@X5CorePreLoadService, "正在远程下载X5Core，下载完成前请不要关闭应用", Toast.LENGTH_LONG).show()
                     }
-                    val url = URL(downloadUrl)
-                    val connection = url.openConnection()
-                    // 设超时：原先无任何超时，服务端假死时会无限挂住；
-                    // 输入流原先也没关闭，连接一直泄漏
-                    connection.connectTimeout = 30_000
-                    connection.readTimeout = 30_000
-                    connection.connect()
-                    connection.getInputStream().use { inputStream ->
-                        file.outputStream().use { outputStream ->
-                            inputStream.copyTo(outputStream)
+                    try {
+                        val url = URL(downloadUrl)
+                        val connection = url.openConnection()
+                        // 设超时：原先无任何超时，服务端假死时会无限挂住；
+                        // 输入流原先也没关闭，连接一直泄漏
+                        connection.connectTimeout = 30_000
+                        connection.readTimeout = 30_000
+                        connection.connect()
+                        connection.getInputStream().use { inputStream ->
+                            file.outputStream().use { outputStream ->
+                                inputStream.copyTo(outputStream)
+                            }
                         }
+                    } catch (e: Exception) {
+                        // 下了一半的文件必须删掉：不删的话下次启动以为已经下完了，
+                        // 直接拿这个坏包去装内核，每次都失败、X5 再也装不上，
+                        // 只能清应用数据才能恢复；删掉后下次启动重新下载
+                        file.delete()
+                        throw e
                     }
                     runOnUiThread {
                         Toast.makeText(this@X5CorePreLoadService, "下载X5Core成功！", Toast.LENGTH_SHORT).show()
