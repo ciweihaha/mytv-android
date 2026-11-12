@@ -1,0 +1,83 @@
+name: Release
+
+# 发版说明（只加流水线，不自动发版）：
+# - 触发：推送 v* 标签时建一个草稿 Release（draft，不直接发布，需人工检查后点
+#   Publish）；手动 dispatch 只构建并上传产物做演练，不建 Release。
+# - 构建步骤与 build-check.yml 完全一致（Java 17、Gradle 发行版带重试、
+#   一次性 keystore、assembleRelease、单元测试），build-check 261 次全绿。
+# - 签名注意：仓库里没有 keystore，构建用一次性 keystore 签名。同一 tag
+#   每次构建签名都不同，用户从 Release 装 APK 后无法原地升级，必须先卸载
+#   再装新版。要支持原地升级，需要把正式 keystore 配成 secret 再改签名步
+#   骤，那一步需用户决定，本文档不做。
+# - 版本号：versionName 是 1.1.1.<VERSION_CODE>，VERSION_CODE 取 run_number，
+#   与 build-check 相同；Release 的 tag 就是推送的 v* 标签名。
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+
+    steps:
+      - name: 代码迁出
+        uses: actions/checkout@v4
+
+      - name: 构建 Java 环境
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: gradle
+
+      # gradlew 在 git 里没有可执行位（mode 100644），先补上。
+      - name: 下载 Gradle 发行版（带重试）
+        run: |
+          chmod +x ./gradlew
+          for i in 1 2 3 4 5; do
+            ./gradlew --version && break || { echo "download attempt $i failed, retrying in 60s"; sleep 60; }
+          done
+          ./gradlew --version
+
+      # 一次性签名：tv 模块的 debug 与 release 都用 release signingConfig，
+      # 仓库里没有 keystore，所以先生成一个仅供本次构建使用的 keystore。
+      - name: 生成一次性 keystore
+        run: |
+          keytool -genkeypair -keystore /tmp/release.keystore -storepass android -alias release -keypass android -dname "CN=CI,O=CI,C=CN" -keyalg RSA -keysize 2048 -validity 1
+          echo "KEYSTORE=/tmp/release.keystore" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=release" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
+
+      # tv 模块没有单元测试；core 三个模块只有占位测试。
+      - name: 运行单元测试
+        run: ./gradlew :core:data:testDebugUnitTest :core:util:testDebugUnitTest :core:designsystem:testDebugUnitTest
+        timeout-minutes: 30
+
+      - name: 构建 release APK
+        run: ./gradlew :tv:assembleRelease
+        timeout-minutes: 30
+
+      # 只在推送 v* 标签时建 Release，且先存为草稿，需人工检查后发布。
+      - name: 建草稿 Release 并上传 APK
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: tv/build/outputs/apk/*/release/*.apk
+
+      # 手动 dispatch 只做构建演练，不建 Release，产物存为 artifact。
+      - name: 上传 release APK（演练）
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mytv-android-release
+          path: tv/build/outputs/apk/*/release/*.apk
