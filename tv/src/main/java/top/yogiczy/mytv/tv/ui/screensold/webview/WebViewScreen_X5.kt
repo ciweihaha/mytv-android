@@ -188,7 +188,7 @@ class MyClient_X5(
         if (isFaviconUrl(url)) {
             return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
         }
-        if(blacklist != null && blacklist.isNotEmpty()){
+        if (blacklist.isNotEmpty()) {
             for (item in blacklist) {
                 if (url.contains(item)) {
                     return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载

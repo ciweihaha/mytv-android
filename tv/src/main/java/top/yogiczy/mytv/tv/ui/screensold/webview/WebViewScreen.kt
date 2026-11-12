@@ -128,7 +128,6 @@ fun WebViewScreen(
                     settings.builtInZoomControls = false
                     settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     settings.mediaPlaybackRequiresUserGesture = false
-                    settings.domStorageEnabled = true
                     isHorizontalScrollBarEnabled = false
                     isVerticalScrollBarEnabled = false
                     isClickable = false
@@ -175,7 +174,7 @@ class MyClient(
         if (isFaviconUrl(url)) {
             return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
         }
-        if(blacklist != null && blacklist.isNotEmpty()){
+        if (blacklist.isNotEmpty()) {
             for (item in blacklist) {
                 if (url.contains(item)) {
                     return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
