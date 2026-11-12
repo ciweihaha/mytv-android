@@ -70,6 +70,8 @@ fun MultiViewScreen(
                     if (channelList.size <= 1) zoomInIndex = null
                 },
                 onChangeChannel = {
+                    // 选的就是本格在播的台：不用换，也别报“已存在该频道”
+                    if (it == channelList[index]) return@MultiViewItem
                     if (channelList.contains(it)) {
                         Snackbar.show("已存在该频道")
                         return@MultiViewItem
