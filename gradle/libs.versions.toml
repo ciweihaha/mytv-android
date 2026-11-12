@@ -21,7 +21,6 @@ compose-foundation = "1.12.1"
 tinypinyin = "2.0.3.RELEASE"
 tvMaterial = "1.1.0"
 navigationCompose = "2.10.2"
-android_material = "1.14.0"
 sentry = "6.26.0"
 quickjs = "1.0.18"
 minSdk = "24"
@@ -36,7 +35,6 @@ coil-svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-android-material = {module = "com.google.android.material:material", version.ref = "android_material"}
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
