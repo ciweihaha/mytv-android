@@ -57,7 +57,23 @@ fun String.compareVersion(version2: String): Int {
         if (label1 == null) return 1
         if (label2 == null) return -1
 
-        return label1.compareTo(label2)
+        // 按 semver 逐段比：纯数字段按数值比、数字段小于非数字段、
+        // 前缀相同时段少的更小。原先整串按字典比，"rc.2" 会大于
+        // "rc.10"，更新检查会把旧的预发布版当成更新（或反过来漏掉新版）
+        val parts1 = label1.split(".")
+        val parts2 = label2.split(".")
+        for (i in 0 until maxOf(parts1.size, parts2.size)) {
+            val part1 = parts1.getOrNull(i) ?: return -1
+            val part2 = parts2.getOrNull(i) ?: return 1
+            if (part1 == part2) continue
+            val num1 = part1.toIntOrNull()
+            val num2 = part2.toIntOrNull()
+            if (num1 != null && num2 != null) return num1.compareTo(num2)
+            if (num1 != null) return -1
+            if (num2 != null) return 1
+            return part1.compareTo(part2)
+        }
+        return 0
     }
 
     val (v1, preRelease1) = parseVersion(this)

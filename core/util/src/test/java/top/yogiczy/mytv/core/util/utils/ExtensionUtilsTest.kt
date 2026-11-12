@@ -57,6 +57,17 @@ class ExtensionUtilsTest {
     }
 
     @Test
+    fun compareVersion_preReleaseNumericSegments() {
+        // 预发布版的数字段要按数值比，不能整串按字典比：
+        // 旧实现 "rc.2" > "rc.10"，会把旧版当成更新
+        assertEquals(-1, "1.0.0-rc.2".compareVersion("1.0.0-rc.10"))
+        assertEquals(1, "1.0.0-rc.10".compareVersion("1.0.0-rc.2"))
+        assertEquals(-1, "1.0.0-alpha.1".compareVersion("1.0.0-alpha.2"))
+        assertEquals(-1, "1.0.0-alpha".compareVersion("1.0.0-alpha.1"))
+        assertEquals(0, "1.0.0-rc.2".compareVersion("1.0.0-rc.2"))
+    }
+
+    @Test
     fun compareVersion_weirdTags_neverThrows() {
         // 自定义更新渠道的奇怪 tag：原先 toInt() 抛异常，AboutScreen 里比较时
         // 没有任何保护，打开关于页就闪退
