@@ -1,0 +1,82 @@
+name: Sync Upstream
+
+# 定期把上游 mytv-android/mytv-android 的 main 合并进本仓 main。
+# 现状（2026-11-12 核查）：本仓 main 比上游多 263 个提交、少 0 个，
+# 上游最后一次代码提交是 2026-10-28，之后只有 tag/Release 推送
+# （V3.0.0.238，2026-11-08）。所以同步目前是空操作，等上游再有
+# 代码提交时才会真正合入。
+#
+# 触发：每周日 02:00 UTC 自动跑；也可以在 Actions 页手动 workflow_dispatch。
+# 机制：只做快进合并（--ff-only）。上游有新提交且能快进时直接合入并推送；
+# 不能快进（即双方都改了同一处）时不强推，改为提一个 Issue 提醒人工处理，
+# 避免把 263 个本地提交置于风险中。
+#
+# 权限说明：推送用的是 Actions 自带的 GITHUB_TOKEN（permissions:
+# contents: write），不需要用户另外提供 GitHub 令牌。注意两点限制：
+#   1. 用 GITHUB_TOKEN 推送不会触发 build-check 等其他工作流（GitHub
+#      的防循环规则），合入后需人工在 Actions 页对新提交点一次
+#      Build Check 的 workflow_dispatch，或等下一次 push 触发。
+#   2. 同步只合 main 分支和 tag，不碰本地独有的提交，不改版本号。
+#
+# 上游 tag 同步：每次运行都会把上游的新 tag 拉下来一并推送，
+# 这样上游发 V3.0.0.239 这类预览版时，本仓的 tag 也能跟上，
+# 再决定是否用 release.yml 出 Release。
+
+on:
+  schedule:
+    - cron: "0 2 * * 0" # 每周日 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 代码迁出
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 拉取上游
+        run: |
+          git remote add upstream https://github.com/mytv-android/mytv-android.git
+          git fetch upstream main --tags
+          echo "UPSTREAM_SHA=$(git rev-parse upstream/main)" >> "$GITHUB_ENV"
+          echo "LOCAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git log --oneline HEAD..upstream/main | head -20 || true
+
+      - name: 快进合并上游 main
+        id: merge
+        run: |
+          if git merge --ff-only upstream/main; then
+            echo "merged=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 推送（含新 tag）
+        if: steps.merge.outputs.merged == 'true'
+        run: |
+          if [ "$UPSTREAM_SHA" != "$LOCAL_SHA" ]; then
+            git push origin main --tags
+          else
+            # 代码无变化也可能有新 tag，单独推 tag
+            git push origin --tags || true
+            echo "already up to date (code); tags synced"
+          fi
+
+      - name: 合并失败时提 Issue 提醒人工处理
+        if: steps.merge.outputs.merged == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '上游同步需要人工处理：main 无法快进合并',
+              body: `上游 mytv-android/mytv-android/main 有新提交，但本仓 main 无法快进合并（可能存在冲突）。\n\n上游 HEAD：${process.env.UPSTREAM_SHA}\n本地 HEAD：${process.env.LOCAL_SHA}\n\n请人工在本地执行：\n\`\`\`\ngit fetch upstream\ngit merge upstream/main\n# 解决冲突后\n git push origin main\n\`\`\`\n本次运行：${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            })
