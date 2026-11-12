@@ -403,7 +403,7 @@
                         return
                     }
 
-                    if (!iptvSource.value.type === 'url' && !iptvSource.value.url) {
+                    if (iptvSource.value.type === 'url' && !iptvSource.value.url) {
                         vant.showFailToast('请填写直播源链接')
                         return
                     }
