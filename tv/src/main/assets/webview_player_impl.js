@@ -54,13 +54,15 @@ function addVideoPlayerMask(video) {
     Android.changeVideoResolution(video.videoWidth, video.videoHeight);
 }
 
+let enableVideoIntervalId = null;
+
 function enableVideo(video) {
     if (video.muted || video.volume != 1 || video.autoplay === false) {
         video.muted = false;
         video.autoplay = true;
         video.volume = 1;
     }else{
-        clearInterval(enableVideo);
+        clearInterval(enableVideoIntervalId);
     }
 }
 
@@ -94,7 +96,7 @@ function __initializetMain() {
         video.volume = 1;
         video.muted = false;
         if (video.videoWidth * video.videoHeight !== 0) addVideoPlayerMask(video);
-        setInterval(enableVideo, 100, video); //2秒后再看一下
+        enableVideoIntervalId = setInterval(enableVideo, 100, video); //2秒后再看一下
     }
  }
 // cleanAllStyle();
