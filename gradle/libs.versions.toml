@@ -64,8 +64,6 @@ androidasync = { module = "com.koushikdutta.async:androidasync", version.ref = "
 androidx-tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "tvMaterial" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-compose-foundation-base = { module = "androidx.compose.foundation:foundation", version.ref = "compose-foundation" }
-androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
-androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 tinypinyin = { module = "io.github.biezhi:TinyPinyin", version.ref = "tinypinyin" }
