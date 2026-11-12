@@ -94,10 +94,11 @@ data class CloudSyncData(
                     // writeText 抛文件找不到，整个应用云端数据中断、
                     // 后面的别名文件也写不上（推送那头同款问题已修过）
                     File(entry.key).parentFile?.mkdirs()
-                    File(entry.key).writeText(entry.value)
+                    FsUtil.writeTextAtomically(File(entry.key), entry.value)
                 }
             that.extraChannelNameAlias?.let {
-                ChannelAlias.aliasFile.writeText(it)
+                // 恢复的别名文件也走原子写，写一半被杀不留截断文件
+                FsUtil.writeTextAtomically(ChannelAlias.aliasFile, it)
             }
         }
     }

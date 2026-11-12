@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.Loggable
+import top.yogiczy.mytv.core.util.utils.FsUtil
 import top.yogiczy.mytv.core.util.utils.ensureSuffix
 import top.yogiczy.mytv.tv.sync.CloudSyncData
 import java.io.File
@@ -22,9 +23,10 @@ class LocalFileSyncRepository(
     override suspend fun push(data: CloudSyncData): Boolean = withContext(Dispatchers.IO) {
         try {
             // 用户配的路径所在目录可能不存在：先建目录，否则 writeText 抛
-            // FileNotFoundException，推送永远失败
+            // FileNotFoundException，推送永远失败；写盘走原子写，写一半
+            // 被杀只留 .tmp，同步文件本身不会被截断（缓存与下载同款写法）
             file.parentFile?.mkdirs()
-            file.writeText(Globals.json.encodeToString(data))
+            FsUtil.writeTextAtomically(file, Globals.json.encodeToString(data))
             true
         } catch (ex: Exception) {
             log.e("推送失败", ex)
