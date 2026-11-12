@@ -859,7 +859,6 @@ class SettingsViewModel : ViewModel() {
         _cloudSyncWebDavUrl = Configs.cloudSyncWebDavUrl
         _cloudSyncWebDavUsername = Configs.cloudSyncWebDavUsername
         _cloudSyncWebDavPassword = Configs.cloudSyncWebDavPassword
-        // _feiyangAllInOneFilePath = Configs.feiyangAllInOneFilePath
     }
 
     companion object {
