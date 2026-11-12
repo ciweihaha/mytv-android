@@ -5,7 +5,7 @@
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/mytv-android/mytv-android)
 ![GitHub all releases](https://img.shields.io/github/downloads/mytv-android/mytv-android/total)
-[![Android Sdk Require](https://img.shields.io/badge/Android-5.0%2B-informational?logo=android)](https://apilevels.com/#:~:text=Jetpack%20Compose%20requires%20a%20minSdk%20of%2021%20or%20higher)
+[![Android Sdk Require](https://img.shields.io/badge/Android-7.0%2B-informational?logo=android)](https://apilevels.com/#:~:text=Jetpack%20Compose%20requires%20a%20minSdk%20of%2021%20or%20higher)
 [![GitHub](https://img.shields.io/github/license/mytv-android/mytv-android)](https://github.com/mytv-android/mytv-android)
 
 </div>
@@ -41,11 +41,11 @@
 
 ## 下载
 
-可以通过右侧release进行下载或拉取代码到本地进行编译
+可以通过拉取代码到本地进行编译（暂无已发布的安装包）
 
 ## 说明
 
-- 仅支持Android5及以上
+- 仅支持Android 7.0及以上
 - 只在自家电视上测过，其他电视稳定性未知
 
 ## 功能计划
