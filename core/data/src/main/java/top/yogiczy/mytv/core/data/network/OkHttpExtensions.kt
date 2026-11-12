@@ -45,10 +45,32 @@ suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation 
 suspend fun <T> String.request(
     builder: (Request.Builder) -> Request.Builder = { it -> it },
     action: suspend CoroutineScope.(ResponseBody) -> T,
-) = request(builder) { response, _ -> response.body?.let { action(it) } }
+) = requestWithClient(sharedClient, builder) { response, _ -> response.body?.let { action(it) } }
 
 suspend fun <T> String.request(
     builder: (Request.Builder) -> Request.Builder = { it -> it },
+    action: suspend CoroutineScope.(Response, Request) -> T,
+): T = requestWithClient(sharedClient, builder, action)
+
+/**
+ * 严格校验 TLS 证书的请求：更新检查（返回 APK 下载地址）和 Gist 云同步
+ * （请求头带 token）走这里。共用客户端信任全部证书是为兼容用户自配的
+ * 直播源/自建 WebDAV 的自签证书，但更新接口被中间人篡改可指向恶意 APK、
+ * token 也会被窃取；GitHub/Gitee API 都是公开 CA 签发，严格校验不影响使用。
+ */
+suspend fun <T> String.requestStrict(
+    builder: (Request.Builder) -> Request.Builder = { it -> it },
+    action: suspend CoroutineScope.(ResponseBody) -> T,
+) = requestWithClient(strictClient, builder) { response, _ -> response.body?.let { action(it) } }
+
+suspend fun <T> String.requestStrict(
+    builder: (Request.Builder) -> Request.Builder = { it -> it },
+    action: suspend CoroutineScope.(Response, Request) -> T,
+): T = requestWithClient(strictClient, builder, action)
+
+private suspend fun <T> String.requestWithClient(
+    client: OkHttpClient,
+    builder: (Request.Builder) -> Request.Builder,
     action: suspend CoroutineScope.(Response, Request) -> T,
 ): T {
     val url = this
@@ -59,7 +81,7 @@ suspend fun <T> String.request(
             .let(builder)
             .build()
 
-        val response = sharedClient.newCall(request).await()
+        val response = client.newCall(request).await()
 
         if (!response.isSuccessful) {
             // 错误分支原来不关 response：body 不关连接无法回池，
@@ -91,4 +113,9 @@ private val sharedClient by lazy {
         )
         .hostnameVerifier { _, _ -> true }
         .followRedirects(true).build()
+}
+
+// 严格 TLS 客户端：默认证书校验，只给更新检查 / Gist 同步用
+private val strictClient by lazy {
+    OkHttpClient.Builder().followRedirects(true).build()
 }
