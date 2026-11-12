@@ -48,7 +48,7 @@ fun AudioTrackItemList(
     ) {
         item {
             ListItem(
-                modifier = modifier
+                modifier = Modifier
                     .ifElse(
                         trackList.all { it.isSelected != true },
                         Modifier.focusOnLaunchedSaveable()
