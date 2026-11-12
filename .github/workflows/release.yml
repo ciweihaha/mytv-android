@@ -1,20 +1,28 @@
 name: Release
 
 # 发版说明（只加流水线，不自动发版）：
-# - 触发：推送 v* 标签时建一个草稿 Release（draft，不直接发布，需人工检查后点
+# - 触发：推送 V* 标签时建一个草稿 Release（draft，不直接发布，需人工检查后点
 #   Publish）；手动 dispatch 只构建并上传产物做演练，不建 Release。
+#   （2026-11-12 补丁：触发由小写 "v*" 改为大写 "V*"，上游 tag 全是大写
+#   V3.0.0.xxx，小写 "v*" 收不到 V3.0.0.239 这类 tag。）
 # - 构建步骤与 build-check.yml 完全一致（Java 17、Gradle 发行版带重试、
 #   一次性 keystore、assembleRelease、单元测试），build-check 261 次全绿。
-# - 签名注意：仓库里没有 keystore，构建用一次性 keystore 签名。同一 tag
-#   每次构建签名都不同，用户从 Release 装 APK 后无法原地升级，必须先卸载
-#   再装新版。要支持原地升级，需要把正式 keystore 配成 secret 再改签名步
-#   骤，那一步需用户决定，本文档不做。
-# - 版本号：versionName 是 1.1.1.<VERSION_CODE>，VERSION_CODE 取 run_number，
-#   与 build-check 相同；Release 的 tag 就是推送的 v* 标签名。
+# - 签名注意：仓库里没有 keystore，默认用本次运行生成的一次性 keystore 签名。
+#   同一 tag 每次构建签名都不同，用户从 Release 装 APK 后无法原地升级，必须先
+#   卸载再装新版。要支持原地升级，需在仓库 Settings → Secrets and variables →
+#   Actions 里配好 ANDROID_KEYSTORE_BASE64、KEYSTORE_PASSWORD、KEY_ALIAS、
+#   KEY_PASSWORD 四个 secret（keystore 文件本身不要进 git），工作流会自动改用
+#   固定 keystore；没配则继续用一次性 keystore，并在 Release 说明里警告。
+#   （2026-11-12 补丁：已按 v2 提案加入固定 keystore 分支；secret 本身需用户配，
+#   未配之前覆盖升级仍不可用。）
+# - 版本号：versionName 是 1.1.1.<VERSION_CODE>，VERSION_CODE 取 Release 工作流
+#   自己的 run_number，与 build-check 的 run_number 是两套计数，同一提交的两边
+#   versionCode 可能不同；v2 提案未改此口径，严格一致需另定规则（见汇报）。
+#   Release 的 tag 就是推送的 V* 标签名。
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["V*"]
   workflow_dispatch:
 
 permissions:
@@ -46,15 +54,34 @@ jobs:
           done
           ./gradlew --version
 
-      # 一次性签名：tv 模块的 debug 与 release 都用 release signingConfig，
-      # 仓库里没有 keystore，所以先生成一个仅供本次构建使用的 keystore。
-      - name: 生成一次性 keystore
+      # 固定 keystore（配了 secret 才走这一步）：配好 ANDROID_KEYSTORE_BASE64 等
+      # secret 后可覆盖升级；不配则下一步生成一次性 keystore，升级需先卸载旧版。
+      - name: 还原固定 keystore（如已配置 secret）
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.keystore
+          {
+            echo "KEYSTORE=/tmp/release.keystore"
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}"
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"
+            echo "FIXED_KEYSTORE=true"
+          } >> "$GITHUB_ENV"
+
+      # 一次性签名（未配置固定 keystore 时）：tv 模块的 debug 与 release 都用
+      # release signingConfig，仓库里没有 keystore，所以先生成一个仅供本次构建
+      # 使用的 keystore。每次构建签名都不同，无法原地升级。
+      - name: 生成一次性 keystore（未配置固定 keystore 时）
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
         run: |
           keytool -genkeypair -keystore /tmp/release.keystore -storepass android -alias release -keypass android -dname "CN=CI,O=CI,C=CN" -keyalg RSA -keysize 2048 -validity 1
-          echo "KEYSTORE=/tmp/release.keystore" >> "$GITHUB_ENV"
-          echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
-          echo "KEY_ALIAS=release" >> "$GITHUB_ENV"
-          echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
+          {
+            echo "KEYSTORE=/tmp/release.keystore"
+            echo "KEYSTORE_PASSWORD=android"
+            echo "KEY_ALIAS=release"
+            echo "KEY_PASSWORD=android"
+            echo "FIXED_KEYSTORE=false"
+          } >> "$GITHUB_ENV"
 
       # tv 模块没有单元测试；core 三个模块只有占位测试。
       - name: 运行单元测试
@@ -65,7 +92,7 @@ jobs:
         run: ./gradlew :tv:assembleRelease
         timeout-minutes: 30
 
-      # 只在推送 v* 标签时建 Release，且先存为草稿，需人工检查后发布。
+      # 只在推送 V* 标签时建 Release，且先存为草稿，需人工检查后发布。
       - name: 建草稿 Release 并上传 APK
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -73,6 +100,9 @@ jobs:
           draft: true
           generate_release_notes: true
           files: tv/build/outputs/apk/*/release/*.apk
+          body: |
+            ${{ env.FIXED_KEYSTORE == 'true' && '签名：固定 keystore，可覆盖升级。' || '⚠️ 签名：本次使用 CI 临时 keystore，升级安装前请先卸载旧版。' }}
+            版本：1.1.1.${{ github.run_number }}（VERSION_CODE=${{ github.run_number }}）
 
       # 手动 dispatch 只做构建演练，不建 Release，产物存为 artifact。
       - name: 上传 release APK（演练）
