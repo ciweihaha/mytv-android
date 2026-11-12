@@ -180,7 +180,7 @@ fun ClassicChannelScreen(
             Visibility({ epgListVisible }) {
                 ClassicEpgItemList(
                     modifier = Modifier
-                        .onFocusChanged { epgListIsFocused = it.hasFocus || it.hasFocus },
+                        .onFocusChanged { epgListIsFocused = it.isFocused || it.hasFocus },
                     programmeListModifier = Modifier
                         .width(if (epgListIsFocused) 5.gridColumns() else 4.gridColumns()),
                     epgProvider = { epgListProvider().match(focusedChannel) },

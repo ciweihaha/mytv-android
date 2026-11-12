@@ -73,9 +73,6 @@ fun QuickOpBtnList(
     val listState = rememberLazyListState()
     val playerMetadata = playerMetadataProvider()
     val settingsViewModel = settingsVM
-    var currentVideoTrack = ""
-    var currentAudioTrack = ""
-    var currentSubtitleTrack = ""
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }.distinctUntilChanged()
             .collect {
