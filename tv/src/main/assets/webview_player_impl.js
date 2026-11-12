@@ -51,7 +51,7 @@ function addVideoPlayerMask(video) {
     video.style = 'width: 100%; height: 100%;object-fit: contain;'
     video.autoplay = true
     document.body.style = 'width: 100vw; height: 100vh; margin: 0; min-width: 0; background: #000; padding: 0;'
-    Android.changeVideoResolution(1920, 1080);
+    Android.changeVideoResolution(video.videoWidth, video.videoHeight);
 }
 
 function enableVideo(video) {
