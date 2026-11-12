@@ -70,7 +70,7 @@ fun SettingsNetworkRetryCountScreen(
                         containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
                     ),
                     selected = false,
-                    onClick = { onCountChanged(count) },
+                    onClick = {},
                 )
             }
         }
