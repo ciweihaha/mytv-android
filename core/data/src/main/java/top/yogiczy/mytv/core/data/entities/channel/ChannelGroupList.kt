@@ -49,6 +49,15 @@ data class ChannelGroupList(
         fun ChannelGroupList.channelIdx(channel: Channel) =
             channelList.indexOfFirst { it == channel }
 
+        // 按列表现查当前台号（两位补零）：当前台不在列表里（切源后上次播的
+        // 台不在新源里、或所在分组被隐藏）时下标是 -1，显示“–”，不用频道
+        // 对象自带的序号（切源后是旧号）；选台页右上角、底部频道信息、
+        // 经典选台页三处共用，之前是三份一模一样的写法
+        fun ChannelGroupList.channelNumber(channel: Channel): String {
+            val idx = channelIdx(channel)
+            return if (idx < 0) "–" else (idx + 1).toString().padStart(2, '0')
+        }
+
         // 首个分组为空（组内频道被过滤/删光）时不能直接返回 null：
         // 后面分组还有台，旧写法只看第一组、开机无上次播放时就兜底成
         // Channel.EMPTY，切台守卫也拿不到台；跳过空分组再取

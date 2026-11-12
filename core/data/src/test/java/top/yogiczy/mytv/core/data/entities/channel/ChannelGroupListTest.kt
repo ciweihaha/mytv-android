@@ -6,6 +6,7 @@ import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelNumber
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
 
 class ChannelGroupListTest {
@@ -159,5 +160,33 @@ class ChannelGroupListTest {
 
         assertNull(list.chanelGroup(Channel.EXAMPLE.copy(name = "不存在的频道")))
         assertNull(ChannelGroupList().chanelGroup(Channel.EXAMPLE))
+    }
+
+    @Test
+    fun channelNumber_presentChannel_returnsTwoDigitNumber() {
+        val channels = (1..10).map { Channel.EXAMPLE.copy(name = "C$it") }
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(channels)),
+            )
+        )
+
+        assertEquals("01", list.channelNumber(channels[0]))
+        assertEquals("09", list.channelNumber(channels[8]))
+        assertEquals("10", list.channelNumber(channels[9]))
+    }
+
+    @Test
+    fun channelNumber_absentChannel_returnsDash() {
+        // 切源后上次播的台不在新源里、或所在分组被隐藏：不在列表里
+        // 的台显示“–”，别显示成不存在的“00”号
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(listOf(Channel.EXAMPLE.copy(name = "C1")))),
+            )
+        )
+
+        assertEquals("–", list.channelNumber(Channel.EXAMPLE.copy(name = "不存在的频道")))
+        assertEquals("–", ChannelGroupList().channelNumber(Channel.EXAMPLE))
     }
 }
