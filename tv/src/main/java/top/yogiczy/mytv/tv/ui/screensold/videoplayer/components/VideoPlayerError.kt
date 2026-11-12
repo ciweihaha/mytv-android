@@ -86,6 +86,7 @@ private fun getErrorCodeDesc(error: String): String? {
         "MEDIA3_ERROR_VIDEO_FRAME_PROCESSING_FAILED" -> "视频帧处理失败，请检查视频源。"
         "MEDIA3_ERROR_FAILED_RUNTIME_CHECK" -> "运行时检查失败，请检查视频源。"
         "MEDIA3_ERROR_DRM_UNSPECIFIED" -> "DRM错误，请检查视频源。"
+        "MEDIA3_ERROR_DRM_CONTENT_ERROR" -> "DRM密钥格式错误，请检查视频源。"
         "MEDIA3_ERROR_DRM_LICENSE_ACQUISITION_FAILED" -> "DRM授权失败，请检查视频源。"
         "MEDIA3_ERROR_DRM_DISALLOWED_OPERATION" -> "DRM不允许的操作，请检查视频源。"
         "MEDIA3_ERROR_DRM_SYSTEM_ERROR" -> "DRM系统错误，请检查视频源。"

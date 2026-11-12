@@ -251,6 +251,25 @@ class Media3VideoPlayer(
                         if (!(currentChannelLine.manifestType == "mpd" && currentChannelLine.licenseType == "clearkey" && currentChannelLine.licenseKey != null))
                             return@apply
 
+                        // 密钥必须是 keyId:key、两段都是偶数位十六进制：格式不对直接
+                        // 报密钥格式错误，别走到 DRM 那步再报“授权已过期”——过期和
+                        // 写错是两回事，报过期会让人去重新取票，实际是源里的 key 写错了
+                        val licenseKeyParts = currentChannelLine.licenseKey!!.split(":")
+                        val isLicenseKeyValid = licenseKeyParts.size == 2 &&
+                            licenseKeyParts.all { part ->
+                                part.isNotEmpty() && part.length % 2 == 0 &&
+                                    part.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+                            }
+                        if (!isLicenseKeyValid) {
+                            triggerError(
+                                PlaybackException(
+                                    "MEDIA3_ERROR_DRM_CONTENT_ERROR",
+                                    androidx.media3.common.PlaybackException.ERROR_CODE_DRM_CONTENT_ERROR
+                                )
+                            )
+                            return@apply
+                        }
+
                         runCatching {
                             val (drmKeyId, drmKey) = currentChannelLine.licenseKey!!.split(":")
                             val encodedDrmKey = Base64.encodeToString(
