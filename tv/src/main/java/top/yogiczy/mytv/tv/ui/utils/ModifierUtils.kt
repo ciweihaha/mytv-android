@@ -134,6 +134,9 @@ fun Modifier.handleDragGestures(
                         currentOnSwipeUp()
                     }
                 }
+                // 一次滑动结束就清零：不然偏移会攒到下一次滑动里，攒够距离后
+                // 随便轻轻一划就触发，等于距离门槛只对第一次滑动有效
+                verticalDragOffset = 0f
             },
         ) { change, dragAmount ->
             verticalDragOffset += dragAmount
@@ -152,6 +155,8 @@ fun Modifier.handleDragGestures(
                             currentOnSwipeLeft()
                         }
                     }
+                    // 同上：横向偏移一次滑动结束就清零，别攒到下一次
+                    horizontalDragOffset = 0f
                 },
             ) { change, dragAmount ->
                 horizontalDragOffset += dragAmount
