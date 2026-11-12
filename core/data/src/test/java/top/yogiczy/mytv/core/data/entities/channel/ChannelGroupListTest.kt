@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
 
 class ChannelGroupListTest {
     @Test
@@ -54,6 +56,47 @@ class ChannelGroupListTest {
     @Test
     fun withMetadata_emptyList() {
         assertEquals(0, ChannelGroupList().withMetadata().size)
+    }
+
+    @Test
+    fun channelFirstOrNull_skipsEmptyFirstGroup() {
+        // 首个分组为空、后面分组有台：旧实现只看第一组返回 null，
+        // 开机无上次播放时就兜底成 Channel.EMPTY
+        val c2 = Channel.EXAMPLE.copy(name = "C2")
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "空组", channelList = ChannelList()),
+                ChannelGroup(name = "B", channelList = ChannelList(listOf(c2))),
+            )
+        )
+
+        assertEquals("C2", list.channelFirstOrNull()?.name)
+    }
+
+    @Test
+    fun channelLastOrNull_skipsEmptyLastGroup() {
+        val c1 = Channel.EXAMPLE.copy(name = "C1")
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "A", channelList = ChannelList(listOf(c1))),
+                ChannelGroup(name = "空组", channelList = ChannelList()),
+            )
+        )
+
+        assertEquals("C1", list.channelLastOrNull()?.name)
+    }
+
+    @Test
+    fun channelFirstOrNull_allGroupsEmpty_returnsNull() {
+        val list = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "空组1", channelList = ChannelList()),
+                ChannelGroup(name = "空组2", channelList = ChannelList()),
+            )
+        )
+
+        assertNull(list.channelFirstOrNull())
+        assertNull(list.channelLastOrNull())
     }
 
     @Test
