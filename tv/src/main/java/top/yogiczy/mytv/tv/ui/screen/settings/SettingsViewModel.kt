@@ -1,6 +1,7 @@
 package top.yogiczy.mytv.tv.ui.screen.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -876,6 +877,12 @@ class SettingsViewModel : ViewModel() {
 }
 
 val settingsVM: SettingsViewModel
-    @Composable get() = SettingsViewModel.instance ?: viewModel<SettingsViewModel>().also {
-        SettingsViewModel.instance = it
+    @Composable get() {
+        // 全局单例只在组合提交后登记：直接在组合里写外部状态违反 Compose
+        // 规则（组合可能被丢弃重跑）；SideEffect 只在组合成功提交后执行。
+        // instance 本身要留着：导航的每个页面是各自的 ViewModel 归属，
+        // 单用 viewModel() 会每页各建一个实例，设置状态就不再跨页面共享
+        val vm = SettingsViewModel.instance ?: viewModel<SettingsViewModel>()
+        SideEffect { SettingsViewModel.instance = vm }
+        return vm
     }
