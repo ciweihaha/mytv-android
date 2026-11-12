@@ -246,8 +246,14 @@ class Media3VideoPlayer(
             }
 
             C.CONTENT_TYPE_DASH -> {
-                DashMediaSource.Factory(dataSourceFactory)
-                    .apply {
+                // 密钥出错（格式不对、或本机配不出 clearkey 会话）时只报错、
+                // 不建源：建个没配 DRM 的源返回，外层 prepare 还会继续把
+                // 它接上播；而报错是同步触发的、会立刻切下一条线，下一条
+                // 线刚接上又被这个坏源盖回去，白白跳过一条能播的线。返
+                // 回 null 让外层跳过这次准备，切线才落得实
+                var drmError = false
+                val factory = DashMediaSource.Factory(dataSourceFactory)
+                factory.apply {
                         if (!(currentChannelLine.manifestType == "mpd" && currentChannelLine.licenseType == "clearkey" && currentChannelLine.licenseKey != null))
                             return@apply
 
@@ -267,6 +273,7 @@ class Media3VideoPlayer(
                                     androidx.media3.common.PlaybackException.ERROR_CODE_DRM_CONTENT_ERROR
                                 )
                             )
+                            drmError = true
                             return@apply
                         }
 
@@ -301,9 +308,10 @@ class Media3VideoPlayer(
                                         androidx.media3.common.PlaybackException.ERROR_CODE_DRM_LICENSE_EXPIRED
                                     )
                                 )
+                                drmError = true
                             }
-                    }
-                    .createMediaSource(mediaItem)
+                }
+                if (drmError) null else factory.createMediaSource(mediaItem)
             }
 
             C.CONTENT_TYPE_RTSP -> {
