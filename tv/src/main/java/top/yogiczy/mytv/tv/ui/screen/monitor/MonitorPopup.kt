@@ -125,7 +125,7 @@ fun rememberMonitorFpsState(): MonitorFpsState {
                     val fps = (5_000 / (ms - lastUpdate)).toInt()
                     state = state.copy(
                         current = fps,
-                        history = (state.history.takeLast(30) + fps).toImmutableList(),
+                        history = (state.history + fps).takeLast(30).toImmutableList(),
                     )
                     lastUpdate = ms
                     fpsCount = 0
