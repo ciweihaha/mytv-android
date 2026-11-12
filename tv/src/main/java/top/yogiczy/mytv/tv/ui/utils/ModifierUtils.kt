@@ -138,6 +138,9 @@ fun Modifier.handleDragGestures(
                 // 随便轻轻一划就触发，等于距离门槛只对第一次滑动有效
                 verticalDragOffset = 0f
             },
+            // 滑动被取消（另一方向的手势抢赢、或手指中途被系统接管）时
+            // 不走 onDragEnd：不这里清零，偏移同样会攒到下一次滑动里
+            onDragCancel = { verticalDragOffset = 0f },
         ) { change, dragAmount ->
             verticalDragOffset += dragAmount
             verticalTracker.addPosition(change.uptimeMillis, change.position)
@@ -158,6 +161,8 @@ fun Modifier.handleDragGestures(
                     // 同上：横向偏移一次滑动结束就清零，别攒到下一次
                     horizontalDragOffset = 0f
                 },
+                // 同上：取消时也不走 onDragEnd，这里同样清零
+                onDragCancel = { horizontalDragOffset = 0f },
             ) { change, dragAmount ->
                 horizontalDragOffset += dragAmount
                 horizontalTracker.addPosition(change.uptimeMillis, change.position)
