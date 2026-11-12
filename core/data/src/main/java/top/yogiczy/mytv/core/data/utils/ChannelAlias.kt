@@ -65,7 +65,10 @@ object ChannelAlias : Loggable("ChannelAlias") {
     /**
      * 反复去掉名字尾部的质量后缀，直到去无可去：后缀表只扫一遍时，
      * `CCTV-1-4K-HD` 先去掉 `-HD` 露出 `-4K`，而 `-4K` 在表里排在
-     * 前面已扫过，会残留 `-4K`，标准名错导致 EPG 匹配不上
+     * 前面已扫过，会残留 `-4K`，标准名错导致 EPG 匹配不上。
+     * 大小写不敏感：后缀表里全是大写（-HD/-4K），源里写成小写
+     * （-hd/-4k）时也要去掉；别名查表本身不区分大小写，这里区分
+     * 的话小写后缀的台就匹配不上节目单。
      */
     internal fun stripChannelNameSuffixes(name: String, suffixes: List<String>): String {
         var result = name
@@ -73,9 +76,8 @@ object ChannelAlias : Loggable("ChannelAlias") {
         do {
             changed = false
             for (suffix in suffixes) {
-                val stripped = result.removeSuffix(suffix)
-                if (stripped != result) {
-                    result = stripped
+                if (result.endsWith(suffix, ignoreCase = true)) {
+                    result = result.dropLast(suffix.length)
                     changed = true
                 }
             }

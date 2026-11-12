@@ -61,6 +61,21 @@ class ChannelAliasTest {
         )
     }
 
+    @Test
+    fun lowercaseSuffix_stripped() {
+        // 后缀表里全是大写，源里写小写也要去掉（与不区分大小写的别名查表一致）
+        assertEquals("CCTV-1", ChannelAlias.stripChannelNameSuffixes("CCTV-1-hd", suffixes))
+        assertEquals("CCTV-1", ChannelAlias.stripChannelNameSuffixes("CCTV-1-Hd", suffixes))
+    }
+
+    @Test
+    fun lowercaseStackedSuffixes_allStripped() {
+        assertEquals(
+            "CCTV-1",
+            ChannelAlias.stripChannelNameSuffixes("CCTV-1-4k-hd", suffixes),
+        )
+    }
+
     // 别名查表（buildAliasLookup）：与旧的线性扫描同优先级，
     // 自定义键 > 自定义别名 > 默认键 > 默认别名，先到的赢
     private val customMap = linkedMapOf(
