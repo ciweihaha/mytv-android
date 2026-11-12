@@ -63,6 +63,12 @@ import top.yogiczy.mytv.tv.ui.utils.handleDragGestures
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import top.yogiczy.mytv.tv.X5CorePreLoadService
+
+// 系统版与 X5 版网页页共用同一份默认 UA：之前是两处一模一样的长字面量，
+// 改一处漏一处就会让两个内核发不同的 UA，抽成一处
+private const val WEBVIEW_DEFAULT_USER_AGENT =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0"
+
 @Composable
 fun MainContent(
     modifier: Modifier = Modifier,
@@ -187,7 +193,7 @@ fun MainContent(
                                 urlProvider = {
                                     Pair(
                                         it.playbackUrl ?: it.url,
-                                        it.httpUserAgent ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0"
+                                        it.httpUserAgent ?: WEBVIEW_DEFAULT_USER_AGENT
                                     )
                                 },
                                 onVideoResolutionChanged = { width, height ->
@@ -207,7 +213,7 @@ fun MainContent(
                                 urlProvider = {
                                     Pair(
                                         it.playbackUrl ?: it.url,
-                                        it.httpUserAgent ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0"
+                                        it.httpUserAgent ?: WEBVIEW_DEFAULT_USER_AGENT
                                     )
                                 },
                                 onVideoResolutionChanged = { width, height ->
