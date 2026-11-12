@@ -148,7 +148,7 @@ fun SettingsUiVideoPlayerSubtitleSettingsScreen(
                 }
                 item {
                     ColorPickerSection(
-                        modifier = modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         title = "背景颜色",
                         selectedColor = backgroundColor.value,
                         onColorSelected = { color ->
@@ -159,7 +159,7 @@ fun SettingsUiVideoPlayerSubtitleSettingsScreen(
                 }
                 item {
                     ColorPickerSection(
-                        modifier = modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         title = "边框颜色",
                         selectedColor = edgeColor.value,
                         onColorSelected = { color ->
@@ -170,7 +170,7 @@ fun SettingsUiVideoPlayerSubtitleSettingsScreen(
                 }
                 item {
                     ColorPickerSection(
-                        modifier = modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         title = "窗口颜色",
                         selectedColor = windowColor.value,
                         onColorSelected = { color ->
@@ -181,7 +181,7 @@ fun SettingsUiVideoPlayerSubtitleSettingsScreen(
                 }
                 item {
                     SizePickerSection(
-                        modifier = modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         title = "字体大小",
                         selectedSize = textSize.value,
                         onSizeSelected = { size ->
@@ -231,7 +231,7 @@ fun ColorPickerSection(
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
         ColorPicker(
-            modifier = modifier,
+            modifier = Modifier,
             selectedColor = selectedColor,
             onColorSelected = onColorSelected
         )
@@ -251,7 +251,7 @@ fun SizePickerSection(
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
         SizePicker(
-            modifier = modifier,
+            modifier = Modifier,
             selectedSize = selectedSize,
             onSizeSelected = onSizeSelected
         )
@@ -271,7 +271,7 @@ fun ColorPicker(
             .height(50.dp) // Set a fixed height to avoid infinite constraints
     ) {
         LazyVerticalGrid(
-            modifier = modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             columns = GridCells.Fixed(12),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -318,7 +318,7 @@ fun SizePicker(
             .height(140.dp) // Set a fixed height to avoid infinite constraints
     ) {
         LazyVerticalGrid(
-            modifier = modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             columns = GridCells.Fixed(6),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
