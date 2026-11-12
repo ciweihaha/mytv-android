@@ -49,9 +49,15 @@ data class ChannelGroupList(
         fun ChannelGroupList.channelIdx(channel: Channel) =
             channelList.indexOfFirst { it == channel }
 
-        fun ChannelGroupList.channelFirstOrNull() = this.firstOrNull()?.channelList?.firstOrNull()
+        // 首个分组为空（组内频道被过滤/删光）时不能直接返回 null：
+        // 后面分组还有台，旧写法只看第一组、开机无上次播放时就兜底成
+        // Channel.EMPTY，切台守卫也拿不到台；跳过空分组再取
+        fun ChannelGroupList.channelFirstOrNull() =
+            this.firstOrNull { it.channelList.isNotEmpty() }?.channelList?.firstOrNull()
 
-        fun ChannelGroupList.channelLastOrNull() = this.lastOrNull()?.channelList?.lastOrNull()
+        // 同上：末尾分组为空时取倒数第一个非空分组的末台
+        fun ChannelGroupList.channelLastOrNull() =
+            this.lastOrNull { it.channelList.isNotEmpty() }?.channelList?.lastOrNull()
     }
 
     fun withMetadata(): ChannelGroupList {
