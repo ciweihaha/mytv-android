@@ -166,6 +166,10 @@ class IjkVideoPlayer(
                 width: Int,
                 height: Int
             ) {
+                // TextureView 每次重新挂载都会新建 SurfaceTexture 并再次回调：
+                // 切渲染模式、重进播放页、多画面格子回收都会走到这里；旧的
+                // Surface 不先释放就被新值盖掉，每次都丢一个没释放的 Surface
+                cacheSurfaceTexture?.release()
                 cacheSurfaceTexture = Surface(surfaceTexture)
                 player.setSurface(cacheSurfaceTexture)
             }
