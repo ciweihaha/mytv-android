@@ -157,32 +157,25 @@ class MainViewModel : ViewModel() {
 
     private suspend fun hybridChannel(channelGroupList: ChannelGroupList) =
         withContext(Dispatchers.Default) {
-            if (Configs.iptvHybridMode != Configs.IptvHybridMode.DISABLE) {
+            val mode = Configs.iptvHybridMode
+            if (mode != Configs.IptvHybridMode.DISABLE) {
                 _uiState.value = MainUiState.Loading("匹配可用的网页源")
             }
 
-            return@withContext when (Configs.iptvHybridMode) {
+            return@withContext when (mode) {
                 Configs.IptvHybridMode.DISABLE -> channelGroupList
-                Configs.IptvHybridMode.IPTV_FIRST -> {
+                // 两种模式只差线路顺序：直播优先把网页线放后面、混合优先放前面，
+                // 分组/频道两层遍历原来在两个分支里各写了一份，并成一处
+                else -> {
                     ChannelGroupList(channelGroupList.map { group ->
                         group.copy(channelList = ChannelList(group.channelList.map { channel ->
-                            channel.copy(
-                                lineList = ChannelLineList(
-                                    channel.lineList + ChannelUtil.getHybridWebViewLines(channel.epgName)
-                                )
-                            )
-                        }))
-                    })
-                }
-
-                Configs.IptvHybridMode.HYBRID_FIRST -> {
-                    ChannelGroupList(channelGroupList.map { group ->
-                        group.copy(channelList = ChannelList(group.channelList.map { channel ->
-                            channel.copy(
-                                lineList = ChannelLineList(
-                                    ChannelUtil.getHybridWebViewLines(channel.epgName) + channel.lineList
-                                )
-                            )
+                            val webViewLines = ChannelUtil.getHybridWebViewLines(channel.epgName)
+                            val lineList = if (mode == Configs.IptvHybridMode.IPTV_FIRST) {
+                                channel.lineList + webViewLines
+                            } else {
+                                webViewLines + channel.lineList
+                            }
+                            channel.copy(lineList = ChannelLineList(lineList))
                         }))
                     })
                 }
