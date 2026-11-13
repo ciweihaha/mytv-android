@@ -84,7 +84,14 @@ object Constants {
     /**
      * GitHub加速代理地址
      */
-    const val GITHUB_PROXY = "https://ghp.ci/"
+    /**
+     * GitHub 发版下载代理：发版附件的下载地址前面拼它再下。
+     * 原来的 ghp.ci 已不通（2026-11-13 实测：本机与另一路出口都连不上，
+     * 同机 github.com 与 gitee.com 都是 200），改走实测能通的 gh-proxy.com。
+     * 两个解析器（Github、Custom）共用这一个常量；以后它再不通，
+     * 更新下载会失败，改这里一行就行，不用动解析逻辑。
+     */
+    const val GITHUB_PROXY = "https://gh-proxy.com/"
 
     /**
      * Git最新版本信息
