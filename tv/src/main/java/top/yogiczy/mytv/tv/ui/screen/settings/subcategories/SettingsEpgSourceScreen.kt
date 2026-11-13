@@ -28,7 +28,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,7 +72,6 @@ fun SettingsEpgSourceScreen(
     val childPadding = rememberChildPadding()
     val listState = rememberLazyListState()
     val firstItemFocusRequester = remember { FocusRequester() }
-    var isFirstItemFocused by remember { mutableStateOf(false) }
 
     AppScreen(
         modifier = modifier,
@@ -100,8 +98,7 @@ fun SettingsEpgSourceScreen(
                         .ifElse(
                             index == 0,
                             Modifier
-                                .focusRequester(firstItemFocusRequester)
-                                .onFocusChanged { isFirstItemFocused = it.isFocused },
+                                .focusRequester(firstItemFocusRequester),
                         ),
                     epgSourceProvider = { epgSource },
                     currentEpgSourceProvider = currentEpgSourceProvider,
