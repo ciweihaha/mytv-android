@@ -100,8 +100,8 @@ fun WebViewScreen_X5(
                     val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(this, true)
-                    cookies.forEach { cookie ->
-                        cookieManager.setCookie(".yangshipin.cn", cookie.trim())
+                    cookies.map { it.trim() }.filter { it.isNotEmpty() }.forEach { cookie ->
+                        cookieManager.setCookie(".yangshipin.cn", cookie)
                     }
                     cookieManager.flush()
                     
