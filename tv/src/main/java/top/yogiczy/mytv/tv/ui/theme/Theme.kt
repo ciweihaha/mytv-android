@@ -40,4 +40,3 @@ const val LAYOUT_GRID_SPACING = 20
 const val LAYOUT_GRID_WIDTH = 52
 const val LAYOUT_GRID_COLUMNS = 12
 const val DESIGN_WIDTH = 960
-const val DESIGN_HEIGHT = 540
