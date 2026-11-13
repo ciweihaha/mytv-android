@@ -59,22 +59,30 @@ fun PushContent(
 ) {
     val context = LocalContext.current
 
+    // 没拿到局域网地址时不画二维码：兜底地址是 127.0.0.1，手机扫了会连到手机自己身上；
+    // 每秒重算的地址一到就会自己把二维码画出来，不用用户重进页面
+    val hasLanAddress = !serverUrl.contains("127.0.0.1")
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Qrcode(
-                modifier = Modifier
-                    .width(200.dp)
-                    .height(200.dp)
-                    .clickableNoIndication { context.actionView(serverUrl) },
-                text = serverUrl,
-            )
+            if (hasLanAddress) {
+                Qrcode(
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(200.dp)
+                        .clickableNoIndication { context.actionView(serverUrl) },
+                    text = serverUrl,
+                )
 
-            Spacer(Modifier.height(20.dp))
-            Text("服务已启动：${serverUrl}")
-            Text("请扫描二维码或输入IP地址进行连接")
+                Spacer(Modifier.height(20.dp))
+                Text("服务已启动：${serverUrl}")
+                Text("请扫描二维码或输入IP地址进行连接")
+            } else {
+                Text("未检测到局域网地址，请检查网络连接")
+            }
         }
     }
 }
