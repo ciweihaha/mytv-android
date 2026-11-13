@@ -553,15 +553,6 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _videoPlayerSkipMultipleFramesOnSameVSync by mutableStateOf(false)
-    var videoPlayerSkipMultipleFramesOnSameVSync: Boolean
-        get() = _videoPlayerSkipMultipleFramesOnSameVSync
-        set(value) {
-            _videoPlayerSkipMultipleFramesOnSameVSync = value
-            Configs.videoPlayerSkipMultipleFramesOnSameVSync = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
     private var _networkRetryCount by mutableLongStateOf(Constants.NETWORK_RETRY_COUNT)
     var networkRetryCount: Long
         get() = _networkRetryCount
@@ -844,7 +835,6 @@ class SettingsViewModel : ViewModel() {
         _videoPlayerDisplayMode = Configs.videoPlayerDisplayMode
         _videoPlayerForceSoftDecode = Configs.videoPlayerForceSoftDecode
         _videoPlayerStopPreviousMediaItem = Configs.videoPlayerStopPreviousMediaItem
-        _videoPlayerSkipMultipleFramesOnSameVSync = Configs.videoPlayerSkipMultipleFramesOnSameVSync
         _networkRetryCount = Configs.networkRetryCount
         _networkRetryInterval = Configs.networkRetryInterval
         _themeAppCurrent = Configs.themeAppCurrent

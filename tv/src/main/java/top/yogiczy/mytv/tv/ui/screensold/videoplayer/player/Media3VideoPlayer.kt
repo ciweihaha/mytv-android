@@ -120,8 +120,6 @@ class Media3VideoPlayer(
                 .build()
         }
 
-        // MediaCodecVideoRenderer.skipMultipleFramesOnSameVsync =
-        //     Configs.videoPlayerSkipMultipleFramesOnSameVSync
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 Configs.videoPlayerBufferTime.toInt(), // 最小缓冲时间（毫秒） minBufferMs
