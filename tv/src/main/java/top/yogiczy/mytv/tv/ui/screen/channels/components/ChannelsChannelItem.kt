@@ -69,6 +69,10 @@ fun ChannelsChannelItem(
     recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    // 当前节目只取一次：下面内容区与进度条原来各调一次
+    // rememberEpgProgrammeRecent、每项跑两个 100ms 轮询循环，
+    // 没节目单的台会一直空转；提上来取一次、两处共用同一份
+    val recentEpgProgramme = rememberEpgProgrammeRecent(recentEpgProgrammeProvider)
 
     Surface(
         modifier = modifier
@@ -95,12 +99,12 @@ fun ChannelsChannelItem(
             Box(modifier = Modifier.height(56.dp)) {
                 ChannelsChannelItemContent(
                     channelProvider = channelProvider,
-                    recentEpgProgrammeProvider = recentEpgProgrammeProvider,
+                    recentEpgProgramme = recentEpgProgramme,
                     isFocusedProvider = { isFocused },
                 )
 
                 ChannelsChannelItemProgress(
-                    recentEpgProgrammeProvider = recentEpgProgrammeProvider,
+                    recentEpgProgramme = recentEpgProgramme,
                     modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
@@ -253,13 +257,12 @@ private fun ChannelsChannelItemNo(
 private fun ChannelsChannelItemContent(
     modifier: Modifier = Modifier,
     channelProvider: () -> Channel = { Channel() },
-    recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
+    recentEpgProgramme: EpgProgrammeRecent? = null,
     isFocusedProvider: () -> Boolean = { false },
 ) {
     val isFocused = isFocusedProvider()
 
     val channel = channelProvider()
-    val recentEpgProgramme = rememberEpgProgrammeRecent(recentEpgProgrammeProvider)
 
     Column(
         modifier = modifier
@@ -289,10 +292,8 @@ private fun ChannelsChannelItemContent(
 @Composable
 private fun ChannelsChannelItemProgress(
     modifier: Modifier = Modifier,
-    recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
+    recentEpgProgramme: EpgProgrammeRecent? = null,
 ) {
-    val recentEpgProgramme = rememberEpgProgrammeRecent(recentEpgProgrammeProvider)
-
     recentEpgProgramme?.now?.let { nowProgramme ->
         if (settingsVM.uiShowEpgProgrammeProgress) {
             Box(
