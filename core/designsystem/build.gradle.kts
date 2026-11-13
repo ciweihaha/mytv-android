@@ -33,6 +33,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.androidx.activity.compose)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
