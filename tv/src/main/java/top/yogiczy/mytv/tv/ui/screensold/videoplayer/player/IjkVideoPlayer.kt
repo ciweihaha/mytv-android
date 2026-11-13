@@ -240,9 +240,11 @@ class IjkVideoPlayer(
                 channels = when (info.mMeta.mAudioStream?.mChannelLayout) {
                     IjkMediaMeta.AV_CH_LAYOUT_MONO -> 1
                     IjkMediaMeta.AV_CH_LAYOUT_STEREO,
-                    IjkMediaMeta.AV_CH_LAYOUT_2POINT1,
                     IjkMediaMeta.AV_CH_LAYOUT_STEREO_DOWNMIX -> 2
 
+                    // 2POINT1（左右＋低音）与 2_1（左右＋后中置）都是 3 声道，
+                    // 别按名字里的 2 当成 2 声道
+                    IjkMediaMeta.AV_CH_LAYOUT_2POINT1,
                     IjkMediaMeta.AV_CH_LAYOUT_2_1,
                     IjkMediaMeta.AV_CH_LAYOUT_SURROUND -> 3
 
@@ -287,7 +289,7 @@ class IjkVideoPlayer(
                     IjkMediaMeta.AV_CH_LAYOUT_MONO -> "单声道"
                     IjkMediaMeta.AV_CH_LAYOUT_STEREO -> "立体声"
                     IjkMediaMeta.AV_CH_LAYOUT_2POINT1 -> "2.1 声道"
-                    IjkMediaMeta.AV_CH_LAYOUT_2_1 -> "立体声"
+                    IjkMediaMeta.AV_CH_LAYOUT_2_1 -> "3 声道"
                     IjkMediaMeta.AV_CH_LAYOUT_SURROUND -> "环绕声"
                     IjkMediaMeta.AV_CH_LAYOUT_3POINT1 -> "3.1 环绕声"
                     // IjkMediaMeta.AV_CH_LAYOUT_3POINT1POINT2 -> "3.1.2 环绕声"
