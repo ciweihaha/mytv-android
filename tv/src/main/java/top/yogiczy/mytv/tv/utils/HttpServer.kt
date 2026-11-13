@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.utlis
+package top.yogiczy.mytv.tv.utils
 
 import android.content.Context
 import android.content.Intent

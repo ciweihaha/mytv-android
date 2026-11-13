@@ -18,7 +18,7 @@ import androidx.tv.material3.Surface
 import top.yogiczy.mytv.tv.ui.App
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.Configs
-import top.yogiczy.mytv.tv.utlis.HttpServer
+import top.yogiczy.mytv.tv.utils.HttpServer
 import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {

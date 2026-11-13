@@ -12,7 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import top.yogiczy.mytv.tv.ui.screen.crash.CrashHandlerScreen
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
-import top.yogiczy.mytv.tv.utlis.HttpServer
+import top.yogiczy.mytv.tv.utils.HttpServer
 import kotlin.system.exitProcess
 
 class CrashHandlerActivity : ComponentActivity() {

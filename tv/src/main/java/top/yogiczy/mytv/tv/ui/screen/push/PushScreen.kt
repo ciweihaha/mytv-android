@@ -24,7 +24,7 @@ import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.components.Qrcode
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
-import top.yogiczy.mytv.tv.utlis.HttpServer
+import top.yogiczy.mytv.tv.utils.HttpServer
 
 @Composable
 fun PushScreen(
