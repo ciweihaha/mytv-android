@@ -70,6 +70,36 @@ class GitReleaseParserTest {
     }
 
     @Test
+    fun github_fallsBackToOriginalOnlyApk() = runBlocking {
+        // 没有同时含 original＋all 的附件：第一级退路落空，退到只含 original 的 APK
+        //（598 轮纠正的四级退路之第二级，此前无单测覆盖）
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-disguised.apk", "https://example.com/disguised.apk"),
+                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23-original.apk", "https://example.com/arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_fallsBackToFirstAttachmentWhenNoApk() = runBlocking {
+        // 一个 APK 都没有：前三级退路都落空，退到第一个带下载地址的附件
+        //（598 轮纠正的四级退路之第四级，此前无单测覆盖）
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("release-notes.txt", "https://example.com/notes.txt"),
+                asset("mytv-android-tv-2.2.0.219.zip", "https://example.com/app.zip"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/notes.txt", release.downloadUrl)
+    }
+
+    @Test
     fun github_emptyReleaseArrayThrowsClearError() {
         assertThrows(IllegalStateException::class.java) {
             runBlocking { githubParser.parse("[]") }
