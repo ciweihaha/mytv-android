@@ -85,6 +85,22 @@ class GitReleaseParserTest {
     }
 
     @Test
+    fun github_fallsBackToAnyApk() = runBlocking {
+        // 没有含 original 的 APK：第一、二级退路都落空，退到任意一个 APK（取第一个）
+        //（598 轮纠正的四级退路之第三级；gitee/custom 的 wellFormed 用例只锁了
+        // 共用函数，GitHub 这条路还没单测覆盖）
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-disguised.apk", "https://example.com/disguised.apk"),
+                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23.apk", "https://example.com/arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/disguised.apk", release.downloadUrl)
+    }
+
+    @Test
     fun github_fallsBackToFirstAttachmentWhenNoApk() = runBlocking {
         // 一个 APK 都没有：前三级退路都落空，退到第一个带下载地址的附件
         //（598 轮纠正的四级退路之第四级，此前无单测覆盖）
