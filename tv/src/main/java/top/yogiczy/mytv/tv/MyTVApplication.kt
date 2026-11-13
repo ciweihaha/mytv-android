@@ -19,9 +19,12 @@ import io.sentry.SentryOptions
 import io.sentry.android.core.SentryAndroid
 import top.yogiczy.mytv.core.data.AppData
 import top.yogiczy.mytv.core.data.utils.Globals
+import top.yogiczy.mytv.core.data.utils.Logger
 import kotlin.system.exitProcess
 
 class MyTVApplication : Application(), SingletonImageLoader.Factory {
+    private val log = Logger.create("MyTVApplication")
+
     override fun onCreate() {
         super.onCreate()
         
@@ -77,7 +80,7 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
 
     private fun crashHandle() {
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
-            throwable.printStackTrace()
+            log.e("未捕获异常", throwable)
             Sentry.captureException(throwable)
 
             val intent = Intent(this, CrashHandlerActivity::class.java).apply {

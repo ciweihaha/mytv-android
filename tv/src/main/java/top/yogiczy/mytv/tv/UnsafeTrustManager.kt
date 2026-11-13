@@ -7,6 +7,7 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import top.yogiczy.mytv.core.data.utils.Logger
 
 // 防止部分直播源链接证书不被信任
 @SuppressLint("CustomX509TrustManager")
@@ -26,6 +27,8 @@ class UnsafeTrustManager : X509TrustManager {
     }
 
     companion object {
+        private val log = Logger.create("UnsafeTrustManager")
+
         fun enableUnsafeTrustManager() {
             try {
                 val trustAllCerts = arrayOf<TrustManager>(UnsafeTrustManager())
@@ -34,7 +37,7 @@ class UnsafeTrustManager : X509TrustManager {
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
                 HttpsURLConnection.setDefaultHostnameVerifier { _, _ -> true }
             } catch (e: Exception) {
-                e.printStackTrace()
+                log.e("启用不校验证书失败", e)
             }
         }
     }

@@ -3,6 +3,7 @@ package top.yogiczy.mytv.core.data.repositories
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.utils.Globals
+import top.yogiczy.mytv.core.data.utils.Logger
 import java.io.File
 import java.io.InputStream
 
@@ -13,6 +14,8 @@ abstract class FileCacheRepository(
     private val fileName: String,
     private val isFullPath: Boolean = false,
 ) {
+    private val log = Logger.create("FileCacheRepository")
+
     init {
         getCacheFile().parentFile?.let {
             if (!it.exists()) it.mkdirs()
@@ -137,7 +140,7 @@ abstract class FileCacheRepository(
             // 目录里，“清除缓存”也清不掉，崩溃多了越积越多
             File(file.absoluteFile.parent, "${file.name}.tmp").delete()
         } catch (ex: Exception) {
-            ex.printStackTrace()
+            log.e("清除缓存失败", ex)
         }
     }
 

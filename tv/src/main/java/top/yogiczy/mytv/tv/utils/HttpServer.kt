@@ -595,13 +595,13 @@ object HttpServer : Loggable("HttpServer") {
     fun startService(context: Context) {
         runCatching {
             context.startService(Intent(context, HttpServerService::class.java))
-        }.onFailure { it.printStackTrace() }
+        }.onFailure { log.e("启动本地服务失败", it) }
     }
 
     fun stopService(context: Context) {
         runCatching {
             context.stopService(Intent(context, HttpServerService::class.java))
-        }.onFailure { it.printStackTrace() }
+        }.onFailure { log.e("停止本地服务失败", it) }
     }
 }
 
