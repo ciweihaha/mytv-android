@@ -82,9 +82,6 @@ object Constants {
     const val CHANNEL_LOGO_PROVIDER = "https://gitee.com/mytv-android/myTVlogo/raw/main/img/{name|uppercase}.png"
 
     /**
-     * GitHub加速代理地址
-     */
-    /**
      * GitHub 发版下载代理：发版附件的下载地址前面拼它再下。
      * 原来的 ghp.ci 已不通（2026-11-13 实测：本机与另一路出口都连不上，
      * 同机 github.com 与 gitee.com 都是 200），改走实测能通的 gh-proxy.com。
