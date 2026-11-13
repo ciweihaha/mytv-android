@@ -68,6 +68,15 @@ class ExtensionUtilsTest {
     }
 
     @Test
+    fun compareVersion_multiDigitSegments() {
+        // 本 fork 的版本号是 1.1.1.<构建号>，构建号已过百：多位数段必须按数值比，
+        // 不能按字典比（字典比会把 1.1.1.135 判成大于 1.1.1.99，更新检查漏掉新版）
+        assertEquals(-1, "1.1.1.99".compareVersion("1.1.1.135"))
+        assertEquals(1, "1.1.1.380".compareVersion("1.1.1.135"))
+        assertEquals(0, "1.1.1.135".compareVersion("1.1.1.135"))
+    }
+
+    @Test
     fun compareVersion_weirdTags_neverThrows() {
         // 自定义更新渠道的奇怪 tag：原先 toInt() 抛异常，AboutScreen 里比较时
         // 没有任何保护，打开关于页就闪退
