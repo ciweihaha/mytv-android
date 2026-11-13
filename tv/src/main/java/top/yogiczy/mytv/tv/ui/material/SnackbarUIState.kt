@@ -126,7 +126,7 @@ object Snackbar {
         trailingIcon: ImageVector = Icons.Outlined.Info,
         trailingLoading: Boolean = false,
         type: SnackbarType = SnackbarType.DEFAULT,
-        duration: Long = 2300,
+        duration: Long = SnackbarData.DEFAULT_DURATION,
         id: String = UUID.randomUUID().toString(),
     ) {
         if (!SnackbarUIState.isInitialized()) return
