@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +42,7 @@ fun UpdateScreen(
     updateViewModel: UpdateViewModel = updateVM,
     onBackPressed: () -> Unit = {},
 ) {
-    val latestFile by lazy { File(Globals.cacheDir, "latest.apk") }
+    val latestFile = remember { File(Globals.cacheDir, "latest.apk") }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val latestRelease = updateViewModel.latestRelease
