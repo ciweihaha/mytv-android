@@ -521,12 +521,10 @@ object HttpServer : Loggable("HttpServer") {
             return response.code(400).send("Invalid path")
         }
 
-        if (file.exists()) {
-            FsUtil.writeTextAtomically(file, content)
-        } else {
-            file.parentFile?.mkdirs()
-            FsUtil.writeTextAtomically(file, content)
-        }
+        // 父目录不存在时先建目录：原子写本身不建父目录，新文件写进不存在的子目录会失败；
+        // 目录已存在时 mkdirs() 是空操作，所以不用先判文件在不在
+        file.parentFile?.mkdirs()
+        FsUtil.writeTextAtomically(file, content)
 
         responseSuccess(response)
     }
@@ -550,12 +548,10 @@ object HttpServer : Loggable("HttpServer") {
         val file = FsUtil.resolveWithin(baseDir, filename)
             ?: return response.code(400).send("Invalid filename")
 
-        if (file.exists()) {
-            FsUtil.writeTextAtomically(file, content)
-        } else {
-            file.parentFile?.mkdirs()
-            FsUtil.writeTextAtomically(file, content)
-        }
+        // 父目录不存在时先建目录：原子写本身不建父目录，新文件写进不存在的子目录会失败；
+        // 目录已存在时 mkdirs() 是空操作，所以不用先判文件在不在
+        file.parentFile?.mkdirs()
+        FsUtil.writeTextAtomically(file, content)
 
         wrapResponse(response).send(file.path)
     }
