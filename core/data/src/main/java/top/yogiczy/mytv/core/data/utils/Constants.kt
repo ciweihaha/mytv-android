@@ -26,17 +26,18 @@ object Constants {
     const val GROUP_TELEGRAM = "https://t.me/mytv_android_channel"
 
     /**
-     * 订阅源
+     * 订阅源（本 fork 默认用自己的单子，不再用上游未经筛选的大单子；
+     * 只影响新装/恢复默认，已装好的配置存在本地、不受影响）
      */
     val IPTV_SOURCE_LIST = IptvSourceList(
         listOf(
             IptvSource(
-                name = "默认订阅源 iptv-api",
-                url = "https://gitee.com/mytv-android/iptv-api/raw/master/output/result.m3u",
+                name = "默认订阅源",
+                url = "https://live.ciweihaha.win/live.m3u",
             ),
             IptvSource(
-                name = "WebView订阅源",
-                url = "https://gitee.com/mytv-android/iptv-api/raw/master/output/webview.m3u",
+                name = "主订阅源",
+                url = "https://ysp.ciweihaha.win/ysp-tencent.m3u",
             )
         )
     )
@@ -47,13 +48,13 @@ object Constants {
     const val IPTV_SOURCE_CACHE_TIME = 1000 * 60 * 60L // 1小时
 
     /**
-     * 节目单来源
+     * 节目单来源（默认用自己的节目单）
      */
     val EPG_SOURCE_LIST = EpgSourceList(
         listOf(
             EpgSource(
-                name = "默认节目单 综合",
-                url = "https://gitee.com/mytv-android/myepg/raw/master/output/epg.gz",
+                name = "默认节目单",
+                url = "https://ysp.ciweihaha.win/epg.xml",
             ),
         )
     )
