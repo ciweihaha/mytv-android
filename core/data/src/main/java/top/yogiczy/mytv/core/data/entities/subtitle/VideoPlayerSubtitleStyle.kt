@@ -14,7 +14,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.PrimitiveKind
 
 /**
- * 频道节目列表
+ * 播放器字幕样式
  */
 @Serializable
 data class VideoPlayerSubtitleStyle(
