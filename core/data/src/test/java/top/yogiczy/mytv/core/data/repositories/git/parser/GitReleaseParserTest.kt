@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import top.yogiczy.mytv.core.data.utils.Constants
 
 /**
  * 发行版解析器测试：附件顺序 / 附件缺失 / 字段缺失 / tag 前缀。
@@ -39,7 +40,7 @@ class GitReleaseParserTest {
         )
         val release = githubParser.parse(data)
         assertEquals("2.2.0.219", release.version)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
     }
 
     @Test
@@ -53,7 +54,7 @@ class GitReleaseParserTest {
             ).joinToString(","),
         )
         val release = githubParser.parse(data)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
     }
 
     @Test
@@ -65,7 +66,7 @@ class GitReleaseParserTest {
         )
         val release = githubParser.parse(data)
         assertEquals("2.2.0.219", release.version)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
     }
 
     @Test
@@ -157,7 +158,7 @@ class GitReleaseParserTest {
         )
         val release = customParser.parse(data)
         assertEquals("1.1.1.135", release.version)
-        assertEquals("https://ghp.ci/https://example.com/mytv.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/mytv.apk", release.downloadUrl)
     }
 
     @Test
@@ -172,6 +173,6 @@ class GitReleaseParserTest {
             ).joinToString(","),
         )
         val release = customParser.parse(data)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
     }
 }
