@@ -104,6 +104,7 @@ fun SettingsEpgSourceScreen(
                                 .onFocusChanged { isFirstItemFocused = it.isFocused },
                         ),
                     epgSourceProvider = { epgSource },
+                    currentEpgSourceProvider = currentEpgSourceProvider,
                     isSelectedProvider = { currentEpgSourceProvider() == epgSource },
                     onSetCurrent = { onSetCurrent(epgSource) },
                     onDelete = { onDelete(epgSource) },
@@ -136,6 +137,7 @@ fun SettingsEpgSourceScreen(
 private fun EpgSourceItem(
     modifier: Modifier = Modifier,
     epgSourceProvider: () -> EpgSource = { EpgSource() },
+    currentEpgSourceProvider: () -> EpgSource = { EpgSource() },
     isSelectedProvider: () -> Boolean = { false },
     onSetCurrent: () -> Unit = {},
     onDelete: () -> Unit = {},
@@ -184,6 +186,7 @@ private fun EpgSourceItem(
     ) {
         SettingsEpgSourceActions(
             epgSourceProvider = { epgSource },
+            currentEpgSourceProvider = currentEpgSourceProvider,
             onDismissRequest = { actionsVisible = false },
             onSetCurrent = {
                 onSetCurrent()
