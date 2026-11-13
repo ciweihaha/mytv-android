@@ -15,10 +15,10 @@ object Constants {
     const val APP_TITLE = "电视直播"
 
     /**
-     * 应用 代码仓库
+     * 应用 代码仓库（本 fork；上游见 ORIGIN_APP_REPO）
      */
     const val ORIGIN_APP_REPO = "https://github.com/yaoxieyoulei/mytv-android"
-    const val APP_REPO = "https://github.com/mytv-android/mytv-android"
+    const val APP_REPO = "https://github.com/ciweihaha/mytv-android"
 
     /**
      * 交流群 telegram
