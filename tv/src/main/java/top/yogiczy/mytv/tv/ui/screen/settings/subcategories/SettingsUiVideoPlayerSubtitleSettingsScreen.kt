@@ -34,7 +34,6 @@ import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import androidx.media3.common.text.Cue
 import androidx.compose.ui.graphics.Color
-import top.yogiczy.mytv.tv.ui.rememberChildPadding
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsListItem
 import top.yogiczy.mytv.tv.ui.theme.SAFE_AREA_HORIZONTAL_PADDING
@@ -51,8 +50,6 @@ fun SettingsUiVideoPlayerSubtitleSettingsScreen(
     onBackPressed: () -> Unit = {},
 ) {
     var currentSubtitleSettings = subtitleSettingsProvider()
-
-    val childPadding = rememberChildPadding()
 
     val useSystemDefault = remember { mutableStateOf(currentSubtitleSettings.useSystemDefault) }
     val isApplyEmbeddedStyles = remember { mutableStateOf(currentSubtitleSettings.isApplyEmbeddedStyles) }
