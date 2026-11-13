@@ -51,7 +51,6 @@ import top.yogiczy.mytv.tv.ui.screensold.classicchannel.components.ClassicChanne
 import top.yogiczy.mytv.tv.ui.screensold.classicchannel.components.ClassicChannelItemList
 import top.yogiczy.mytv.tv.ui.screensold.classicchannel.components.ClassicEpgItemList
 import top.yogiczy.mytv.tv.ui.screensold.components.rememberScreenAutoCloseState
-import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.tooling.PreviewWithLayoutGrids
 import top.yogiczy.mytv.tv.ui.utils.gridColumns
@@ -82,7 +81,6 @@ fun ClassicChannelScreen(
     channelGroupListProvider: () -> ChannelGroupList = { ChannelGroupList() },
     favoriteChannelListProvider: () -> ChannelList = { ChannelList() },
     currentChannelProvider: () -> Channel = { Channel() },
-    currentChannelLineIdxProvider: () -> Int = { 0 },
     showChannelLogoProvider: () -> Boolean = { false },
     onChannelSelected: (Channel) -> Unit = {},
     onChannelFavoriteToggle: (Channel) -> Unit = {},
@@ -91,10 +89,8 @@ fun ClassicChannelScreen(
     showEpgProgrammeProgressProvider: () -> Boolean = { false },
     onEpgProgrammePlayback: (Channel, EpgProgramme) -> Unit = { _, _ -> },
     onEpgProgrammeReserve: (Channel, EpgProgramme) -> Unit = { _, _ -> },
-    isInTimeShiftProvider: () -> Boolean = { false },
     supportPlaybackProvider: (Channel) -> Boolean = { false },
     currentPlaybackEpgProgrammeProvider: () -> EpgProgramme? = { null },
-    videoPlayerMetadataProvider: () -> VideoPlayer.Metadata = { VideoPlayer.Metadata() },
     channelFavoriteEnabledProvider: () -> Boolean = { false },
     channelFavoriteListVisibleProvider: () -> Boolean = { false },
     onChannelFavoriteListVisibleChange: (Boolean) -> Unit = {},
@@ -274,7 +270,6 @@ private fun ClassicChannelScreenPreview() {
             ClassicChannelScreen(
                 channelGroupListProvider = { ChannelGroupList.EXAMPLE },
                 currentChannelProvider = { ChannelGroupList.EXAMPLE.first().channelList.first() },
-                currentChannelLineIdxProvider = { 0 },
                 epgListProvider = { EpgList.example(ChannelGroupList.EXAMPLE.channelList) },
                 showEpgProgrammeProgressProvider = { true },
             )

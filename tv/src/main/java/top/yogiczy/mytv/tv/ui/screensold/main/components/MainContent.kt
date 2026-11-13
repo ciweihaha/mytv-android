@@ -548,7 +548,6 @@ fun MainContent(
             channelGroupListProvider = filteredChannelGroupListProvider,
             favoriteChannelListProvider = favoriteChannelListProvider,
             currentChannelProvider = { mainContentState.currentChannel },
-            currentChannelLineIdxProvider = { mainContentState.currentChannelLineIdx },
             showChannelLogoProvider = { settingsViewModel.uiShowChannelLogo },
             onChannelSelected = {
                 mainContentState.isChannelScreenVisible = false
@@ -569,7 +568,6 @@ fun MainContent(
             onEpgProgrammeReserve = { channel, programme ->
                 mainContentState.reverseEpgProgrammeOrNot(channel, programme)
             },
-            videoPlayerMetadataProvider = { videoPlayerState.metadata },
             channelFavoriteEnabledProvider = { settingsViewModel.iptvChannelFavoriteEnable },
             channelFavoriteListVisibleProvider = { settingsViewModel.iptvChannelFavoriteListVisible },
             onChannelFavoriteListVisibleChange = {
