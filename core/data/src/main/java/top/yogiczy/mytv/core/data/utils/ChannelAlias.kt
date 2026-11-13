@@ -71,11 +71,15 @@ object ChannelAlias : Loggable("ChannelAlias") {
      * 的话小写后缀的台就匹配不上节目单。
      */
     internal fun stripChannelNameSuffixes(name: String, suffixes: List<String>): String {
+        // 空后缀先滤掉："" 恒满足 endsWith、dropLast(0) 又不变，changed
+        // 永远是 true，循环永不结束；后缀表一半来自用户手写的映射文件，
+        // 空串混进来就能把解析线程卡死
+        val effectiveSuffixes = suffixes.filter { it.isNotBlank() }
         var result = name
         var changed: Boolean
         do {
             changed = false
-            for (suffix in suffixes) {
+            for (suffix in effectiveSuffixes) {
                 if (result.endsWith(suffix, ignoreCase = true)) {
                     result = result.dropLast(suffix.length)
                     changed = true
