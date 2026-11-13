@@ -87,11 +87,18 @@ object Constants {
 
     /**
      * Git最新版本信息
+     *
+     * 查本 fork 自己的发版，不再查上游 Gitee：上游稳定版已是 V2.2.0.219，
+     * 按版本号比永远大于本 fork 的 1.1.1.N，启动检查每次都报“发现新版本”，
+     * 而上游包是作者签名、与本 fork 每轮构建现做的一次性签名对不上，
+     * 装上去会报签名不一致装不上。本 fork 目前没有发版，查不到就走
+     * “检查更新失败”，不提示、不下载；以后本 fork 发了版再按
+     * GithubGitReleaseParser 的规则（附件名含 original＋all）走。
      */
     val GIT_RELEASE_LATEST_URL = mapOf(
-        "stable" to "https://gitee.com/api/v5/repos/mytv-android/mytvstable/releases/latest",
-        "beta" to "https://gitee.com/api/v5/repos/mytv-android/mytvbeta/releases/latest",
-        "dev" to "https://gitee.com/api/v5/repos/mytv-android/mytvdev/releases/latest",
+        "stable" to "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest",
+        "beta" to "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest",
+        "dev" to "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest",
     )
 
     /**
