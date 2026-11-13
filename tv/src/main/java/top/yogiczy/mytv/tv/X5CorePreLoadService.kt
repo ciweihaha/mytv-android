@@ -5,7 +5,6 @@ import android.content.Intent
 import androidx.annotation.Nullable
 import androidx.core.app.JobIntentService
 import com.tencent.smtt.sdk.QbSdk
-import com.tencent.smtt.sdk.TbsListener;
 
 import top.yogiczy.mytv.core.data.utils.Logger
 import java.io.File
