@@ -45,10 +45,6 @@ fun ProgressBar(
     }
 }
 
-enum class ProgressBarSize {
-    Default, Large
-}
-
 data class ProgressBarColors(
     val barColor: Color,
     val progressColor: Color,
