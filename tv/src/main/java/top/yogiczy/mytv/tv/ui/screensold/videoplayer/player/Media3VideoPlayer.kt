@@ -188,7 +188,10 @@ class Media3VideoPlayer(
         val mediaItem = MediaItem.fromUri(uri)
         val dataSourceFactory = getDataSourceFactory()
 
-        if (!uri.toString().startsWith("rtmp://")){
+        // 显式指定了内容类型（解析容器不支持时的重试）就别走这条按地址推断
+        // 的捷径：否则每次重试都会回到同一个解析器，5 种类型白白轮一遍、
+        // 每次建的都是同一个源，真正换解析器的目的落空
+        if (contentType == null && !uri.toString().startsWith("rtmp://")){
             var mimeType = if (uri.toString().startsWith("rtp://") || uri.toString().startsWith("rtsp://")) {
                 MimeTypes.APPLICATION_RTSP
             } else {
