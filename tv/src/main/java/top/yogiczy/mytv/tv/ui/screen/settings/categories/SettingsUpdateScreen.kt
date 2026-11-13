@@ -21,7 +21,7 @@ fun SettingsUpdateScreen(
 ) {
     SettingsCategoryScreen(
         modifier = modifier,
-        header = { Text("设置 / 系统") },
+        header = { Text("设置 / 更新") },
         onBackPressed = onBackPressed,
     ) { firstItemFocusRequester ->
         item {
