@@ -1,7 +1,6 @@
 package top.yogiczy.mytv.core.data.entities.subtitle
 
 import android.graphics.Color
-import androidx.compose.runtime.Immutable
 import androidx.media3.ui.CaptionStyleCompat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.KSerializer
