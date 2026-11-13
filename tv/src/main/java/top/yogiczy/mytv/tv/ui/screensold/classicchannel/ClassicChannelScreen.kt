@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -44,11 +43,9 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.ch
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.match
-import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.recentProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeReserveList
 import top.yogiczy.mytv.tv.ui.material.Visibility
-import top.yogiczy.mytv.tv.ui.screen.live.channels.components.LiveChannelsChannelInfo
 import top.yogiczy.mytv.tv.ui.screensold.channel.ChannelScreenTopRight
 import top.yogiczy.mytv.tv.ui.screensold.classicchannel.components.ClassicChannelGroupItemList
 import top.yogiczy.mytv.tv.ui.screensold.classicchannel.components.ClassicChannelItemList
@@ -56,7 +53,6 @@ import top.yogiczy.mytv.tv.ui.screensold.classicchannel.components.ClassicEpgIte
 import top.yogiczy.mytv.tv.ui.screensold.components.rememberScreenAutoCloseState
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
-import top.yogiczy.mytv.tv.ui.theme.SAFE_AREA_VERTICAL_PADDING
 import top.yogiczy.mytv.tv.ui.tooling.PreviewWithLayoutGrids
 import top.yogiczy.mytv.tv.ui.utils.gridColumns
 import kotlin.math.max
@@ -224,32 +220,6 @@ fun ClassicChannelScreen(
     ChannelScreenTopRight(channelNumberProvider = {
         channelGroupListProvider().channelNumber(currentChannelProvider())
     })
-
-    // Visibility({ !epgListVisible }) {
-    //     Box(Modifier.fillMaxSize()) {
-    //         LiveChannelsChannelInfo(
-    //             modifier = Modifier
-    //                 .align(Alignment.BottomEnd)
-    //                 .fillMaxWidth(0.5f)
-    //                 .padding(SAFE_AREA_VERTICAL_PADDING.dp)
-    //                 .background(
-    //                     MaterialTheme.colorScheme.surface.copy(0.8f),
-    //                     MaterialTheme.shapes.medium,
-    //                 )
-    //                 .padding(horizontal = 20.dp, vertical = 10.dp),
-    //             channelProvider = currentChannelProvider,
-    //             channelLineIdxProvider = currentChannelLineIdxProvider,
-    //             recentEpgProgrammeProvider = {
-    //                 epgListProvider().recentProgramme(currentChannelProvider())
-    //             },
-    //             isInTimeShiftProvider = isInTimeShiftProvider,
-    //             currentPlaybackEpgProgrammeProvider = currentPlaybackEpgProgrammeProvider,
-    //             playerMetadataProvider = videoPlayerMetadataProvider,
-    //             dense = true,
-    //             showChannelLogo = false,
-    //         )
-    //     }
-    // }
 }
 
 @Composable
