@@ -6,6 +6,7 @@ import kotlinx.serialization.encodeToString
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.network.request
 import top.yogiczy.mytv.core.data.repositories.FileCacheRepository
 import top.yogiczy.mytv.core.data.repositories.epg.fetcher.EpgFetcher
@@ -91,6 +92,8 @@ private class EpgXmlRepository(private val source: EpgSource) :
                 t.value
             } catch (ex: Exception) {
                 log.e("获取节目单（${source.name}）xml失败", ex)
+                // 服务端状态码错（404/500 等）是地址/服务端问题，不是网络问题：原样抛
+                if (ex is HttpStatusException) throw ex
                 throw HttpException("获取节目单xml失败，请检查网络连接", ex)
             }
         }

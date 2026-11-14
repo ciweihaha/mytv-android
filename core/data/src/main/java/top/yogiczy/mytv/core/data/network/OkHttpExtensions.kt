@@ -65,7 +65,7 @@ suspend fun <T> String.request(
             // 错误分支原来不关 response：body 不关连接无法回池，
             // 共用客户端后会把池里的连接漏光
             response.closeQuietly()
-            throw Exception("${response.code}: ${response.message}")
+            throw HttpStatusException(response.code, response.message)
         }
 
         // action 抛错时 response 也要关：成功分支返回的 body 流由调用方

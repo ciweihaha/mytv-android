@@ -6,6 +6,7 @@ import kotlinx.serialization.encodeToString
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.network.request
 import top.yogiczy.mytv.core.data.repositories.FileCacheRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.parser.IptvParser
@@ -146,6 +147,8 @@ private class IptvRawRepository(private val source: IptvSource) : FileCacheRepos
                 source.url.request { body -> body.string() } ?: ""
             } catch (ex: Exception) {
                 log.e("获取订阅源（${source.name}）失败", ex)
+                // 服务端状态码错（404/500 等）是地址/服务端问题，不是网络问题：原样抛
+                if (ex is HttpStatusException) throw ex
                 throw HttpException("获取订阅源失败，请检查网络连接", ex)
             }
         }
