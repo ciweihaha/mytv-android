@@ -22,6 +22,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yogiczy.mytv.tv.sync.CloudSync
 import top.yogiczy.mytv.tv.sync.CloudSyncData
@@ -56,6 +57,9 @@ fun SettingsCloudSyncScreen(
         pullFailed = false
         runCatching { syncData = CloudSync.pull() }
             .onFailure {
+                // 拉取中途被取消不是拉取失败：`runCatching` 会把取消信号也吃掉，
+                // 原样抛出去，别弹“拉取云端失败”的假报错、别把数据置空（690 轮同款问题）
+                if (it is CancellationException) throw it
                 Snackbar.show("拉取云端失败")
                 pullFailed = true
                 syncData = CloudSyncData.EMPTY
@@ -98,7 +102,13 @@ fun SettingsCloudSyncScreen(
                                             Snackbar.show("推送云端失败")
                                         }
                                     }
-                                    .onFailure { Snackbar.show("推送云端失败") }
+                                    .onFailure {
+                                        // 推送中途被取消不是推送失败：`runCatching` 会把取消信号
+                                        // 也吃掉，原样抛出去，别弹“推送云端失败”的假报错
+                                        // （690 轮同款问题）
+                                        if (it is CancellationException) throw it
+                                        Snackbar.show("推送云端失败")
+                                    }
                                 pushLoading = false
                             }
                         },
