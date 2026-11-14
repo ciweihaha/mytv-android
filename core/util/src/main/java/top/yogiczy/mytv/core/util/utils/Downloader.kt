@@ -1,10 +1,7 @@
 package top.yogiczy.mytv.core.util.utils
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
@@ -50,30 +47,10 @@ object Downloader {
             // 下载中途失败会留下残缺文件，而更新页打开时按“文件存在即安装”，
             // 会拿残缺的 APK 去安装（报解析失败）
             val tmpFile = File(targetFile.absoluteFile.parent, "${targetFile.name}.tmp")
-            // 取消下载立刻停下来：协程取消只在挂起点生效，OkHttp 的
-            // execute() 与 copyTo() 都是阻塞调用、取消送不到；以前用户按
-            // 返回离开更新页，下载会在后台把整个安装包下完才停。守望协程在
-            // 父协程一取消就顺手取消这次请求，读流立刻抛错、下载马上停
-            // （天光 1673 轮同款做法）。注意不能用 Job.invokeOnCompletion：
-            // 它只在任务结束时才触发，等下载完才触发就晚了，拦不住阻塞调用；
-            // invokeOnCancellation 又不是公开接口，所以用守望协程来触发。
-            // 守望用 awaitCancellation() 一直挂起等取消，不用 delay(极大值)
-            // （极大值转纳秒可能溢出、导致守望没等到取消就提前返回）
-            val call = client.newCall(request)
-            val watchdog = launch {
-                try {
-                    awaitCancellation()
-                } catch (_: CancellationException) {
-                    call.cancel()
-                }
-            }
             try {
                 val response = try {
-                    call.execute()
+                    client.newCall(request).execute()
                 } catch (ex: Exception) {
-                    // 被取消的请求会抛错：别包成“下载文件失败”，按取消原样抛，
-                    // 不然上层 691 轮那处守卫认不出来、会弹“下载更新失败”假报错
-                    if (!isActive) throw CancellationException("下载已取消", ex)
                     throw Exception("下载文件失败，请检查网络连接", ex)
                 }
 
@@ -95,13 +72,7 @@ object Downloader {
                 }
             } catch (ex: Exception) {
                 tmpFile.delete()
-                // 读流中途被取消同样走这里：协程已取消就按取消抛，别当成下载失败
-                if (ex !is CancellationException && !isActive) {
-                    throw CancellationException("下载已取消", ex)
-                }
                 throw ex
-            } finally {
-                watchdog.cancel()
             }
         }
 
