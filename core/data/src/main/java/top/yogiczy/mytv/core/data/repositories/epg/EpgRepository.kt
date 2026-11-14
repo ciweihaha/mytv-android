@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.core.data.repositories.epg
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -91,6 +92,10 @@ private class EpgXmlRepository(private val source: EpgSource) :
 
                 t.value
             } catch (ex: Exception) {
+                // 拉取中途被取消不是拉取失败：取消信号原样抛出去，别包成“请检查网络连接”
+                // 的 HttpException——否则外层 690 轮的守卫接不到取消信号，会拿旧文件顶上、
+                // 把一次取消记成一次成功加载（691 轮发版仓库同款问题）
+                if (ex is CancellationException) throw ex
                 log.e("获取节目单（${source.name}）xml失败", ex)
                 // 服务端状态码错（404/500 等）是地址/服务端问题，不是网络问题：原样抛
                 if (ex is HttpStatusException) throw ex
