@@ -27,6 +27,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.match
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
@@ -220,7 +221,11 @@ class MainViewModel : ViewModel() {
                 }
                 .catch {
                     emit(EpgList())
-                    Snackbar.show("节目单获取失败，请检查网络连接", type = SnackbarType.ERROR)
+                    if (it is HttpStatusException) {
+                        Snackbar.show("节目单获取失败：${it.message}", type = SnackbarType.ERROR)
+                    } else {
+                        Snackbar.show("节目单获取失败，请检查网络连接", type = SnackbarType.ERROR)
+                    }
                 }
                 .map { epgList ->
                     withContext(Dispatchers.Default) {
