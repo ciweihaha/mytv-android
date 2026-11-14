@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
 import top.yogiczy.mytv.core.data.repositories.git.GitRepository
 import top.yogiczy.mytv.core.data.utils.Constants
@@ -67,6 +68,9 @@ class UpdateViewModel(
 
             log.i("最新版本: ${_latestRelease.version}")
         } catch (ex: Exception) {
+            // 检查中途被取消不是检查失败：取消信号原样抛出去，别记成一次失败、
+            // 别把取消原因写进版本说明里（690 轮同款问题）
+            if (ex is CancellationException) throw ex
             log.e("检查更新失败", ex)
             _checkFailed = true
             _latestRelease = _latestRelease.copy(description = ex.message ?: "检查更新失败")
@@ -106,6 +110,9 @@ class UpdateViewModel(
             Snackbar.show("下载更新成功")
             log.i("下载更新成功")
         } catch (ex: Exception) {
+            // 下载中途被取消不是下载失败：取消信号原样抛出去，别弹“下载更新失败”
+            // 的假报错（690 轮同款问题；天光 1658 轮提示里单点的就是这两处）
+            if (ex is CancellationException) throw ex
             Snackbar.show("下载更新失败", type = SnackbarType.ERROR)
             log.e("下载更新失败", ex)
         } finally {
