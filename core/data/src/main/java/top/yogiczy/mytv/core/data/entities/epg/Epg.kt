@@ -67,7 +67,12 @@ data class Epg(
 
                 if (liveProgramIndex > -1) EpgProgrammeRecent(
                     now = programmeList[liveProgramIndex],
-                    next = programmeList.getOrNull(liveProgramIndex + 1)
+                    // 下一个节目跳过已经播完的重叠脏数据：节目单源头偶尔会给
+                    // 出互相重叠的节目，直接取下一条会把已经播完的节目显示
+                    // 成“稍后播放”；正常首尾相接的数据里下一条本来就没播
+                    // 完，这条判断不改变行为
+                    next = programmeList.drop(liveProgramIndex + 1)
+                        .firstOrNull { it.endAt > now }
                 )
                 // 当前时间落在两个节目之间的空档（或当天第一个节目还没
                 // 开始）：没有正在播的节目，但下一个节目是已知的；原来
