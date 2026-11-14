@@ -27,9 +27,11 @@ data class EpgProgramme(
 ) {
     companion object {
         /**
-         * 是否正在直播
+         * 是否正在直播（左闭右开：开始那一刻算正在播，结束那一刻就不算了）。
+         * 时间可传参、默认当前时间：跟同文件 progress / remainingMinutes
+         * 同一个写法，单测才能钉住两个边界点。
          */
-        fun EpgProgramme.isLive() = System.currentTimeMillis() in startAt..<endAt
+        fun EpgProgramme.isLive(current: Long = System.currentTimeMillis()) = current in startAt..<endAt
 
         /**
          * 节目进度（0~1）。时长 <= 0（EPG 里缺 start/stop、解析失败会得 0）
