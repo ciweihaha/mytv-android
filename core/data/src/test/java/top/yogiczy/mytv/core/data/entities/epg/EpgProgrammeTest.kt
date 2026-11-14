@@ -1,6 +1,8 @@
 package top.yogiczy.mytv.core.data.entities.epg
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.isLive
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.isValid
@@ -8,6 +10,17 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.progress
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.remainingMinutes
 
 class EpgProgrammeTest {
+    @Test
+    fun isLive_boundaries_leftClosedRightOpen() {
+        // 左闭右开：开始那一刻算正在播，结束那一刻已不算
+        val programme = EpgProgramme(startAt = 1000, endAt = 2000)
+        assertTrue(programme.isLive(1000))
+        assertTrue(programme.isLive(1500))
+        assertFalse(programme.isLive(2000))
+        assertFalse(programme.isLive(999))
+        assertFalse(programme.isLive(2001))
+    }
+
     @Test
     fun progress_normal() {
         val programme = EpgProgramme(startAt = 1000, endAt = 2000)
@@ -38,17 +51,6 @@ class EpgProgrammeTest {
         assertEquals(0, programme.remainingMinutes(2000))
         assertEquals(0, programme.remainingMinutes(3000))
         assertEquals(0, EpgProgramme(startAt = 0, endAt = 0).remainingMinutes(1234567890))
-    }
-
-    @Test
-    fun isLive_boundaries() {
-        // 左闭右开：开始那一刻算正在播，结束那一刻就不算了
-        val programme = EpgProgramme(startAt = 1000, endAt = 2000)
-        assertEquals(true, programme.isLive(1000))
-        assertEquals(true, programme.isLive(1500))
-        assertEquals(false, programme.isLive(2000))
-        assertEquals(false, programme.isLive(500))
-        assertEquals(false, programme.isLive(3000))
     }
 
     @Test
