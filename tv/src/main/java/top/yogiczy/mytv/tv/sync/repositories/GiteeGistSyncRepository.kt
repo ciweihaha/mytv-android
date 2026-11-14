@@ -44,7 +44,7 @@ class GiteeGistSyncRepository(
 
     override suspend fun pull(): CloudSyncData {
         try {
-            return "https://gitee.com/api/v5/gists/${gistId}?access_token=${token}".request { body ->
+            return "https://gitee.com/api/v5/gists/${gistId}?access_token=${token}".requestStrict { body ->
                 val res = Globals.json.parseToJsonElement(body.string()).jsonObject
                 val file = res["files"]?.jsonObject?.get("all_configs.json")?.jsonObject
 
