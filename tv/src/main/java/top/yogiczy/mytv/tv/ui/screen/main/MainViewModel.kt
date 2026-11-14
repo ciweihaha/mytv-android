@@ -5,6 +5,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -102,6 +103,10 @@ class MainViewModel : ViewModel() {
                 true
             }
             .catch {
+                // 取消不是失败：flow 的 catch 会把 CancellationException 也吃掉，
+                // 不原样抛出去，被取消的加载会被记成一次 Error（切源时旧任务的
+                // Error 可能落在新任务的 Loading 之后，界面闪一下“Job was cancelled”）
+                if (it is CancellationException) throw it
                 _uiState.value = MainUiState.Error(it.message)
             }
             .map { mergeSimilarChannel(it) }
