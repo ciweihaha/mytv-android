@@ -58,7 +58,15 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".CrashHandlerActivity" />
+        <!-- 崩溃屏必须跑在独立进程：主线程崩溃后主线程（Looper）已死，
+             同进程的崩溃屏连启动都启动不了；就算后台线程崩溃主线程还活着，
+             崩溃处理里 1.2 秒后 killProcess 也会把同进程的崩溃屏一起杀掉，
+             用户根本来不及看日志、点重启。独立进程后 kill 的只是主进程，
+             崩溃屏不受影响；cacheDir 是按应用分的、两个进程共用同一份，
+             落盘的 crash.log 照样读得到 -->
+        <activity
+            android:name=".CrashHandlerActivity"
+            android:process=":crash" />
         <!-- 开机自启接收器：exported 必须为 true，否则系统广播发不到应用内的
              Receiver，设置里开了开机自启也不会拉起 -->
         <receiver
