@@ -100,7 +100,10 @@ fun ChannelItem(
                         channelProvider = channelProvider,
                     ) {
                         Text(
-                            channelProvider().no,
+                            // 收藏网格里的台序号固定是 -1，自带的序号会算出
+                            // “00”；跟 721 轮经典选台页那处一样，没号
+                            // 就显示“–”
+                            if (channelProvider().index <= -1) "–" else channelProvider().no,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
