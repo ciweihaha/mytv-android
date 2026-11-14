@@ -3,7 +3,7 @@ package top.yogiczy.mytv.core.util.utils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,11 +56,13 @@ object Downloader {
             // 父协程一取消就顺手取消这次请求，读流立刻抛错、下载马上停
             // （天光 1673 轮同款做法）。注意不能用 Job.invokeOnCompletion：
             // 它只在任务结束时才触发，等下载完才触发就晚了，拦不住阻塞调用；
-            // invokeOnCancellation 又不是公开接口，所以用守望协程来触发
+            // invokeOnCancellation 又不是公开接口，所以用守望协程来触发。
+            // 守望用 awaitCancellation() 一直挂起等取消，不用 delay(极大值)
+            // （极大值转纳秒可能溢出、导致守望没等到取消就提前返回）
             val call = client.newCall(request)
             val watchdog = launch {
                 try {
-                    delay(Long.MAX_VALUE)
+                    awaitCancellation()
                 } catch (_: CancellationException) {
                     call.cancel()
                 }
