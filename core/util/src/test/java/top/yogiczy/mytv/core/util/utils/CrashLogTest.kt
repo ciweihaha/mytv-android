@@ -76,7 +76,13 @@ class CrashLogTest {
     fun truncateForIntent_long_truncatedWithNote() {
         val long = "x".repeat(CrashLog.MAX_INTENT_STACKTRACE_LENGTH + 10)
         val result = CrashLog.truncateForIntent(long)
-        assertTrue(result.length < long.length)
+        // 截断后只留前 MAX 个字符再加提示语：原串只超 10 字，提示语比这长，
+        // 总长度反而会变长，所以不断言变短，只断言内容被截断 + 有提示语
+        assertEquals(
+            "x".repeat(CrashLog.MAX_INTENT_STACKTRACE_LENGTH),
+            result.substring(0, CrashLog.MAX_INTENT_STACKTRACE_LENGTH)
+        )
+        assertTrue(result.endsWith("完整内容见崩溃日志文件）"))
         assertTrue(result.contains("堆栈过长已截断"))
     }
 }
