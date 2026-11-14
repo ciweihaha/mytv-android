@@ -405,6 +405,26 @@ fun LiveChannelsChannelInfoNetSpeed(
     )
 }
 
+/**
+ * 两次流量采样算网速（顶层函数，方便单元测试直接调用）：
+ * 先乘后除——两边都是 Long，先除会把每毫秒的零头截掉再乘 1000，
+ * 一秒流量不到 1KB 时直接算成 0，平时也固定少算将近 1KB/s；
+ * 先乘 1000 再除，结果一样但零头保留；一秒流量不过几 MB，
+ * 乘 1000 远到不了 Long 上限，不会溢出。
+ * 墙上时钟会被 NTP 对时或用户改时间拨回，两次采样的时间差可能
+ * 为 0 或负数：这时沿用上一次的值，不算负网速；
+ * 流量计数中途倒退（计数器重置）时按 0 算，网速不可能是负数。
+ */
+internal fun nextNetSpeed(
+    previousSpeed: Long,
+    lastTotalRxBytes: Long,
+    nowTotalRxBytes: Long,
+    elapsedMs: Long,
+): Long {
+    if (elapsedMs <= 0) return previousSpeed
+    return maxOf(0L, nowTotalRxBytes - lastTotalRxBytes) * 1000 / elapsedMs
+}
+
 @Composable
 private fun rememberNetSpeed(): Long {
     var netSpeed by remember { mutableLongStateOf(0) }
@@ -417,14 +437,10 @@ private fun rememberNetSpeed(): Long {
             delay(1000)
             val nowTotalRxBytes = TrafficStats.getUidRxBytes(android.os.Process.myUid())
             val nowTimeStamp = System.currentTimeMillis()
-            // 墙上时钟会被 NTP 对时或用户改时间拨回，两次采样的时间差可能
-            // 为 0 或负数：原先直接相除，差为 0 时抛 ArithmeticException
-            // 闪退；差为负时算出负网速。差 <= 0 时跳过这次更新。
-            val deltaTime = nowTimeStamp - lastTimeStamp
-            if (deltaTime > 0) {
-                netSpeed =
-                    ((nowTotalRxBytes - lastTotalRxBytes) / deltaTime * 1000).coerceAtLeast(0)
-            }
+            netSpeed = nextNetSpeed(
+                netSpeed, lastTotalRxBytes, nowTotalRxBytes,
+                nowTimeStamp - lastTimeStamp,
+            )
             lastTimeStamp = nowTimeStamp
             lastTotalRxBytes = nowTotalRxBytes
         }
