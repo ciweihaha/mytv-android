@@ -1,9 +1,9 @@
 package top.yogiczy.mytv.core.data.repositories.epg
 
-import android.util.Xml
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
 import top.yogiczy.mytv.core.data.entities.epg.Epg
 import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.sortedProgrammes
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
@@ -51,7 +51,12 @@ object EpgParser : Loggable("EpgParser") {
 
     private suspend fun parse(inputStream: InputStream) = withContext(Dispatchers.IO) {
         inputStream.use { stream ->
-            val parser: XmlPullParser = Xml.newPullParser()
+            // 不走 android.util.Xml.newPullParser()：它在真机上就是转调
+            // XmlPullParserFactory.newInstance().newPullParser()，但在单元
+            // 测试里 android.jar 的桩返回 null（isReturnDefaultValues），
+            // 直接建解析器就空指针、fromXml 一直没法进单测。直接调工厂与
+            // 真机行为一致；测试里用 kxml2 的真 KXmlParser
+            val parser: XmlPullParser = XmlPullParserFactory.newInstance().newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
             parser.setInput(stream.reader(Charsets.UTF_8))
 
