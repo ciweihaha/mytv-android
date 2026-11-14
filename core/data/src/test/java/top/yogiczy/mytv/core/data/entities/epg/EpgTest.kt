@@ -139,6 +139,24 @@ class EpgTest {
     }
 
     @Test
+    fun recentProgramme_atExactEndOfLast_returnsEmpty() {
+        // 最后一档结束那一刻：正在播与下一个都为空（右开）；旧比较器下会
+        // 把最后一档当成正在播
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "第一"),
+                    EpgProgramme(startAt = 2000, endAt = 3000, title = "第二"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(3000)
+        assertNull(recent.now)
+        assertNull(recent.next)
+    }
+
+    @Test
     fun recentProgramme_afterLast_returnsEmpty() {
         // 当天最后一个节目也播完了：后面没有节目，now 和 next 都为空
         val now = System.currentTimeMillis()
