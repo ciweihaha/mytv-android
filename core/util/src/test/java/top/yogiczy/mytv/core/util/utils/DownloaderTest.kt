@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -193,7 +194,7 @@ class DownloaderTest {
             val dir = tempFolder.newFolder("dl")
             val target = File(dir, "latest.apk")
             val start = System.currentTimeMillis()
-            assertThrows(CancellationException::class.java) {
+            val thrown = runCatching {
                 runBlocking {
                     val job = launch {
                         Downloader.downloadTo(
@@ -204,7 +205,15 @@ class DownloaderTest {
                     job.cancel()
                     job.join()
                 }
-            }
+            }.exceptionOrNull()
+            // 分段断言：只看失败行号就能定位是哪一关没过（构建日志里
+            // 异常消息经常被截掉，行号是最可靠的信号）
+            println(
+                "downloadTo_cancelled: thrown=${thrown?.javaClass?.name}" +
+                    ": ${thrown?.message}, elapsed=${System.currentTimeMillis() - start}ms"
+            )
+            assertNotNull("取消下载应抛异常，实际正常返回（下载提前完成了？）", thrown)
+            assertTrue("应抛 CancellationException，实际是 ${thrown!!.javaClass.name}", thrown is CancellationException)
             val elapsed = System.currentTimeMillis() - start
             // 没修之前：阻塞的 execute()/copyTo() 根本收不到取消，下载会
             // 一直拖到服务端发完（本用例里 60 秒都不发完），job.join() 永远
