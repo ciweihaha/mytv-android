@@ -1,0 +1,90 @@
+package top.yogiczy.mytv.tv.ui.screensold.videoplayer
+
+import android.view.SurfaceView
+import android.view.TextureView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
+import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
+
+/**
+ * 播放器状态桥的报错映射（天光 1831 轮姊妹检查）：
+ * 真报错时 error 写成“名字（错误码）”并通知监听器一次；
+ * 空报错（进缓冲时清显示）只清 error、不再通知。
+ * 生产代码这两档本来就是对的，这里只把行为钉死，别以后改坏了。
+ */
+class VideoPlayerStateTest {
+
+    /** 只为测试搭的空播放器：把基类的触发口子公开出来，不碰 Android 框架。 */
+    private class FakeVideoPlayer : VideoPlayer(CoroutineScope(Dispatchers.Unconfined)) {
+        override fun prepare(line: ChannelLine) {}
+        override fun play() {}
+        override fun pause() {}
+        override fun seekTo(position: Long) {}
+        override fun seekBy(deltaMs: Long) {}
+        override fun setVolume(volume: Float) {}
+        override fun getVolume(): Float = 1f
+        override fun selectVideoTrack(track: Metadata.Video?) {}
+        override fun selectAudioTrack(track: Metadata.Audio?) {}
+        override fun selectSubtitleTrack(track: Metadata.Subtitle?) {}
+        override fun setVideoSurfaceView(surfaceView: SurfaceView) {}
+        override fun setVideoTextureView(textureView: TextureView) {}
+
+        fun emitError(error: PlaybackException?) = triggerError(error)
+        fun emitReady() = triggerReady()
+        fun emitBuffering(buffering: Boolean) = triggerBuffering(buffering)
+    }
+
+    @Test
+    fun `真报错写名字加错误码并通知一次，空报错只清不通知`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var notifyCount = 0
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
+        assertEquals(1, notifyCount)
+
+        // 空报错只是“开始缓冲”的信号：清掉显示就行，别再通知一次
+        player.emitError(null)
+        assertNull(state.error)
+        assertEquals(1, notifyCount)
+    }
+
+    @Test
+    fun `进缓冲清掉错误显示，不通知报错监听器`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var notifyCount = 0
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals(1, notifyCount)
+
+        player.emitBuffering(true)
+        assertNull(state.error)
+        assertEquals(1, notifyCount)
+    }
+
+    @Test
+    fun `就绪清掉错误显示，不通知报错监听器`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var notifyCount = 0
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals(1, notifyCount)
+
+        player.emitReady()
+        assertNull(state.error)
+        assertEquals(1, notifyCount)
+    }
+}

@@ -62,9 +62,9 @@ jobs:
         run: ./gradlew :tv:assembleDebug
         timeout-minutes: 30
 
-      # tv 模块没有单元测试；core/data 与 core/util 有真测试（解析器、实体、工具类），core/designsystem 暂无测试。
+      # tv 模块也有单元测试（播放器状态桥等纯逻辑）；core/data 与 core/util 有真测试（解析器、实体、工具类），core/designsystem 暂无测试。
       - name: 运行单元测试
-        run: ./gradlew :core:data:testDebugUnitTest :core:util:testDebugUnitTest :core:designsystem:testDebugUnitTest
+        run: ./gradlew :tv:testDebugUnitTest :core:data:testDebugUnitTest :core:util:testDebugUnitTest :core:designsystem:testDebugUnitTest
         timeout-minutes: 30
 
       # debug 构建不跑 R8；构建 release 验证 R8 规则。
