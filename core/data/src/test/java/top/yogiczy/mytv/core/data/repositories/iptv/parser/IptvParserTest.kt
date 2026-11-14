@@ -201,6 +201,17 @@ class IptvParserTest {
     }
 
     @Test
+    fun txt_lineWithoutComma_skipped() = runBlocking {
+        // 没逗号的行跳过：既不是分组行、也切不出名字和地址，不能把它
+        // 当成一条频道
+        val txtData = "央视,#genre#\nCCTV-1,http://example.com/cctv1\nCCTV-9\nCCTV-5,http://example.com/cctv5"
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-5", channels[1].name)
+    }
+
+    @Test
     fun m3u_epgUrl_firstBlankEntry_skipped() = runBlocking {
         // x-tvg-url 首项为空时应取后面的有效地址，而不是返回空串
         val data = "#EXTM3U x-tvg-url=\",http://epg2.example.com/epg.xml\"\n" +
