@@ -5,6 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelGroupIdx
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelNumber
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
@@ -188,5 +189,36 @@ class ChannelGroupListTest {
 
         assertEquals("–", list.channelNumber(Channel.EXAMPLE.copy(name = "不存在的频道")))
         assertEquals("–", ChannelGroupList().channelNumber(Channel.EXAMPLE))
+    }
+
+    @Test
+    fun channelGroupIdx_returnsGroupIndexOfChannel() {
+        // 分组下标全程没单测：调用点包着 max(0, …) 的地方不少，但下标本身
+        // （第几组、找不到回 -1）没人钉过
+        val target = Channel(name = "目标")
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "分组1", channelList = ChannelList(listOf(Channel(name = "A")))),
+                ChannelGroup(
+                    name = "分组2",
+                    channelList = ChannelList(listOf(Channel(name = "B"), target)),
+                ),
+            )
+        )
+
+        assertEquals(0, groupList.channelGroupIdx(Channel(name = "A")))
+        assertEquals(1, groupList.channelGroupIdx(target))
+    }
+
+    @Test
+    fun channelGroupIdx_returnsMinusOneWhenChannelMissing() {
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "分组1", channelList = ChannelList(listOf(Channel(name = "A")))),
+            )
+        )
+
+        assertEquals(-1, groupList.channelGroupIdx(Channel(name = "不存在")))
+        assertEquals(-1, ChannelGroupList().channelGroupIdx(Channel(name = "不存在")))
     }
 }
