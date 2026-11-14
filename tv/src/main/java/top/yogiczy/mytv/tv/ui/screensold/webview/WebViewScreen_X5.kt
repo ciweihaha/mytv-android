@@ -161,6 +161,9 @@ fun WebViewScreen_X5(
                     it.loadUrl(actualUrl)
                 }
             },
+            // 离开组合时必须销毁：跟系统内核那份（729 轮）同款——X5
+            // WebView 不调 destroy() 同样不释放渲染器等原生资源
+            onRelease = { it.destroy() },
         )
 
         Visibility({ placeholderVisible }) {
