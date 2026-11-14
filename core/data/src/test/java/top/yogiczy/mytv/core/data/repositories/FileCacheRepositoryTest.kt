@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.core.data.repositories
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,6 +41,13 @@ class FileCacheRepositoryTest {
 
         suspend fun getStreamFailing(cacheTime: Long): String =
             getOrRefreshInputStream(cacheTime) { throw RuntimeException("network down") }
+                .readBytes().decodeToString()
+
+        suspend fun getCancelling(cacheTime: Long): String =
+            getOrRefresh(cacheTime) { throw CancellationException("cancelled") }
+
+        suspend fun getStreamCancelling(cacheTime: Long): String =
+            getOrRefreshInputStream(cacheTime) { throw CancellationException("cancelled") }
                 .readBytes().decodeToString()
     }
 
@@ -130,6 +138,26 @@ class FileCacheRepositoryTest {
         runBlocking {
             val repo = TestRepo("test.bin")
             repo.getStreamFailing(0)
+        }
+    }
+
+    @Test(expected = CancellationException::class)
+    fun getOrRefresh_rethrowsCancellationInsteadOfFallingBack() {
+        runBlocking {
+            val repo = TestRepo("test.json")
+            assertEquals("v1", repo.get(Long.MAX_VALUE, "v1"))
+            // 过期后刷新中途被取消：取消不是网络失败，不能拿旧的 v1 顶上、
+            // 把一次取消记成一次成功加载，取消信号要原样抛出去
+            repo.getCancelling(0)
+        }
+    }
+
+    @Test(expected = CancellationException::class)
+    fun getOrRefreshInputStream_rethrowsCancellationInsteadOfFallingBack() {
+        runBlocking {
+            val repo = TestRepo("test.bin")
+            assertEquals("hello", repo.getStream(Long.MAX_VALUE, "hello"))
+            repo.getStreamCancelling(0)
         }
     }
 

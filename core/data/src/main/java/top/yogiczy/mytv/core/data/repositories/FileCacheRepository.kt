@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.core.data.repositories
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.utils.Globals
@@ -96,6 +97,9 @@ abstract class FileCacheRepository(
             setCacheInputStream(refreshOp())
             getCacheInputStream()!!
         } catch (ex: Exception) {
+            // 刷新中途被取消不是刷新失败：取消信号原样抛出去，别拿旧文件顶上、
+            // 把一次取消记成一次成功加载（天光 1658 轮同款问题）
+            if (ex is CancellationException) throw ex
             val stale = getCacheInputStream()
             if (stale != null && stale.available() > 0) stale
             else {
@@ -128,6 +132,9 @@ abstract class FileCacheRepository(
         return try {
             refreshOp().also { setCacheData(it) }
         } catch (ex: Exception) {
+            // 刷新中途被取消不是刷新失败：取消信号原样抛出去，别拿旧数据顶上、
+            // 把一次取消记成一次成功加载（天光 1658 轮同款问题）
+            if (ex is CancellationException) throw ex
             if (!staleData.isNullOrBlank()) staleData else throw ex
         }
     }
