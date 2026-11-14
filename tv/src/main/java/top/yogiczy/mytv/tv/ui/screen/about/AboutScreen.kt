@@ -105,37 +105,6 @@ fun AboutScreen(
             }
 
             item {
-                var visible by remember { mutableStateOf(false) }
-
-                ListItem(
-                    modifier = Modifier.handleKeyEvents(onSelect = { visible = true }),
-                    headlineContent = { Text("讨论交流 Telegram") },
-                    trailingContent = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(Constants.GROUP_TELEGRAM)
-
-                            Icon(
-                                Icons.AutoMirrored.Default.OpenInNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    },
-                    selected = false,
-                    onClick = {},
-                )
-
-                QrcodePopup(
-                    visibleProvider = { visible },
-                    onDismissRequest = { visible = false },
-                    text = Constants.GROUP_TELEGRAM,
-                )
-            }
-
-            item {
                 ListItem(
                     headlineContent = { Text("设备名称") },
                     trailingContent = { Text(Globals.deviceName) },
