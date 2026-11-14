@@ -21,11 +21,6 @@ object Constants {
     const val APP_REPO = "https://github.com/ciweihaha/mytv-android"
 
     /**
-     * 交流群 telegram
-     */
-    const val GROUP_TELEGRAM = "https://t.me/mytv_android_channel"
-
-    /**
      * 订阅源（本 fork 默认用自己的单子，不再用上游未经筛选的大单子；
      * 只影响新装/恢复默认，已装好的配置存在本地、不受影响）
      */
