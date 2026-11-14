@@ -1,11 +1,14 @@
 package top.yogiczy.mytv.tv.ui.screen.update
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
 import java.io.File
@@ -100,5 +103,47 @@ class UpdateViewModelTest {
         } finally {
             file.delete()
         }
+    }
+
+    @Test
+    fun `拉取失败记一次失败、不当成已是最新`() = runBlocking {
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            throw RuntimeException("网络断了")
+        }
+
+        // 失败时 isUpdateAvailable 仍是 false，不靠 checkFailed 区分
+        // 会把“没查到”说成“已是最新”；报错原因写进版本说明里
+        assertTrue(viewModel.checkFailed)
+        assertFalse(viewModel.isUpdateAvailable)
+        assertEquals("网络断了", viewModel.latestRelease.description)
+
+        // finally 里 _isChecking 已复位：失败后还能再查，查到了就是有更新
+        viewModel.checkUpdate("1.0.0", "stable") {
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        assertFalse(viewModel.checkFailed)
+        assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
+    fun `检查中途取消不记失败`() = runBlocking {
+        val viewModel = UpdateViewModel()
+        val gate = CompletableDeferred<GitRelease>()
+        val job = async {
+            viewModel.checkUpdate("1.0.0", "stable") { gate.await() }
+        }
+        delay(200)
+        job.cancel()
+
+        // 取消信号原样抛出来，不记成一次失败、不写进版本说明
+        try {
+            job.await()
+            fail("应抛出取消异常")
+        } catch (ex: CancellationException) {
+            // 预期
+        }
+        assertFalse(viewModel.checkFailed)
+        assertFalse(viewModel.isUpdateAvailable)
     }
 }
