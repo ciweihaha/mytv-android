@@ -127,10 +127,19 @@ object ChannelAlias : Loggable("ChannelAlias") {
     }
 
     private val defaultAlias by lazy {
-        Globals.json.decodeFromString<Map<String, List<String>>>(
-            Globals.resources.openRawResource(R.raw.channel_name_alias).bufferedReader()
-                .use { it.readText() }).also { map ->
-            log.d("加载默认频道名映射表完成，共 ${map.values.sumOf { it.size }} 个映射")
+        // 映射表是锦上添花：资源读不到（单测里 Globals.resources 未初始
+        // 化、或 raw 资源缺失）时用空表兜底，只丢别名/后缀处理、不丢节目
+        // ——原先这里抛错，解析器按条 runCatching 吞掉后每个频道的
+        // display-name 都记不上，整份节目单会被解析成空表
+        runCatching {
+            Globals.json.decodeFromString<Map<String, List<String>>>(
+                Globals.resources.openRawResource(R.raw.channel_name_alias).bufferedReader()
+                    .use { it.readText() }).also { map ->
+                log.d("加载默认频道名映射表完成，共 ${map.values.sumOf { it.size }} 个映射")
+            }
+        }.getOrElse {
+            log.w("加载默认频道名映射表失败，使用空映射", it)
+            emptyMap()
         }
     }
 }
