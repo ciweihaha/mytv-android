@@ -146,4 +146,55 @@ class UpdateViewModelTest {
         assertFalse(viewModel.checkFailed)
         assertFalse(viewModel.isUpdateAvailable)
     }
+
+    @Test
+    fun `下载失败不记已下载、状态复位`() = runBlocking {
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        val file = File.createTempFile("update-test", ".apk")
+        try {
+            viewModel.downloadAndUpdate(file) { _, _, _ ->
+                throw RuntimeException("下载断了")
+            }
+
+            // 下载失败不是下载完成：updateDownloaded 仍是 false，
+            // _isUpdating 在 finally 里复位，之后还能再下
+            assertFalse(viewModel.updateDownloaded)
+            assertFalse(viewModel.isUpdating)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `下载中途取消不记已下载、状态复位`() = runBlocking {
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        val gate = CompletableDeferred<Unit>()
+        val file = File.createTempFile("update-test", ".apk")
+        try {
+            val job = async {
+                viewModel.downloadAndUpdate(file) { _, _, _ -> gate.await() }
+            }
+            delay(200)
+            job.cancel()
+
+            // 取消信号原样抛出来，不弹“下载更新失败”的假报错
+            // （690 轮同款问题）；状态复位，之后还能再下
+            try {
+                job.await()
+                fail("应抛出取消异常")
+            } catch (ex: CancellationException) {
+                // 预期
+            }
+            assertFalse(viewModel.updateDownloaded)
+            assertFalse(viewModel.isUpdating)
+        } finally {
+            file.delete()
+        }
+    }
 }
