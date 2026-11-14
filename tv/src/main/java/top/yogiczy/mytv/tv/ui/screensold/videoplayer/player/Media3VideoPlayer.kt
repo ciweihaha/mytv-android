@@ -53,6 +53,24 @@ import top.yogiczy.mytv.core.util.utils.toHeaders
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import top.yogiczy.mytv.core.data.utils.Logger
 
+/**
+ * 无声重试的错误码：BEHIND_LIVE_WINDOW / DECODING_FAILED /
+ * IO_UNSPECIFIED（原有）+ 瞬时网络错 IO_BAD_HTTP_STATUS（2004：拉列表
+ * 或分片时上游回了错误状态，如 502/503/403）、
+ * IO_NETWORK_CONNECTION_FAILED（2001）、
+ * IO_NETWORK_CONNECTION_TIMEOUT（2002）。ExoPlayer 内部已重试过
+ * 几次才上报，但直接判死刑会让只有一条线路的台永久卡死（CCTV7
+ * 的 2004 就是这么报播放失败的）；同一条线路上再试几次。
+ * 顶层函数方便单元测试直接调用。
+ */
+internal fun isSilentRetryError(errorCode: Int): Boolean =
+    errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ||
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED ||
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+
 @OptIn(UnstableApi::class)
 class Media3VideoPlayer(
     private val context: Context,
@@ -71,10 +89,17 @@ class Media3VideoPlayer(
     private var updatePositionJob: Job? = null
 
     // 无声重试计数：BEHIND_LIVE_WINDOW / DECODING_FAILED / IO_UNSPECIFIED
+    // + 瞬时网络错 IO_BAD_HTTP_STATUS(2004) / IO_NETWORK_CONNECTION_FAILED
+    // (2001) / IO_NETWORK_CONNECTION_TIMEOUT(2002)，见 isSilentRetryError。
     // 出错时原来无条件 seek + prepare；死线（解码一直失败、IO 一直
     // 报错）会无限循环，界面永远只转圈、不报错也不换线。连续 3 次都
     // 到不了 READY 就上报错误，走界面换线逻辑
     private var silentRetryCount = 0
+
+    // 无声重试的退避任务：上游抖动是时间性的，立即重拉可能撞上同一
+    // 次故障，按重试次数递增延迟（第 1 次 1s、第 2 次 2s）。换台或
+    // 释放时取消，过期重试不干扰新频道
+    private var silentRetryJob: Job? = null
 
     private companion object {
         const val MAX_SILENT_RETRY = 3
@@ -358,12 +383,11 @@ class Media3VideoPlayer(
         }
 
         override fun onPlayerError(ex: androidx.media3.common.PlaybackException) {
-            when (ex.errorCode) {
-                // 如果是直播加载位置错误，尝试重新播放；连续多次都到不了
+            when {
+                // 无声重试的错误（见 isSilentRetryError）：如果是直播加载
+                // 位置错误或瞬时网络错，尝试重新播放；连续多次都到不了
                 // READY 说明这条线已死，不再无声重试，上报错误让界面换线
-                androidx.media3.common.PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW,
-                androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED,
-                androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> {
+                isSilentRetryError(ex.errorCode) -> {
                     silentRetryCount++
                     if (silentRetryCount >= MAX_SILENT_RETRY) {
                         silentRetryCount = 0
@@ -374,13 +398,20 @@ class Media3VideoPlayer(
                             )
                         )
                     } else {
-                        videoPlayer.seekToDefaultPosition()
-                        videoPlayer.prepare()
+                        // 退避后同一条线路再试一次：上游抖动是时间性的，
+                        // 立即重拉可能撞上同一次故障（票据刷新、CDN 瞬断）；
+                        // 按重试次数递增延迟（第 1 次 1s、第 2 次 2s）
+                        silentRetryJob?.cancel()
+                        silentRetryJob = coroutineScope.launch {
+                            delay(1000L * silentRetryCount)
+                            videoPlayer.seekToDefaultPosition()
+                            videoPlayer.prepare()
+                        }
                     }
                 }
 
                 // 当解析容器不支持时，尝试使用其他解析容器
-                androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED -> {
+                ex.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED -> {
                     videoPlayer.currentMediaItem?.localConfiguration?.uri?.let {
                         if (contentTypeAttempts[C.CONTENT_TYPE_HLS] != true) {
                             prepare(C.CONTENT_TYPE_HLS)
@@ -398,7 +429,7 @@ class Media3VideoPlayer(
                     }
                 }
 
-                androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED -> {
+                ex.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED -> {
                     if (softDecode == true) {
                         triggerError(
                             PlaybackException(
@@ -642,6 +673,8 @@ class Media3VideoPlayer(
         // 访问已释放的播放器，先停掉
         updatePositionJob?.cancel()
         updatePositionJob = null
+        silentRetryJob?.cancel()
+        silentRetryJob = null
         videoPlayer.removeListener(playerListener)
         videoPlayer.removeAnalyticsListener(metadataListener)
         videoPlayer.removeAnalyticsListener(eventLogger)
@@ -656,6 +689,8 @@ class Media3VideoPlayer(
 
         contentTypeAttempts.clear()
         silentRetryCount = 0
+        silentRetryJob?.cancel()
+        silentRetryJob = null
         currentChannelLine = line
         prepare(null)
     }
