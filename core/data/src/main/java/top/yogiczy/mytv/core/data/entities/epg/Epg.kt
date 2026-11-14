@@ -44,15 +44,23 @@ data class Epg(
             return copy(programmeList = EpgProgrammeList(programmeList.sortedBy { it.startAt }))
         }
 
-        fun Epg.recentProgramme(): EpgProgrammeRecent {
+        /**
+         * 当前与下一个节目。时间可传参、默认当前时间：跟同文件 isLive /
+         * progress 同一个写法，单测才能钉住边界点。
+         *
+         * 边界是左闭右开、与 isLive() 一致：开始那一刻算正在播，结束那一刻
+         * 算已播完。原来结束用 `>` 判，相邻节目共用边界点时（前一个 endAt
+         * 等于后一个 startAt）两个节目都算“命中”，二分查找随手返回哪一个
+         * 都不一定；改成 `>=` 后只有后一个命中，结果才是确定的。
+         */
+        fun Epg.recentProgramme(now: Long = System.currentTimeMillis()): EpgProgrammeRecent {
             if (this == Epg()) return EpgProgrammeRecent()
 
             val t = measureTimedValue {
-                val currentTime = System.currentTimeMillis()
                 val liveProgramIndex = programmeList.binarySearch {
                     when {
-                        currentTime < it.startAt -> 1
-                        currentTime > it.endAt -> -1
+                        now < it.startAt -> 1
+                        now >= it.endAt -> -1
                         else -> 0
                     }
                 }

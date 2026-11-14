@@ -104,6 +104,41 @@ class EpgTest {
     }
 
     @Test
+    fun recentProgramme_boundaryStartIsLive() {
+        // 开始那一刻算正在播（左闭）：与 isLive() 一致
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "第一"),
+                    EpgProgramme(startAt = 2000, endAt = 3000, title = "第二"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1000)
+        assertEquals("第一", recent.now?.title)
+        assertEquals("第二", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_boundaryEndIsNotLive() {
+        // 结束那一刻算已播完（右开）：与 isLive() 一致；相邻节目共用边界点时
+        // 只能命中后一个，不会随手返回前一个
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "第一"),
+                    EpgProgramme(startAt = 2000, endAt = 3000, title = "第二"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(2000)
+        assertEquals("第二", recent.now?.title)
+        assertNull(recent.next)
+    }
+
+    @Test
     fun recentProgramme_afterLast_returnsEmpty() {
         // 当天最后一个节目也播完了：后面没有节目，now 和 next 都为空
         val now = System.currentTimeMillis()
