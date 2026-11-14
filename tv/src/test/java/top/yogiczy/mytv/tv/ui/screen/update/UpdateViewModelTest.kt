@@ -4,9 +4,11 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
+import java.io.File
 
 /**
  * 更新检查（天光 1860 轮姊妹检查）：检查进行中再次检查直接返回，
@@ -41,5 +43,22 @@ class UpdateViewModelTest {
         releaseGate.complete(GitRelease(version = "9.9.9"))
         first.await()
         assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
+    fun `没更新可下时直接跳过下载`() = runBlocking {
+        // 没查过更新（isUpdateAvailable 为 false）：第一行守卫直接返回，
+        // 一次也不下载、也不删文件。这档之前没有任何单测——没这行守卫时
+        // 这里会直接下 _latestRelease 里的默认空地址，还会先把旧文件删掉
+        val viewModel = UpdateViewModel()
+        val file = File.createTempFile("update-test", ".apk").apply { writeText("旧包") }
+        try {
+            viewModel.downloadAndUpdate(file)
+
+            assertFalse(viewModel.updateDownloaded)
+            assertTrue(file.exists())
+        } finally {
+            file.delete()
+        }
     }
 }
