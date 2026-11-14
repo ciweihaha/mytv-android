@@ -277,6 +277,17 @@ object Configs {
         CLOUD_SYNC_WEBDAV_PASSWORD,
     }
 
+    /**
+     * 读 JSON 配置：存储的 JSON 损坏（降级后字段缺失、手动改 SP、写一半断电）
+     * 时 decode 会抛异常，这些 getter 在启动路径上会被访问，直接闪退且无法
+     * 自愈；空白或解码失败时回退默认值。
+     */
+    private inline fun <reified T> decodeOrDefault(key: KEY, default: T): T {
+        val raw = SP.getString(key.name, "")
+        if (raw.isBlank()) return default
+        return runCatching { Globals.json.decodeFromString<T>(raw) }.getOrElse { default }
+    }
+
     /** ==================== 应用 ==================== */
     /** 开机自启 */
     var appBootLaunch: Boolean
@@ -327,17 +338,12 @@ object Configs {
     /** ==================== 订阅源 ==================== */
     /** 当前订阅源 */
     var iptvSourceCurrent: IptvSource
-        get() = Globals.json.decodeFromString(SP.getString(KEY.IPTV_SOURCE_CURRENT.name, "")
-            .ifBlank {
-                Globals.json.encodeToString(Constants.IPTV_SOURCE_LIST.first())
-            })
+        get() = decodeOrDefault(KEY.IPTV_SOURCE_CURRENT, Constants.IPTV_SOURCE_LIST.first())
         set(value) = SP.putString(KEY.IPTV_SOURCE_CURRENT.name, Globals.json.encodeToString(value))
 
     /** 订阅源列表 */
     var iptvSourceList: IptvSourceList
-        get() = Globals.json.decodeFromString(
-            SP.getString(KEY.IPTV_SOURCE_LIST.name, Globals.json.encodeToString(Constants.IPTV_SOURCE_LIST))
-        )
+        get() = decodeOrDefault(KEY.IPTV_SOURCE_LIST, Constants.IPTV_SOURCE_LIST)
         set(value) = SP.putString(KEY.IPTV_SOURCE_LIST.name, Globals.json.encodeToString(value))
 
     /** 直播源缓存时间（毫秒） */
@@ -394,12 +400,7 @@ object Configs {
 
     /** 订阅源频道收藏列表 */
     var iptvChannelFavoriteList: ChannelFavoriteList
-        get() = Globals.json.decodeFromString(
-            SP.getString(
-                KEY.IPTV_CHANNEL_FAVORITE_LIST.name,
-                Globals.json.encodeToString(ChannelFavoriteList())
-            )
-        )
+        get() = decodeOrDefault(KEY.IPTV_CHANNEL_FAVORITE_LIST, ChannelFavoriteList())
         set(value) = SP.putString(
             KEY.IPTV_CHANNEL_FAVORITE_LIST.name,
             Globals.json.encodeToString(value)
@@ -407,12 +408,7 @@ object Configs {
 
     /** 上一次播放频道 */
     var iptvChannelLastPlay: Channel
-        get() = Globals.json.decodeFromString(
-            SP.getString(
-                KEY.IPTV_CHANNEL_LAST_PLAY.name,
-                Globals.json.encodeToString(Channel.EMPTY)
-            )
-        )
+        get() = decodeOrDefault(KEY.IPTV_CHANNEL_LAST_PLAY, Channel.EMPTY)
         set(value) = SP.putString(
             KEY.IPTV_CHANNEL_LAST_PLAY.name,
             Globals.json.encodeToString(value)
@@ -457,21 +453,18 @@ object Configs {
 
     /** 当前节目单来源 */
     var epgSourceCurrent: EpgSource
-        get() = Globals.json.decodeFromString(SP.getString(KEY.EPG_SOURCE_CURRENT.name, "")
-            .ifBlank {
-                if (Constants.EPG_SOURCE_LIST.isEmpty()) {
-                    Globals.json.encodeToString(EpgSource)
-                } else {
-                    Globals.json.encodeToString(Constants.EPG_SOURCE_LIST.first())
-                }
-            })
+        // 原先空列表分支写的是 encodeToString(EpgSource)，传的是伴生对象而非
+        // 实例（无序列化器）；改成空实例 EpgSource()
+        get() = decodeOrDefault(
+            KEY.EPG_SOURCE_CURRENT,
+            if (Constants.EPG_SOURCE_LIST.isEmpty()) EpgSource()
+            else Constants.EPG_SOURCE_LIST.first()
+        )
         set(value) = SP.putString(KEY.EPG_SOURCE_CURRENT.name, Globals.json.encodeToString(value))
 
     /** 节目单来源列表 */
     var epgSourceList: EpgSourceList
-        get() = Globals.json.decodeFromString(
-            SP.getString(KEY.EPG_SOURCE_LIST.name, Globals.json.encodeToString(EpgSourceList()))
-        )
+        get() = decodeOrDefault(KEY.EPG_SOURCE_LIST, EpgSourceList())
         set(value) = SP.putString(KEY.EPG_SOURCE_LIST.name, Globals.json.encodeToString(value))
 
     /** 节目单刷新时间阈值（小时） */
@@ -486,12 +479,7 @@ object Configs {
 
     /** 节目预约列表 */
     var epgChannelReserveList: EpgProgrammeReserveList
-        get() = Globals.json.decodeFromString(
-            SP.getString(
-                KEY.EPG_CHANNEL_RESERVE_LIST.name,
-                Globals.json.encodeToString(EpgProgrammeReserveList())
-            )
-        )
+        get() = decodeOrDefault(KEY.EPG_CHANNEL_RESERVE_LIST, EpgProgrammeReserveList())
         set(value) = SP.putString(
             KEY.EPG_CHANNEL_RESERVE_LIST.name,
             Globals.json.encodeToString(value)
@@ -535,12 +523,7 @@ object Configs {
 
     /** 播放器字幕样式 */
     var uiVideoPlayerSubtitle: VideoPlayerSubtitleStyle
-        get() = Globals.json.decodeFromString(
-                SP.getString(
-                    KEY.UI_VIDEO_PLAYER_SUBTITLE.name,
-                    Globals.json.encodeToString(VideoPlayerSubtitleStyle())
-                )
-            )
+        get() = decodeOrDefault(KEY.UI_VIDEO_PLAYER_SUBTITLE, VideoPlayerSubtitleStyle())
         set(value) = SP.putString(
             KEY.UI_VIDEO_PLAYER_SUBTITLE.name,
             Globals.json.encodeToString(value)
@@ -690,7 +673,9 @@ object Configs {
     /** 当前应用主题 */
     var themeAppCurrent: AppThemeDef?
         get() = SP.getString(KEY.THEME_APP_CURRENT.name, "").let {
-            if (it.isBlank()) null else Globals.json.decodeFromString(it)
+            // 存储的主题 JSON 损坏时回退 null（默认主题），而不是抛异常闪退
+            if (it.isBlank()) null
+            else runCatching { Globals.json.decodeFromString<AppThemeDef>(it) }.getOrNull()
         }
         set(value) = SP.putString(
             KEY.THEME_APP_CURRENT.name,
