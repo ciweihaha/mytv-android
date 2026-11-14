@@ -408,6 +408,27 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_extinfBlankNameWithoutTvgName_skipped() = runBlocking {
+        // 残缺行：逗号后显示名空白、又没有 tvg-name，直接跳过；且下一行
+        // URL 不会误填到上一条频道上造成重复——与“没逗号且没 tvg-name”
+        // 那档走同一条回落链，但“逗号后空白”这一步之前没用例钉过
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 group-title="央视",
+            http://example.com/garbage.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-2", channels[1].name)
+        assertTrue(channels.none { it.url == "http://example.com/garbage.m3u8" })
+    }
+
+    @Test
     fun m3u_mixedCaseAttributeNames_areRecognized() = runBlocking {
         // 属性名大小写混写：有源把属性写成 TVG-NAME / Tvg-Name /
         // GROUP-TITLE；区分大小写时 tvg-name、group-title 全取不到，
