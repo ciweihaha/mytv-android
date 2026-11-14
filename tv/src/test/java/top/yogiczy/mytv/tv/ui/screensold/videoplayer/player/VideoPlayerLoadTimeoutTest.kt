@@ -1,0 +1,73 @@
+package top.yogiczy.mytv.tv.ui.screensold.videoplayer.player
+
+import android.view.SurfaceView
+import android.view.TextureView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
+
+/**
+ * 加载超时（天光 1833 轮姊妹检查）：切台/重试会再次 prepare，
+ * 旧那次挂起的加载超时必须取消，否则旧超时会往新流里报一次
+ * 多余的 LOAD_TIMEOUT。
+ *
+ * 超时时间走参数传（默认读设置里的加载超时）：单测里没有
+ * Android 环境，读设置会去碰 SP，传 100 毫秒就测得到。
+ */
+class VideoPlayerLoadTimeoutTest {
+
+    /** 只为测试搭的空播放器：把基类的触发口子公开出来，不碰 Android 框架。 */
+    private class FakeVideoPlayer : VideoPlayer(CoroutineScope(Dispatchers.Unconfined)) {
+        override fun prepare(line: ChannelLine) {}
+        override fun play() {}
+        override fun pause() {}
+        override fun seekTo(position: Long) {}
+        override fun seekBy(deltaMs: Long) {}
+        override fun setVolume(volume: Float) {}
+        override fun getVolume(): Float = 1f
+        override fun selectVideoTrack(track: Metadata.Video?) {}
+        override fun selectAudioTrack(track: Metadata.Audio?) {}
+        override fun selectSubtitleTrack(track: Metadata.Subtitle?) {}
+        override fun setVideoSurfaceView(surfaceView: SurfaceView) {}
+        override fun setVideoTextureView(textureView: TextureView) {}
+
+        fun emitPrepared(timeoutMs: Long) = triggerPrepared(timeoutMs)
+        fun emitError(error: PlaybackException?) = triggerError(error)
+    }
+
+    @Test
+    fun `单次 prepare 超时只报一次 LOAD_TIMEOUT`() {
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+
+        Thread.sleep(1000)
+        assertEquals(
+            listOf(VideoPlayer.PlaybackException.LOAD_TIMEOUT),
+            errors,
+        )
+    }
+
+    @Test
+    fun `重复 prepare 取消旧加载超时、只报一次 LOAD_TIMEOUT`() {
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        // 切台/重试会再次 prepare：旧那次挂起的加载超时必须取消，
+        // 否则旧超时会往新流里报一次多余的 LOAD_TIMEOUT
+        player.emitPrepared(timeoutMs = 100L)
+        Thread.sleep(50)
+        player.emitPrepared(timeoutMs = 100L)
+
+        Thread.sleep(1000)
+        assertEquals(
+            listOf(VideoPlayer.PlaybackException.LOAD_TIMEOUT),
+            errors,
+        )
+    }
+}

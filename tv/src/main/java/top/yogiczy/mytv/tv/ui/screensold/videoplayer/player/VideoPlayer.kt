@@ -116,11 +116,11 @@ abstract class VideoPlayer(
         onBufferingListeners.forEach { it(buffering) }
     }
 
-    protected fun triggerPrepared() {
+    protected fun triggerPrepared(timeoutMs: Long = Configs.videoPlayerLoadTimeout) {
         onPreparedListeners.forEach { it() }
         loadTimeoutJob?.cancel()
         loadTimeoutJob = coroutineScope.launch {
-            delay(Configs.videoPlayerLoadTimeout)
+            delay(timeoutMs)
             triggerError(PlaybackException.LOAD_TIMEOUT)
         }
         interruptJob?.cancel()
