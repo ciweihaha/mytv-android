@@ -89,6 +89,32 @@ class EpgListTest {
     }
 
     @Test
+    fun match_sameName_returnsFirst() {
+        // 同名节目单有两条：按名查留第一次出现的那份
+        val list = EpgList(
+            listOf(
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "cctv1b", channelList = listOf("CCTV-1 综合")),
+            )
+        )
+        val matched = list.match(channel("CCTV-1 综合"))
+        assertEquals("cctv1", matched?.id)
+    }
+
+    @Test
+    fun match_sameId_returnsFirst() {
+        // 同 id 节目单有两条：按 id 查留第一次出现的那份
+        val list = EpgList(
+            listOf(
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合", "CCTV-1 高清")),
+            )
+        )
+        val matched = list.match(channel("CCTV综合", "cctv1"))
+        assertEquals(listOf("CCTV-1 综合"), matched?.channelList)
+    }
+
+    @Test
     fun isSameEpgChannelName_digitsAndSpacesIgnored() {
         assertTrue(isSameEpgChannelName("CCTV综合", "CCTV-1 综合"))
         // 空白与“-”只是写法差别，归一化后相同、数字串也相同
