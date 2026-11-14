@@ -37,9 +37,12 @@ fun ProgressBar(
             modifier = Modifier
                 // 比例钳到 0~1：fillMaxWidth 要求比例在 0~1 之间，超了会布局异常；
                 // 现在两处调用方各自都钳过了（节目进度、播放位置），但这个组件是
-                // 共用的，钳在里面、以后再有调用方就不用各钳一次、也不会漏
+                // 共用的，钳在里面、以后再有调用方就不用各钳一次、也不会漏。
+                // NaN 也要拦：coerceIn 拦不住 NaN（NaN 跟 0/1 比都是 false、
+                // 原样返回），fillMaxWidth(NaN) 同样布局异常；现在两处调用方
+                // 都不会传 NaN，这里是给以后调用方的兜底。
                 .background(colors.progressColor, RoundedCornerShape(2.dp))
-                .fillMaxWidth(process.coerceIn(0f, 1f))
+                .fillMaxWidth((if (process.isNaN()) 0f else process).coerceIn(0f, 1f))
                 .fillMaxHeight()
         )
     }
