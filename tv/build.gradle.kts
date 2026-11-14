@@ -94,6 +94,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    testOptions {
+        // 单元测试里 android.util.Log 等系统调用返回默认值而不是抛 Stub!，
+        // 否则用到 Logger 的 ViewModel 无法在 JVM 单测里跑（core/data 同款）
+        unitTests.isReturnDefaultValues = true
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true

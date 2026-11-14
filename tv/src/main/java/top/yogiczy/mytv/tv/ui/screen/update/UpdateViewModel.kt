@@ -53,7 +53,11 @@ class UpdateViewModel(
     val latestRelease get() = _latestRelease
 
 
-    suspend fun checkUpdate(currentVersion: String, channel: String) {
+    suspend fun checkUpdate(
+        currentVersion: String,
+        channel: String,
+        fetchLatestRelease: suspend (String) -> GitRelease = { GitRepository().latestRelease(it) },
+    ) {
         if (_isChecking) return
         if (_isUpdateAvailable) return
 
@@ -63,7 +67,7 @@ class UpdateViewModel(
             _checkFailed = false
             _isChecking = true
             val releaseUrl = Constants.GIT_RELEASE_LATEST_URL[channel] ?: return
-            _latestRelease = GitRepository().latestRelease(releaseUrl)
+            _latestRelease = fetchLatestRelease(releaseUrl)
             _isUpdateAvailable = _latestRelease.version.compareVersion(currentVersion) > 0
 
             log.i("最新版本: ${_latestRelease.version}")
