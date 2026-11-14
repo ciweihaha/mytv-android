@@ -134,7 +134,9 @@ private fun ChannelsChannelItemLogoWithPreview(
     val showChannelPreview = settingsVM.uiShowChannelPreview
 
     var preview by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(channel) {
+    // 开关也要进 key：只认 channel 时，在设置页开关预览后回来不重跑，
+    // 关了还继续显示旧预览、开了也要等换台才出预览
+    LaunchedEffect(channel, showChannelPreview) {
         preview = null
 
         if (showChannelPreview) {
