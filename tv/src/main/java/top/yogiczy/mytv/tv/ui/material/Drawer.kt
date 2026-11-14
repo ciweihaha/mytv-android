@@ -20,6 +20,7 @@ import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.theme.colors
 import top.yogiczy.mytv.tv.ui.tooling.PreviewWithLayoutGrids
+import top.yogiczy.mytv.tv.ui.utils.backHandler
 import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
 
 @Composable
@@ -64,6 +65,12 @@ fun Drawer(
                     MaterialTheme.shapes.large,
                 )
                 .clickableNoIndication { }
+                // 返回键关抽屉：之前只有 8 处调用方自己在 modifier 里接了
+                // backHandler，另外 5 处（多画面操作/移动、设置源操作、节目
+                // 预约）没接，按返回会直接退整页甚至退应用；统一收到组件里。
+                // 有关闭回调才吃键、没回调不拦事件；已接了的调用方先吃到键、
+                // 回调与这里相同，行为不变。
+                .backHandler({ onDismissRequest != null }) { onDismissRequest?.invoke() }
                 .padding(20.dp),
         ) {
             Column {
