@@ -66,11 +66,16 @@ data class Epg(
 
                 if (liveProgramIndex > -1) EpgProgrammeRecent(
                     now = programmeList[liveProgramIndex],
-                    // 下一个节目跳过已经播完的重叠脏数据：直接取下一条会把
-                    // 已经播完的节目显示成“稍后播放”；正常首尾相接的数据里
-                    // 下一条本来就没播完，这条判断不改变行为
+                    // 下一个节目优先取开始时间在当前节目结束时刻之后、
+                    // 最早的那一档（正点接档）；重叠的脏数据开始得早、哪怕还没
+                    // 播完也不能抢在正点下一档前面。没有正点接档时再退一步，
+                    // 取还没播完的最早那档（重叠但没播完的仍算下一个节目）；
+                    // 已经播完的重叠脏数据两档都不要：直接取下一条会把已经播完
+                    // 的节目显示成“稍后播放”
                     next = programmeList.drop(liveProgramIndex + 1)
-                        .firstOrNull { it.endAt > now }
+                        .firstOrNull { it.startAt >= programmeList[liveProgramIndex].endAt }
+                        ?: programmeList.drop(liveProgramIndex + 1)
+                            .firstOrNull { it.endAt > now }
                 )
                 // 当前时间落在两个节目之间的空档（或当天第一个节目还没
                 // 开始）：没有正在播的节目，但下一个节目是已知的；取开始

@@ -177,6 +177,27 @@ class EpgTest {
     }
 
     @Test
+    fun recentProgramme_nextPrefersOnTimeOverOverlapping() {
+        // 正在播 + 重叠档（开始在当前结束之前）+ 正点下一档（开始正好
+        // 等于当前结束）：下一档应是正点那档，不是重叠那档——
+        // 正点接档非空时不走“还没播完就当下一档”的退路；上一条用例
+        // （只有重叠档时仍算下一档）分不出这一档
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000000, endAt = 1020000, title = "正在播"),
+                    EpgProgramme(startAt = 1010000, endAt = 1015000, title = "重叠档"),
+                    EpgProgramme(startAt = 1020000, endAt = 1030000, title = "正点下一档"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1000000)
+        assertEquals("正在播", recent.now?.title)
+        assertEquals("正点下一档", recent.next?.title)
+    }
+
+    @Test
     fun recentProgramme_atExactEndOfLast_returnsEmpty() {
         // 最后一档结束那一刻：正在播与下一个都为空（右开）；旧比较器下会
         // 把最后一档当成正在播
