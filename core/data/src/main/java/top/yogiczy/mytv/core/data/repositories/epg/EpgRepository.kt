@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
+import top.yogiczy.mytv.core.data.entities.epg.hasLiveProgramme
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.network.HttpException
 import top.yogiczy.mytv.core.data.network.HttpStatusException
@@ -45,10 +46,19 @@ class EpgRepository(private val source: EpgSource) :
      */
     suspend fun getEpgList(): EpgList = withContext(Dispatchers.Default) {
         try {
-            val xmlJson = getOrRefresh({ lastModified, _ -> isExpired(lastModified) }) { refresh() }
+            var xmlJson = getOrRefresh({ lastModified, _ -> isExpired(lastModified) }) { refresh() }
+            var epgList = Globals.json.decodeFromString<EpgList>(xmlJson)
 
-            return@withContext Globals.json.decodeFromString<EpgList>(xmlJson).also { epgList ->
-                log.i("加载节目单（${source.name}）：${epgList.size}个频道，${epgList.sumOf { it.programmeList.size }}个节目")
+            // 凌晨节目单文件更新前拉的缓存只有昨天节目：日期没过期、但一个
+            // 正在播的节目都没有；按过期处理再拉一次——文件更新后能拿到今天的；
+            // 更新前再拉也还是旧文件，只多一次请求、不断网不报错
+            if (!epgList.hasLiveProgramme()) {
+                xmlJson = getOrRefresh({ _, _ -> true }) { refresh() }
+                epgList = Globals.json.decodeFromString<EpgList>(xmlJson)
+            }
+
+            return@withContext epgList.also { list ->
+                log.i("加载节目单（${source.name}）：${list.size}个频道，${list.sumOf { it.programmeList.size }}个节目")
             }
         } catch (ex: Exception) {
             log.e("加载节目单（${source.name}）失败", ex)

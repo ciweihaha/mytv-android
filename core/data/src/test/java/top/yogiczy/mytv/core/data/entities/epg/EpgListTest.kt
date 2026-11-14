@@ -111,4 +111,62 @@ class EpgListTest {
     fun isSameEpgChannelName_differentName_rejected() {
         assertFalse(isSameEpgChannelName("CCTV综合", "湖南卫视"))
     }
+
+    private fun programmeListWith(vararg programmes: EpgProgramme) =
+        EpgList(listOf(Epg(id = "cctv1", programmeList = EpgProgrammeList(programmes.toList()))))
+
+    @Test
+    fun hasLiveProgramme_liveProgrammePresent_returnsTrue() {
+        // 有节目正在播：凌晨缓存是昨天文件时一个都没有，靠它判定过期
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now - 1000, endAt = now + 1000, title = "正在播"),
+        )
+        assertTrue(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_allProgrammesInPast_returnsFalse() {
+        // 全是过去的节目：昨天文件的典型样子，判定过期、重新拉一次
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now - 3000, endAt = now - 2000, title = "已播完"),
+            EpgProgramme(startAt = now - 2000, endAt = now - 1000, title = "已播完"),
+        )
+        assertFalse(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_allProgrammesInFuture_returnsFalse() {
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now + 1000, endAt = now + 2000, title = "还没开始"),
+        )
+        assertFalse(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_emptyList_returnsFalse() {
+        assertFalse(EpgList().hasLiveProgramme(1_700_000_000_000L))
+    }
+
+    @Test
+    fun hasLiveProgramme_programmeEndingNow_returnsFalse() {
+        // 右开：结束时间正好是现在，不算正在播
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now - 1000, endAt = now, title = "刚结束"),
+        )
+        assertFalse(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_programmeStartingNow_returnsTrue() {
+        // 左闭：开始时间正好是现在，算正在播
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now, endAt = now + 1000, title = "刚开始"),
+        )
+        assertTrue(list.hasLiveProgramme(now))
+    }
 }
