@@ -1,10 +1,10 @@
 package top.yogiczy.mytv.core.data.repositories.epg
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -167,10 +167,22 @@ class EpgRepositoryTest {
         val result = repo.getEpgList()
 
         // 结果是服务端的新节目、不是旧缓存；第一次读缓存没走网络，强制
-        // 刷新只请求了一次；新内容也写回了缓存文件
-        assertEquals(listOf("正在播"), result.flatMap { it.programmeList.map { p -> p.title } })
-        assertEquals(1, server.hits.get())
-        assertTrue(File(Globals.cacheDir, source.cacheFileName("json")).readText().contains("正在播"))
+        // 刷新只请求了一次；新内容也写回了缓存文件（按解码后的内容断言，
+        // 不直接比原始文本：编码器对中文是否转义与实现有关）
+        assertEquals(
+            "无正在播节目时应强制刷新、返回服务端新节目",
+            listOf("正在播"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+        assertEquals("强制刷新应只请求一次", 1, server.hits.get())
+        val cached = Globals.json.decodeFromString<EpgList>(
+            File(Globals.cacheDir, source.cacheFileName("json")).readText()
+        )
+        assertEquals(
+            "缓存文件应被新节目单覆盖",
+            listOf("正在播"),
+            cached.flatMap { it.programmeList.map { p -> p.title } },
+        )
     }
 
     @Test
@@ -189,7 +201,11 @@ class EpgRepositoryTest {
 
         val result = repo.getEpgList()
 
-        assertEquals(listOf("缓存里的节目"), result.flatMap { it.programmeList.map { p -> p.title } })
-        assertEquals(0, server.hits.get())
+        assertEquals(
+            "缓存里有正在播的节目时应直接用缓存",
+            listOf("缓存里的节目"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+        assertEquals("用缓存时不应走网络", 0, server.hits.get())
     }
 }
