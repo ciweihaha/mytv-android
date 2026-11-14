@@ -83,7 +83,11 @@ class UpdateViewModel(
         }
     }
 
-    suspend fun downloadAndUpdate(latestFile: File) {
+    suspend fun downloadAndUpdate(
+        latestFile: File,
+        download: suspend (String, String, ((Int) -> Unit)?) -> Unit =
+            { url, path, cb -> Downloader.downloadTo(url, path, cb) },
+    ) {
         if (!_isUpdateAvailable) return
         if (_isUpdating) return
         if (latestFile.exists()) {
@@ -101,7 +105,7 @@ class UpdateViewModel(
             _isUpdating = true
             _updateDownloaded = false
 
-            Downloader.downloadTo(_latestRelease.downloadUrl, latestFile.path) {
+            download(_latestRelease.downloadUrl, latestFile.path) {
                 Snackbar.show(
                     "正在下载更新: $it%",
                     leadingLoading = true,

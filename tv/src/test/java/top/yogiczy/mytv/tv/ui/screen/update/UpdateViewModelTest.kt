@@ -61,4 +61,44 @@ class UpdateViewModelTest {
             file.delete()
         }
     }
+
+    @Test
+    fun `下载进行中再次下载直接返回不重复下载`() = runBlocking {
+        val viewModel = UpdateViewModel()
+        // 先查出有更新（走 768 轮的可注入拉取函数，不联网）
+        viewModel.checkUpdate("1.0.0", "stable") {
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        assertTrue(viewModel.isUpdateAvailable)
+
+        val started = CompletableDeferred<Unit>()
+        val releaseGate = CompletableDeferred<Unit>()
+        var secondDownloadCalls = 0
+        val file = File.createTempFile("update-test", ".apk")
+
+        try {
+            // 第一轮下载卡在下载上：_isUpdating 已置 true
+            val first = async {
+                viewModel.downloadAndUpdate(file) { _, _, _ ->
+                    started.complete(Unit)
+                    releaseGate.await()
+                }
+            }
+            started.await()
+
+            // 正在下时再调一次：应直接返回，第二次下载一次也不调——
+            // 没这行守卫时两次下载会并行写同一个文件
+            viewModel.downloadAndUpdate(file) { _, _, _ ->
+                secondDownloadCalls++
+            }
+            assertEquals(0, secondDownloadCalls)
+
+            releaseGate.complete(Unit)
+            first.await()
+            assertTrue(viewModel.updateDownloaded)
+            assertFalse(viewModel.isUpdating)
+        } finally {
+            file.delete()
+        }
+    }
 }
