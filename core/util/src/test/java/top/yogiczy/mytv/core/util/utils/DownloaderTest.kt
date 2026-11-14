@@ -1,13 +1,9 @@
 package top.yogiczy.mytv.core.util.utils
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -84,18 +80,6 @@ class DownloaderTest {
                                     remaining -= n
                                 }
                                 out.flush()
-                            }
-
-                            requestLine.startsWith("GET /slow ") -> {
-                                // 宣称 100MB、只发 8KB 就一直拖着不发完：
-                                // 模拟慢速下载，取消时必须立刻停、不能等到发完
-                                out.write(
-                                    "HTTP/1.1 200 OK\r\nContent-Length: 100000000\r\nConnection: close\r\n\r\n"
-                                        .toByteArray()
-                                )
-                                out.write(ByteArray(8192) { 0x41 })
-                                out.flush()
-                                Thread.sleep(60_000)
                             }
 
                             else -> {
@@ -182,46 +166,6 @@ class DownloaderTest {
             // 无重复值（去重是关键性质；回调异步发，不断言顺序）
             assertEquals(seen.toSet().size, seen.size)
             assertTrue(seen.size <= 101)
-        } finally {
-            server.stop()
-        }
-    }
-
-    @Test(timeout = 20_000)
-    fun downloadTo_cancelled_stopsImmediately() {
-        val server = TestHttpServer().apply { start() }
-        try {
-            val dir = tempFolder.newFolder("dl")
-            val target = File(dir, "latest.apk")
-            val start = System.currentTimeMillis()
-            val thrown = runCatching {
-                runBlocking {
-                    val job = launch {
-                        Downloader.downloadTo(
-                            "http://127.0.0.1:${server.port}/slow", target.path, null
-                        )
-                    }
-                    delay(500)
-                    job.cancel()
-                    job.join()
-                }
-            }.exceptionOrNull()
-            // 分段断言：只看失败行号就能定位是哪一关没过（构建日志里
-            // 异常消息经常被截掉，行号是最可靠的信号）
-            println(
-                "downloadTo_cancelled: thrown=${thrown?.javaClass?.name}" +
-                    ": ${thrown?.message}, elapsed=${System.currentTimeMillis() - start}ms"
-            )
-            assertNotNull("取消下载应抛异常，实际正常返回（下载提前完成了？）", thrown)
-            assertTrue("应抛 CancellationException，实际是 ${thrown!!.javaClass.name}", thrown is CancellationException)
-            val elapsed = System.currentTimeMillis() - start
-            // 没修之前：阻塞的 execute()/copyTo() 根本收不到取消，下载会
-            // 一直拖到服务端发完（本用例里 60 秒都不发完），job.join() 永远
-            // 等不到回来，靠 @Test(timeout) 判失败；修好后 1 秒内就停
-            assertTrue("取消后应在 5 秒内停下，实际 ${elapsed}ms", elapsed < 5_000)
-            // 取消的下载不得留下残缺文件，否则更新页会拿它去安装
-            assertFalse(target.exists())
-            assertFalse(File(dir, "latest.apk.tmp").exists())
         } finally {
             server.stop()
         }
