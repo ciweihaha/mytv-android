@@ -6,7 +6,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.RequestBody.Companion.toRequestBody
-import top.yogiczy.mytv.core.data.network.request
+import top.yogiczy.mytv.core.data.network.requestStrict
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.Loggable
 import top.yogiczy.mytv.tv.sync.CloudSyncData
@@ -17,7 +17,7 @@ class GithubGistSyncRepository(
 ) : CloudSyncRepository, Loggable("GithubGistSyncRepository") {
     override suspend fun push(data: CloudSyncData): Boolean {
         try {
-            return "https://api.github.com/gists/${gistId}".request({ builder ->
+            return "https://api.github.com/gists/${gistId}".requestStrict({ builder ->
                 builder
                     .header("Authorization", "Bearer $token")
                     .header("X-GitHub-Api-Version", "2022-11-28")
@@ -51,7 +51,7 @@ class GithubGistSyncRepository(
 
     override suspend fun pull(): CloudSyncData {
         try {
-            return "https://api.github.com/gists/${gistId}".request({ builder ->
+            return "https://api.github.com/gists/${gistId}".requestStrict({ builder ->
                 builder
                     .header("Authorization", "Bearer $token")
                     .header("X-GitHub-Api-Version", "2022-11-28")
@@ -64,7 +64,7 @@ class GithubGistSyncRepository(
                         file["raw_url"]?.jsonPrimitive?.content?.let { rawUrl ->
                             // 大文件走 raw 链接拉取：同样用统一的 OkHttp 请求，
                             // 原先 URL.readText() 无超时，服务端假死时会无限挂住
-                            val text = rawUrl.request { body -> body.string() }
+                            val text = rawUrl.requestStrict { body -> body.string() }
                                 ?: throw Exception("拉取云端失败：服务器返回空数据")
                             Globals.json.decodeFromString<CloudSyncData>(text)
                         }
