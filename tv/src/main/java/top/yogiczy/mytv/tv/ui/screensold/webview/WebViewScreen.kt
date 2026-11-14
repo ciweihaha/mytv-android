@@ -147,6 +147,10 @@ fun WebViewScreen(
                     it.loadUrl(actualUrl)
                 }
             },
+            // 离开组合时必须销毁：WebView 不调 destroy() 不会释放渲染器
+            // 等原生资源；切出台（Visibility 收起）或播放模式一变（外层
+            // key 换）都会重建一个，不销毁就越积越多
+            onRelease = { it.destroy() },
         )
 
         Visibility({ placeholderVisible }) {
