@@ -3,7 +3,7 @@ package top.yogiczy.mytv.core.util.utils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,10 +52,19 @@ object Downloader {
             val tmpFile = File(targetFile.absoluteFile.parent, "${targetFile.name}.tmp")
             // 取消下载立刻停下来：协程取消只在挂起点生效，OkHttp 的
             // execute() 与 copyTo() 都是阻塞调用、取消送不到；以前用户按
-            // 返回离开更新页，下载会在后台把整个安装包下完才停。父协程一取
-            // 消就顺手取消这次请求，读流立刻抛错、下载马上停（天光 1673 轮同款问题）
+            // 返回离开更新页，下载会在后台把整个安装包下完才停。守望协程在
+            // 父协程一取消就顺手取消这次请求，读流立刻抛错、下载马上停
+            // （天光 1673 轮同款做法）。注意不能用 Job.invokeOnCompletion：
+            // 它只在任务结束时才触发，等下载完才触发就晚了，拦不住阻塞调用；
+            // invokeOnCancellation 又不是公开接口，所以用守望协程来触发
             val call = client.newCall(request)
-            val cancelHandle = coroutineContext[Job]?.invokeOnCompletion { call.cancel() }
+            val watchdog = launch {
+                try {
+                    delay(Long.MAX_VALUE)
+                } catch (_: CancellationException) {
+                    call.cancel()
+                }
+            }
             try {
                 val response = try {
                     call.execute()
@@ -90,7 +99,7 @@ object Downloader {
                 }
                 throw ex
             } finally {
-                cancelHandle?.dispose()
+                watchdog.cancel()
             }
         }
 
