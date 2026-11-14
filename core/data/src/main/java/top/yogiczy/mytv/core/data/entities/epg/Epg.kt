@@ -49,38 +49,34 @@ data class Epg(
          * progress 同一个写法，单测才能钉住边界点。
          *
          * 边界是左闭右开、与 isLive() 一致：开始那一刻算正在播，结束那一刻
-         * 算已播完。原来结束用 `>` 判，相邻节目共用边界点时（前一个 endAt
-         * 等于后一个 startAt）两个节目都算“命中”，二分查找随手返回哪一个
-         * 都不一定；改成 `>=` 后只有后一个命中，结果才是确定的。
+         * 算已播完。原来是二分查找加 `>` 判结束，相邻节目共用边界点时两
+         * 个节目都算“命中”、随手返回哪一个都不一定；重叠的脏数据还会让
+         * 二分查找直接错过正在播的节目。改成顺序找加 `>=` 判结束。
          */
         fun Epg.recentProgramme(now: Long = System.currentTimeMillis()): EpgProgrammeRecent {
             if (this == Epg()) return EpgProgrammeRecent()
 
             val t = measureTimedValue {
-                val liveProgramIndex = programmeList.binarySearch {
-                    when {
-                        now < it.startAt -> 1
-                        now >= it.endAt -> -1
-                        else -> 0
-                    }
-                }
+                // 顺序找，不用二分查找：节目单源头偶尔会给出互相重叠的节目，
+                // 那时“正在播”在开始时间顺序里不是单调的，二分查找可能直接
+                // 错过正在播的节目（返回正在播为空）；一天的节目只有几十条，
+                // 顺序找的开销可以忽略
+                val liveProgramIndex =
+                    programmeList.indexOfFirst { now >= it.startAt && now < it.endAt }
 
                 if (liveProgramIndex > -1) EpgProgrammeRecent(
                     now = programmeList[liveProgramIndex],
-                    // 下一个节目跳过已经播完的重叠脏数据：节目单源头偶尔会给
-                    // 出互相重叠的节目，直接取下一条会把已经播完的节目显示
-                    // 成“稍后播放”；正常首尾相接的数据里下一条本来就没播
-                    // 完，这条判断不改变行为
+                    // 下一个节目跳过已经播完的重叠脏数据：直接取下一条会把
+                    // 已经播完的节目显示成“稍后播放”；正常首尾相接的数据里
+                    // 下一条本来就没播完，这条判断不改变行为
                     next = programmeList.drop(liveProgramIndex + 1)
                         .firstOrNull { it.endAt > now }
                 )
                 // 当前时间落在两个节目之间的空档（或当天第一个节目还没
-                // 开始）：没有正在播的节目，但下一个节目是已知的；原来
-                // next 也返回空，选台页“稍后播放”只能显示“精彩节目”
-                // 占位；二分查找返回的负值里藏着插入点，第一个开始时间
-                // 在现在的节目就是下一个
+                // 开始）：没有正在播的节目，但下一个节目是已知的；取开始
+                // 时间在现在的第一个节目
                 else EpgProgrammeRecent(
-                    next = programmeList.getOrNull(-liveProgramIndex - 1)
+                    next = programmeList.firstOrNull { it.startAt > now }
                 )
             }
             log.v("recentProgramme: ${channelList.firstOrNull()}", null, t.duration)
