@@ -122,7 +122,10 @@ fun rememberMonitorFpsState(): MonitorFpsState {
             withFrameMillis { ms ->
                 fpsCount++
                 if (fpsCount == 5) {
-                    val fps = (5_000 / (ms - lastUpdate)).toInt()
+                    // 两帧时间戳相同时 ms - lastUpdate 为 0，Long 除零抛
+                    // ArithmeticException（LaunchedEffect 内即闪退）；钳到 1ms
+                    val elapsed = (ms - lastUpdate).coerceAtLeast(1)
+                    val fps = (5_000 / elapsed).toInt()
                     state = state.copy(
                         current = fps,
                         history = (state.history + fps).takeLast(30).toImmutableList(),
