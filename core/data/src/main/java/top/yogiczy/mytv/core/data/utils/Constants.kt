@@ -117,9 +117,12 @@ object Constants {
     const val VIDEO_PLAYER_USER_AGENT = "okhttp"
 
     /**
-     * 播放器加载超时
+     * 播放器加载超时：同时是加载超时换线、断线检测（位置停滞后重播
+     * 同一线路）的时间。默认 5 秒：SCF 取票一次 1.3–2.7s，3 秒太贴
+     * 容易误判好线路，15 秒断线后等太久；5 秒留足取票余量又能快速
+     * 发现断线。用户可在设置 / 播放器 / 加载超时里改（1–60 秒）
      */
-    const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 15 // 15秒
+    const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 5 // 5秒
 
     /**
      * 播放器加载缓存时间
