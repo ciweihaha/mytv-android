@@ -141,12 +141,61 @@ class ExtensionUtilsTest {
     }
 
     @Test
-    fun urlHost_cases() {
-        assertEquals("example.com", "http://example.com/live".urlHost())
-        assertEquals("example.com", "http://example.com".urlHost())
-        assertEquals("example.com:8080", "https://example.com:8080/live".urlHost())
-        assertEquals("[2409:8087::20]:6610", "http://[2409:8087::20]:6610/x".urlHost())
-        assertEquals("", "example.com/live".urlHost())
-        assertEquals("", "".urlHost())
+    fun humanizeBitrate_cases() {
+        // 码率显示：播放器元数据里视频/音频码率都走这里；负数先夹到 0
+        assertEquals("0bps", 0.humanizeBitrate())
+        assertEquals("0bps", (-5).humanizeBitrate())
+        assertEquals("999bps", 999.humanizeBitrate())
+        assertEquals("1Kbps", 1000.humanizeBitrate())
+        assertEquals("999Kbps", 999999.humanizeBitrate())
+        assertEquals("1.00Mbps", 1000000.humanizeBitrate())
+        assertEquals("2.50Mbps", 2500000.humanizeBitrate())
+    }
+
+    @Test
+    fun humanizeBitrate_base1024() {
+        assertEquals("1Kbps", 1024.humanizeBitrate(base = 1024))
+        assertEquals("1.00Mbps", 1048576.humanizeBitrate(base = 1024))
+    }
+
+    @Test
+    fun humanizeAudioChannels_cases() {
+        // 声道数显示：直播频道信息与播放器都走这里；表里没有的数直接拼
+        assertEquals("单声道", 1.humanizeAudioChannels())
+        assertEquals("立体声", 2.humanizeAudioChannels())
+        assertEquals("2.1 声道", 3.humanizeAudioChannels())
+        assertEquals("4.0 四声道", 4.humanizeAudioChannels())
+        assertEquals("5.0 环绕声", 5.humanizeAudioChannels())
+        assertEquals("5.1 环绕声", 6.humanizeAudioChannels())
+        assertEquals("6.1 环绕声", 7.humanizeAudioChannels())
+        assertEquals("7.1 环绕声", 8.humanizeAudioChannels())
+        assertEquals("7.1.2 杜比全景声", 10.humanizeAudioChannels())
+        assertEquals("7.1.4 杜比全景声", 12.humanizeAudioChannels())
+        assertEquals("0声道", 0.humanizeAudioChannels())
+        assertEquals("9声道", 9.humanizeAudioChannels())
+    }
+
+    @Test
+    fun humanizeLanguage_cases() {
+        assertEquals("中文", "zh".humanizeLanguage())
+        assertEquals("简体中文", "chs".humanizeLanguage())
+        assertEquals("英语", "en".humanizeLanguage())
+        // 先转小写再比：源里写大写也不怕
+        assertEquals("中文", "ZH".humanizeLanguage())
+        assertEquals("英语", "EN".humanizeLanguage())
+        // 表里没有的原样返回
+        assertEquals("fr", "fr".humanizeLanguage())
+        assertEquals("", "".humanizeLanguage())
+    }
+
+    @Test
+    fun ensureSuffix_cases() {
+        // 同步仓库拼路径：WebDAV 与本地文件都在 url/路径后补 "/" 再拼
+        // all_configs.json；已有后缀不重复加
+        assertEquals("abc.m3u8", "abc".ensureSuffix(".m3u8"))
+        assertEquals("abc.m3u8", "abc.m3u8".ensureSuffix(".m3u8"))
+        assertEquals("http://x/", "http://x".ensureSuffix("/"))
+        assertEquals("http://x/", "http://x/".ensureSuffix("/"))
+        assertEquals("/", "".ensureSuffix("/"))
     }
 }
