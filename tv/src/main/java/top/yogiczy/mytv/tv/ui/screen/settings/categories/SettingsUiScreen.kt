@@ -122,10 +122,7 @@ fun SettingsUiScreen(
 
             SettingsListItem(
                 headlineContent = "界面整体缩放比例",
-                trailingContent = when (scaleRatio) {
-                    0f -> "自适应"
-                    else -> "×${decimalFormat.format(scaleRatio)}"
-                },
+                trailingContent = uiDensityScaleRatioText(scaleRatio),
                 onSelect = toUiDensityScaleRatioScreen,
                 link = true,
             )
@@ -188,6 +185,18 @@ internal fun uiScreenAutoCloseDelayText(delay: Long): String {
     return when (delay) {
         Long.MAX_VALUE -> "不关闭"
         else -> delay.humanizeMs()
+    }
+}
+
+/**
+ * “界面整体缩放比例”行的显示文字：0 → “自适应”，其余 “×” 加一位小数。
+ * 从界面里抽出来，只为能离线断言 0 那档写没写对；行为逐字不变
+ *（函数内自己建的 `DecimalFormat("#.#")` 与界面里 remember 的那台同一格式）。
+ */
+internal fun uiDensityScaleRatioText(scaleRatio: Float): String {
+    return when (scaleRatio) {
+        0f -> "自适应"
+        else -> "×${DecimalFormat("#.#").format(scaleRatio)}"
     }
 }
 
