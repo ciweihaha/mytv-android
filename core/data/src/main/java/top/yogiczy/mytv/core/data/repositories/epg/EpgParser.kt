@@ -30,6 +30,11 @@ object EpgParser : Loggable("EpgParser") {
         noZoneDateFormat: SimpleDateFormat,
     ): Long {
         if (time.length < 14) return 0
+        // 严格模式：SimpleDateFormat 默认宽容模式会把非法日期顺延成有效
+        // 日期（如 2 月 30 日算成 3 月 2 日），节目会出现在错误的那天；
+        // 非法日期应解析失败、按 0 处理（调用方按无效节目过滤）
+        dateFormat.isLenient = false
+        noZoneDateFormat.isLenient = false
         return runCatching { dateFormat.parse(time)?.time ?: 0 }.getOrElse {
             runCatching { noZoneDateFormat.parse(time.substring(0, 14))?.time ?: 0 }
                 .getOrDefault(0)
