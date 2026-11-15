@@ -18,7 +18,7 @@ class FileCacheRepositoryTest {
     @get:Rule
     val tempFolder = TemporaryFolder()
 
-    private class TestRepo(fileName: String) : FileCacheRepository(fileName) {
+    private class TestRepo(private val fileName: String) : FileCacheRepository(fileName) {
         var refreshCount = 0
 
         suspend fun get(cacheTime: Long, value: String): String =
@@ -38,6 +38,12 @@ class FileCacheRepositoryTest {
 
         suspend fun getFailing(cacheTime: Long): String =
             getOrRefresh(cacheTime) { throw RuntimeException("network down") }
+
+        suspend fun getRefreshFailsAfterConcurrentWrite(cacheTime: Long): String =
+            getOrRefresh(cacheTime) {
+                File(Globals.cacheDir, fileName).writeText("concurrent fresh data")
+                throw RuntimeException("network down")
+            }
 
         suspend fun getStreamFailing(cacheTime: Long): String =
             getOrRefreshInputStream(cacheTime) { throw RuntimeException("network down") }
@@ -123,6 +129,15 @@ class FileCacheRepositoryTest {
             val repo = TestRepo("test.json")
             repo.getFailing(0)
         }
+    }
+
+    @Test
+    fun getOrRefresh_picksUpCacheWrittenDuringFailedRefresh() = runBlocking {
+        val repo = TestRepo("test.json")
+        // 开头没有缓存；刷新操作里另一路并发刷新刚把新缓存写好、随后刷新失败：
+        // 应捡回那份新写好的缓存，而不是抛错——开头没读到东西时这里会直接把刷新失败抛出去
+        assertEquals("concurrent fresh data", repo.getRefreshFailsAfterConcurrentWrite(0))
+        assertEquals("concurrent fresh data", File(Globals.cacheDir, "test.json").readText())
     }
 
     @Test

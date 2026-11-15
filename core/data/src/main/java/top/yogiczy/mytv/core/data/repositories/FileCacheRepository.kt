@@ -121,8 +121,9 @@ abstract class FileCacheRepository(
         refreshOp: suspend () -> String,
     ): String {
         // 开头先把旧数据读出来记着：没过期直接返回；过期去刷新，
-        // 刷新失败（断网）时用它顶上，不再重读磁盘、也不直接抛错——
-        // 断网时旧单/旧节目单还能看；没旧数据时才抛错
+        // 刷新失败（断网）时先再读一次磁盘——另一路并发刷新可能刚把
+        // 新缓存写好，捡回它；磁盘仍是旧内容时用开头这份顶上；
+        // 都没有时才抛错。断网时旧单/旧节目单还能看。
         val staleData = getCacheData()
 
         if (!isExpired(getCacheFile().lastModified(), staleData) && !staleData.isNullOrBlank()) {
@@ -135,7 +136,10 @@ abstract class FileCacheRepository(
             // 刷新中途被取消不是刷新失败：取消信号原样抛出去，别拿旧数据顶上、
             // 把一次取消记成一次成功加载（天光 1658 轮同款问题）
             if (ex is CancellationException) throw ex
-            if (!staleData.isNullOrBlank()) staleData else throw ex
+            val freshData = getCacheData()
+            if (!freshData.isNullOrBlank()) freshData
+            else if (!staleData.isNullOrBlank()) staleData
+            else throw ex
         }
     }
 
