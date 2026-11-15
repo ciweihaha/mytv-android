@@ -36,6 +36,11 @@ android {
         }
 
         buildConfigField("String", "SENTRY_DSN", "\"${getProperty("sentry.dsn") ?: System.getenv("SENTRY_DSN")}\"")
+        // 发版 tag（如 V3.0.0.242）：Release 工作流在打 tag 构建时把 tag 名写进来，
+        // 更新检查拿它和线上最新版比——内部版本号 1.1.1.N 和 tag 的 3.0.0.N 是
+        // 两套编号，直接比内部版永远报“有新版”。未设置时是空串（不是 "null"，
+        // 别重蹈 SENTRY_DSN 字面量 null 的覆辙），更新检查退回比内部版。
+        buildConfigField("String", "RELEASE_TAG", "\"${System.getenv("RELEASE_TAG") ?: ""}\"")
     }
 
     signingConfigs {
@@ -196,6 +201,13 @@ dependencies {
     implementation(libs.androidasync)
 
     implementation(libs.tinypinyin)
+
+    // AI 实时字幕：sherpa-onnx 离线识别（JitPack）+ 解模型包用的 commons-compress。
+    // 注意别再引 onnxruntime-android：预编译 AAR 的 libsherpa-onnx-jni.so
+    // 要的是 OrtGetApiBase@VERS_1.27.1，onnxruntime-android 1.22.0 只有
+    // VERS_1.22.0，混用会链接失败。
+    implementation(libs.sherpa.onnx)
+    implementation(libs.commons.compress)
 
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
