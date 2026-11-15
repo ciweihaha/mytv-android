@@ -120,11 +120,11 @@ class EpgRepositoryTest {
         return sb.toString()
     }
 
-    private fun seedJsonCache(source: EpgSource, list: EpgList) {
+    private fun seedJsonCache(source: EpgSource, list: EpgList, lastModified: Long = System.currentTimeMillis()) {
         val file = File(Globals.cacheDir, source.cacheFileName("json"))
         file.parentFile?.mkdirs()
         file.writeText(Globals.json.encodeToString(list))
-        file.setLastModified(System.currentTimeMillis())
+        file.setLastModified(lastModified)
     }
 
     private fun oneChannelEpg(programmes: List<Triple<Long, Long, String>>) = EpgList(
@@ -217,6 +217,34 @@ class EpgRepositoryTest {
             result.flatMap { it.programmeList.map { p -> p.title } },
         )
         assertEquals("用缓存时不应走网络", 0, server.hits.get())
+    }
+
+    @Test
+    fun getEpgList_refreshesWhenCachedFileIsFromYesterday() = runBlocking {
+        // 缓存文件是昨天写盘的、但里面有正在播的节目：日期已过期，第一
+        // 次读取就必须刷新——这档之前一次也没断言过：isExpired 判日期
+        // 的分支全靠它钉，判错（一直按没过期算）时这里会直接返回旧缓存、
+        // 一次网络也不走；反方向（今天的文件不刷新）由上一条用例钉死
+        val now = System.currentTimeMillis()
+        startServerWithLiveProgramme(now)
+        val repo = EpgRepository(source)
+
+        seedJsonCache(
+            source,
+            oneChannelEpg(
+                listOf(Triple(now - 30 * 60_000, now + 30 * 60_000, "缓存里的节目"))
+            ),
+            lastModified = now - 25 * 3600_000,
+        )
+
+        val result = repo.getEpgList()
+
+        assertEquals(
+            "缓存是昨天的时应刷新、返回服务端新节目",
+            listOf("正在播"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+        assertEquals("日期过期刷新应只请求一次", 1, server.hits.get())
     }
 
     @Test
