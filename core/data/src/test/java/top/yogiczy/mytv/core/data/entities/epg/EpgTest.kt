@@ -198,6 +198,62 @@ class EpgTest {
     }
 
     @Test
+    fun recentProgramme_tieStarts_liveTakesFirstWritten() {
+        // 天光 1989 轮姊妹检查：两档节目开始时间完全相同、都在播，
+        // indexOfFirst 取先写的那档；排序稳定（已钉死）+ 先写优先
+        // （这一档）合起来才是平局语义，比较符改成取后写的那档时
+        // 这里会失败——现有用例全是不同开始时间，拦不住
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "甲"),
+                    EpgProgramme(startAt = 1000, endAt = 3000, title = "乙"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1500)
+        assertEquals("甲", recent.now?.title)
+    }
+
+    @Test
+    fun recentProgramme_tieStarts_nextTakesFirstWritten() {
+        // 天光 1989 轮姊妹检查：正在播 + 两档下一档开始时间都正好
+        // 等于当前档结束，下一档取先写的那档
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000000, endAt = 1020000, title = "正在播"),
+                    EpgProgramme(startAt = 1020000, endAt = 1030000, title = "甲"),
+                    EpgProgramme(startAt = 1020000, endAt = 1040000, title = "乙"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1000000)
+        assertEquals("正在播", recent.now?.title)
+        assertEquals("甲", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_tieStarts_noLiveNextTakesFirstWritten() {
+        // 天光 1989 轮姊妹检查：没有正在播、两档未来节目开始时间
+        // 相同，稍后播放取先写的那档
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 2000000, endAt = 3000000, title = "甲"),
+                    EpgProgramme(startAt = 2000000, endAt = 3000000, title = "乙"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1000000)
+        assertNull(recent.now)
+        assertEquals("甲", recent.next?.title)
+    }
+
+    @Test
     fun recentProgramme_atExactEndOfLast_returnsEmpty() {
         // 最后一档结束那一刻：正在播与下一个都为空（右开）；旧比较器下会
         // 把最后一档当成正在播
