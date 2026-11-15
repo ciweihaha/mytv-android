@@ -207,4 +207,17 @@ class AsrModelManagerTest {
             AsrModels.defaultModel().kind,
         )
     }
+
+    @Test
+    fun asrModels_idsUniqueAndByIdFindsEach() {
+        // id 是下载目录名的一部分、也是设置的存值：重了会让 byId 悄悄返回
+        // 先写的那一个，后写的模型永远选不到；未知 id 必须回 null 而不是
+        // 抛错（设置里存了旧 id 时走默认模型）
+        val ids = AsrModels.ALL.map { it.id }
+        assertEquals(ids.size, ids.toSet().size)
+        for (model in AsrModels.ALL) {
+            assertEquals(model, AsrModels.byId(model.id))
+        }
+        assertNull(AsrModels.byId("no-such-model"))
+    }
 }
