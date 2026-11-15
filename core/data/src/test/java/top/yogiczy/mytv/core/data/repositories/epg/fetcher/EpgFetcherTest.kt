@@ -48,6 +48,10 @@ class EpgFetcherTest {
     fun suffix_caseInsensitive() {
         assertTrue(xmlFetcher.isSupport("http://example.com/EPG.XML"))
         assertTrue(gzFetcher.isSupport("http://example.com/EPG.XML.GZ"))
+        // 光秃 .gz（没有 .xml 那段）gz 解析器也要认：只要求 .xml.gz 的话，
+        // epg.gz 这类压缩节目单地址就分发不到 gz 解析器了
+        assertTrue(gzFetcher.isSupport("http://example.com/epg.gz"))
+        assertTrue(gzFetcher.isSupport("http://example.com/epg.GZ"))
     }
 
     @Test
