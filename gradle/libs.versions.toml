@@ -19,7 +19,7 @@ kotlinx-serialization = "1.13.0"
 androidasync = "3.1.0"
 compose-foundation = "1.12.1"
 tinypinyin = "2.0.3.RELEASE"
-sherpaOnnx = "v1.13.4"
+sherpaOnnx = "1.13.4"
 commonsCompress = "1.27.1"
 tvMaterial = "1.1.0"
 navigationCompose = "2.10.2"
@@ -72,9 +72,9 @@ quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 kxml2 = { group = "net.sf.kxml", name = "kxml2", version.ref = "kxml2" }
 xmlpull = { group = "xmlpull", name = "xmlpull", version.ref = "xmlpull" }
 # AI 实时字幕：sherpa-onnx 不在 Maven Central 上，走 JitPack
-#（settings.gradle.kts 里已有 jitpack 仓库）；版本与 3.x 一致 v1.13.4。
+#（settings.gradle.kts 里已有 jitpack 仓库）；版本与 3.x 一致 1.13.4。
 # commons-compress 解 .tar.bz2 模型包（Android SDK 没有内置 bzip2/tar）。
-sherpa-onnx = { group = "com.github.k2-fsa.sherpa-onnx", name = "sherpa-onnx", version.ref = "sherpaOnnx" }
+sherpa-onnx = { group = "com.github.k2-fsa", name = "sherpa-onnx", version.ref = "sherpaOnnx" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
 
 [plugins]
