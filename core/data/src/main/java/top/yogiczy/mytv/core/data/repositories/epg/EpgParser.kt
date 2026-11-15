@@ -12,6 +12,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeList
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
 import top.yogiczy.mytv.core.data.utils.Loggable
 import java.io.InputStream
+import java.io.PushbackReader
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.time.measureTimedValue
@@ -63,7 +64,15 @@ object EpgParser : Loggable("EpgParser") {
             // 真机行为一致；测试里用 kxml2 的真 KXmlParser
             val parser: XmlPullParser = XmlPullParserFactory.newInstance().newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            parser.setInput(stream.reader(Charsets.UTF_8))
+            // KXml 喂 Reader 时不跳 BOM（只在 setInput(InputStream) 时按
+            // 字节认 BOM）：带 <?xml 声明的源开头有 BOM 时，BOM 先占一列、
+            // "PI must not start with xml" 上抛错，整个节目单加载失败；
+            // 开头有几个 BOM 去几个（反复转存、拼接过的源可能带多个）
+            val reader = PushbackReader(stream.reader(Charsets.UTF_8))
+            var c = reader.read()
+            while (c == 0xFEFF) c = reader.read()
+            if (c != -1) reader.unread(c)
+            parser.setInput(reader)
 
             val totalBytes = inputStream.available().toLong()
             var bytesRead: Long
