@@ -131,12 +131,19 @@ fun MainScreen(
             if (!quiet) Snackbar.show("正在检查更新...", leadingLoading = true, duration = 5000)
 
             delay(3000)
-            updateViewModel.checkUpdate(BuildConfig.VERSION_NAME, settingsViewModel.updateChannel)
+            updateViewModel.checkUpdate(
+                BuildConfig.VERSION_NAME,
+                settingsViewModel.updateChannel,
+                releaseTag = BuildConfig.RELEASE_TAG,
+            )
 
             if (!quiet) {
                 when {
                     updateViewModel.checkFailed -> Snackbar.show("检查更新失败")
-                    updateViewModel.isUpdateAvailable -> Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
+                    // 手动点“检测更新”查到新版：直接进更新页（有“立即更新”按钮），
+                    // 别只弹一条提示——只弹提示时用户永远找不到下载入口。
+                    updateViewModel.isUpdateAvailable ->
+                        navController.navigateSingleTop(Screens.Update())
                     else -> Snackbar.show("当前已是最新版本")
                 }
             }
