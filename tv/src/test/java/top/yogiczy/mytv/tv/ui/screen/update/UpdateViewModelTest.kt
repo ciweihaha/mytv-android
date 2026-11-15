@@ -2,7 +2,10 @@ package top.yogiczy.mytv.tv.ui.screen.update
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -11,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
+import top.yogiczy.mytv.tv.ui.material.SnackbarType
+import top.yogiczy.mytv.tv.ui.material.SnackbarUIState
 import java.io.File
 
 /**
@@ -169,6 +174,112 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `下载开始弹开始下载更新提示`() = runBlocking {
+        // 天光 1937 轮姊妹检查：下大包、进度回调还没到之前，用户全靠
+        // “开始下载更新”这一句知道下载动了；Snackbar 单例在单测里没
+        // 初始化时 show 是空操作，先在测试里登记一个状态再断言
+        val scope = CoroutineScope(Dispatchers.Default)
+        try {
+            SnackbarUIState.I = SnackbarUIState(scope)
+            val viewModel = UpdateViewModel()
+            viewModel.checkUpdate("1.0.0", "stable") {
+                GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+            }
+            val started = CompletableDeferred<Unit>()
+            val releaseGate = CompletableDeferred<Unit>()
+            val file = File.createTempFile("update-test", ".apk")
+            try {
+                val first = async {
+                    viewModel.downloadAndUpdate(file) { _, _, _ ->
+                        started.complete(Unit)
+                        releaseGate.await()
+                    }
+                }
+                started.await()
+                // 提示换场要 300 毫秒，多等一倍再断言
+                delay(600)
+                assertTrue(SnackbarUIState.I.visible)
+                assertEquals("开始下载更新", SnackbarUIState.I.currentData.text)
+
+                releaseGate.complete(Unit)
+                first.await()
+                assertTrue(viewModel.updateDownloaded)
+                assertTrue(file.exists())
+            } finally {
+                file.delete()
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `下载进度弹正在下载更新提示`() = runBlocking {
+        // 进度回调走同一个 downloadProcess id：不换场、没有 300 毫秒
+        // 切换延迟，回调一到文案就换成“正在下载更新: 50%”
+        val scope = CoroutineScope(Dispatchers.Default)
+        try {
+            SnackbarUIState.I = SnackbarUIState(scope)
+            val viewModel = UpdateViewModel()
+            viewModel.checkUpdate("1.0.0", "stable") {
+                GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+            }
+            val started = CompletableDeferred<Unit>()
+            val releaseGate = CompletableDeferred<Unit>()
+            val file = File.createTempFile("update-test", ".apk")
+            try {
+                val first = async {
+                    viewModel.downloadAndUpdate(file) { _, _, onProgress ->
+                        onProgress?.invoke(50)
+                        started.complete(Unit)
+                        releaseGate.await()
+                    }
+                }
+                started.await()
+                delay(600)
+                assertTrue(SnackbarUIState.I.visible)
+                assertEquals("正在下载更新: 50%", SnackbarUIState.I.currentData.text)
+
+                releaseGate.complete(Unit)
+                first.await()
+                assertTrue(viewModel.updateDownloaded)
+            } finally {
+                file.delete()
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `下载成功弹下载更新成功提示`() = runBlocking {
+        // 天光 1937 轮姊妹检查：下完弹“下载更新成功”；成功提示换了
+        // 新 id，旧提示收起要 300 毫秒，多等一倍再断言
+        val scope = CoroutineScope(Dispatchers.Default)
+        try {
+            SnackbarUIState.I = SnackbarUIState(scope)
+            val viewModel = UpdateViewModel()
+            viewModel.checkUpdate("1.0.0", "stable") {
+                GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+            }
+            val file = File.createTempFile("update-test", ".apk")
+            try {
+                viewModel.downloadAndUpdate(file) { _, path, _ ->
+                    File(path).writeText("apk")
+                }
+                delay(600)
+                assertTrue(viewModel.updateDownloaded)
+                assertTrue(SnackbarUIState.I.visible)
+                assertEquals("下载更新成功", SnackbarUIState.I.currentData.text)
+            } finally {
+                file.delete()
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun `下载中途取消不记已下载、状态复位`() = runBlocking {
         val viewModel = UpdateViewModel()
         viewModel.checkUpdate("1.0.0", "stable") {
@@ -195,6 +306,36 @@ class UpdateViewModelTest {
             assertFalse(viewModel.isUpdating)
         } finally {
             file.delete()
+        }
+    }
+
+    @Test
+    fun `下载失败弹下载更新失败提示`() = runBlocking {
+        // 天光 1936 轮姊妹检查：两路都失败时外层 catch 弹“下载更新失败”；
+        // 没这句提示时用户只看到下载没反应；失败提示是 ERROR 类型
+        val scope = CoroutineScope(Dispatchers.Default)
+        try {
+            SnackbarUIState.I = SnackbarUIState(scope)
+            val viewModel = UpdateViewModel()
+            viewModel.checkUpdate("1.0.0", "stable") {
+                GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+            }
+            val file = File.createTempFile("update-test", ".apk")
+            try {
+                viewModel.downloadAndUpdate(file) { _, _, _ ->
+                    throw RuntimeException("network down")
+                }
+                delay(600)
+                assertFalse(viewModel.updateDownloaded)
+                assertFalse(file.exists())
+                assertTrue(SnackbarUIState.I.visible)
+                assertEquals("下载更新失败", SnackbarUIState.I.currentData.text)
+                assertEquals(SnackbarType.ERROR, SnackbarUIState.I.currentData.type)
+            } finally {
+                file.delete()
+            }
+        } finally {
+            scope.cancel()
         }
     }
 }
