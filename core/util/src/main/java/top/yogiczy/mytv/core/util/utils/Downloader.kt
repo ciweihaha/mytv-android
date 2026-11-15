@@ -98,10 +98,13 @@ object Downloader {
                 override fun read(sink: okio.Buffer, byteCount: Long): Long {
                     val bytesRead = super.read(sink, byteCount)
                     totalBytesRead += if (bytesRead != -1L) bytesRead else 0
-                    val progress = calcDownloadProgress(totalBytesRead, contentLength())
+                    val contentLength = contentLength()
+                    val progress = calcDownloadProgress(totalBytesRead, contentLength)
                     // 百分比不变时不回调：原来每读 8KB 就调一次，100MB 下载要
-                    // 触发上万次 Snackbar 状态更新；百分比最多变 100 次
-                    if (progress != lastProgress) {
+                    // 触发上万次 Snackbar 状态更新；百分比最多变 100 次。
+                    // 总长度未知（分块传输）时一次也不报：百分比恒为 0，
+                    // 不拦会在第一读误报一次 0（天光 1912 轮同款）
+                    if (contentLength > 0 && progress != lastProgress) {
                         lastProgress = progress
                         progressScope.launch {
                             onProgressCb?.invoke(progress)
