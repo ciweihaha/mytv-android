@@ -53,6 +53,67 @@ class IptvRepositoryTest {
     }
 
     @Test
+    fun getChannelGroupList_localM3u_transformJsBlank_returnsParsedGroups() = runBlocking {
+        // 天光 2027 轮姊妹检查：壳没有“精简”开关，但 transformJs 有
+        // 同款三档——没写脚本时原样返回解析结果，这档一次也没端到端
+        // 断言过；本地 m3u 文件走刷新那条路，不走网络
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U x-tvg-url="http://example.com/epg.xml"
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+            #EXTINF:-1 tvg-name="湖南卫视" group-title="卫视",湖南卫视
+            http://example.com/hunan.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(
+            name = "test", url = m3uFile.path, isLocal = true, transformJs = null
+        )
+
+        val result = IptvRepository(source).getChannelGroupList(60_000)
+
+        assertEquals(2, result.size)
+        assertEquals("央视", result[0].name)
+        assertEquals(listOf("CCTV-1", "CCTV-2"), result[0].channelList.map { it.name })
+        assertEquals("卫视", result[1].name)
+        assertEquals(listOf("湖南卫视"), result[1].channelList.map { it.name })
+    }
+
+    @Test
+    fun getChannelGroupList_localM3u_transformJsFails_returnsParsedGroups() = runBlocking {
+        // 转换脚本跑不起来（抛错）时原样返回解析结果、不丢频道：
+        // 脚本错被 runCatching 接住走兜底；就算 QuickJs 在单测环境里
+        // 加载不到，建引擎那步抛的错同样被接住，结果一样是原样返回
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U x-tvg-url="http://example.com/epg.xml"
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+            #EXTINF:-1 tvg-name="湖南卫视" group-title="卫视",湖南卫视
+            http://example.com/hunan.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(
+            name = "test", url = m3uFile.path, isLocal = true,
+            transformJs = "throw new Error('boom')",
+        )
+
+        val result = IptvRepository(source).getChannelGroupList(60_000)
+
+        assertEquals(2, result.size)
+        assertEquals("央视", result[0].name)
+        assertEquals(listOf("CCTV-1", "CCTV-2"), result[0].channelList.map { it.name })
+        assertEquals("卫视", result[1].name)
+        assertEquals(listOf("湖南卫视"), result[1].channelList.map { it.name })
+    }
+
+    @Test
     fun `empty group list throws`() {
         // 空源报错的文案直接显示在错误页上（MainViewModel 把 ex.message
         // 放进 MainUiState.Error），只断言类型不够：文案被改掉也没人发现
