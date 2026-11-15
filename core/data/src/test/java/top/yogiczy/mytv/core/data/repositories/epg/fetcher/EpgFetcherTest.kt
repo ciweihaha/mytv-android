@@ -66,6 +66,19 @@ class EpgFetcherTest {
     }
 
     @Test
+    fun suffixOnlyInQueryOrFragment_doesNotMatch() {
+        // 反方向：后缀只在查询串/锚点里、路径本身没后缀时，xml/gz 解析器
+        // 都不该认领——`epg?file=x.xml` 该落进缺省解析嗅探内容，而不是
+        // 被 xml 解析器认领；去 query/fragment 再比的逻辑被删了也照样通过
+        // 的话，这档就是没锁死的缺口
+        assertFalse(xmlFetcher.isSupport("http://example.com/epg?file=x.xml"))
+        assertFalse(gzFetcher.isSupport("http://example.com/epg?file=x.xml.gz"))
+        assertFalse(xmlFetcher.isSupport("http://example.com/epg#x.xml"))
+        assertFalse(gzFetcher.isSupport("http://example.com/epg#x.xml.gz"))
+        assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg?file=x.xml") } is DefaultEpgFetcher)
+    }
+
+    @Test
     fun epgUrlPath_stripsQueryAndFragment() {
         assertEquals(
             "http://example.com/epg.xml.gz",
