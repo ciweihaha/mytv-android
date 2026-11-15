@@ -28,6 +28,19 @@ class EpgParserTest {
     }
 
     @Test
+    fun parseTime_negativeZone_parsed() {
+        // 负时区（美洲源 -0800）：Z 格式本身认负号，应按正确时刻解析、
+        // 而不是掉进兜底按本地时间算——同一时刻、不同时区写法，时间戳
+        // 正好差 8/16 小时（与机器时区无关）
+        val minus8 = parse("20261112010000 -0800")
+        val plus0 = parse("20261112010000 +0000")
+        val plus8 = parse("20261112010000 +0800")
+        assertTrue(minus8 > 0)
+        assertEquals(8 * 3600 * 1000L, minus8 - plus0)
+        assertEquals(16 * 3600 * 1000L, minus8 - plus8)
+    }
+
+    @Test
     fun parseTime_withoutZone_fallsBackToLocalTime() {
         // 不写时区：旧实现抛异常、节目丢掉；现在按本地时间解析出有效值
         val bare = parse("20261112010000")
