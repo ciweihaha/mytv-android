@@ -56,6 +56,7 @@ class UpdateViewModel(
     suspend fun checkUpdate(
         currentVersion: String,
         channel: String,
+        releaseTag: String = "",
         fetchLatestRelease: suspend (String) -> GitRelease = { GitRepository().latestRelease(it) },
     ) {
         if (_isChecking) return
@@ -68,7 +69,7 @@ class UpdateViewModel(
             _isChecking = true
             val releaseUrl = Constants.GIT_RELEASE_LATEST_URL[channel] ?: return
             _latestRelease = fetchLatestRelease(releaseUrl)
-            _isUpdateAvailable = _latestRelease.version.compareVersion(currentVersion) > 0
+            _isUpdateAvailable = isNewerRelease(_latestRelease.version, releaseTag, currentVersion)
 
             log.i("最新版本: ${_latestRelease.version}")
         } catch (ex: Exception) {
@@ -105,13 +106,33 @@ class UpdateViewModel(
             _isUpdating = true
             _updateDownloaded = false
 
-            download(_latestRelease.downloadUrl, latestFile.path) {
+            // 先走代理地址；代理失败（超时/不通，电视上 mirror.ghproxy.com
+            // 就超时过）时回退 GitHub 直链再试一次。downloadUrl 就是代理前缀
+            // + 直链拼出来的，去掉前缀即直链，不用改解析器。
+            suspend fun tryDownload(url: String) {
+                download(url, latestFile.path) {
+                    Snackbar.show(
+                        "正在下载更新: $it%",
+                        leadingLoading = true,
+                        duration = 10_000,
+                        id = "downloadProcess"
+                    )
+                }
+            }
+            try {
+                tryDownload(_latestRelease.downloadUrl)
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                val directUrl = _latestRelease.downloadUrl.removePrefix(Constants.GITHUB_PROXY)
+                if (directUrl == _latestRelease.downloadUrl) throw ex
+                log.i("代理下载失败，改走 GitHub 直链重试")
                 Snackbar.show(
-                    "正在下载更新: $it%",
+                    "代理下载失败，正在尝试直连下载",
                     leadingLoading = true,
                     duration = 10_000,
                     id = "downloadProcess"
                 )
+                tryDownload(directUrl)
             }
 
             _updateDownloaded = true
@@ -143,3 +164,22 @@ val updateVM: UpdateViewModel
         SideEffect { UpdateViewModel.instance = vm }
         return vm
     }
+
+/**
+ * 线上最新版是不是比本次构建新：发版 tag（如 V3.0.0.242）存在时直接拿它
+ * 和线上最新版比——内部版本号 1.1.1.N 和 tag 的 3.0.0.N 是两套编号，
+ * 拿 tag 版去比内部版永远报“有新版”（装的就是最新版也报）。
+ * tag 为空（本地/CI 构建没写 RELEASE_TAG）时退回旧逻辑比内部版。
+ * compareVersion 本身会去 v/V 前缀，两边格式不用提前统一。
+ */
+internal fun isNewerRelease(
+    latestVersion: String,
+    releaseTag: String,
+    currentVersion: String,
+): Boolean {
+    return if (releaseTag.isNotBlank()) {
+        latestVersion.compareVersion(releaseTag) > 0
+    } else {
+        latestVersion.compareVersion(currentVersion) > 0
+    }
+}
