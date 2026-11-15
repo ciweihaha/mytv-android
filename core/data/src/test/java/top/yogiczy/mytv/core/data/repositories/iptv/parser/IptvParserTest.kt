@@ -470,4 +470,27 @@ class IptvParserTest {
         assertEquals("cctv5", channels[1].tvgId)
         assertEquals("", channels[2].tvgId)
     }
+
+    @Test
+    fun txt_degenerateGenreLineFirst_channelsFallBackToOther() = runBlocking {
+        // 天光 1932 轮提示的退化分组行：`#genre#,#genre#` 去掉两个标记后
+        // 只剩逗号，分组名为空、保留上一个分组；它是文件第一行时上一个
+        // 分组还没有，频道应进“其他”，不能出现空白分组名、也不能崩
+        val txtData = "#genre#,#genre#\nCCTV-1,http://example.com/cctv1"
+        assertTrue(txtParser.isSupport("", txtData))
+        val channels = txtParser.parse(txtData)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("其他", channels[0].groupName)
+    }
+
+    @Test
+    fun emptyInput_parsesToEmpty() = runBlocking {
+        // 空源：两个解析器都不认、解析出空列表、不崩；节目单地址也取不到
+        assertFalse(m3uParser.isSupport("", ""))
+        assertFalse(txtParser.isSupport("", ""))
+        assertTrue(m3uParser.parse("").isEmpty())
+        assertTrue(txtParser.parse("").isEmpty())
+        assertEquals(null, m3uParser.getEpgUrl(""))
+    }
 }
