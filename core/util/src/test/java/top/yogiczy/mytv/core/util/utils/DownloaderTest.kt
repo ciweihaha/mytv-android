@@ -246,6 +246,28 @@ class DownloaderTest {
     }
 
     @Test
+    fun downloadTo_missingParentDir_throwsAndLeavesNoFile() {
+        // 目标父目录不存在：FileOutputStream 建临时文件就抛错，异常应
+        // 原样抛出去、不留下残缺文件；downloadTo 本身不建目录
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(File(dir, "no-such-dir"), "latest.apk")
+            assertThrows(Exception::class.java) {
+                runBlocking {
+                    Downloader.downloadTo(
+                        "http://127.0.0.1:${server.port}/ok", target.path, null
+                    )
+                }
+            }
+            assertFalse(target.exists())
+            assertFalse(File(File(dir, "no-such-dir"), "latest.apk.tmp").exists())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun calcDownloadProgress_normal() {
         assertEquals(0, calcDownloadProgress(0, 100))
         assertEquals(50, calcDownloadProgress(50, 100))
