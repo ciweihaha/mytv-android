@@ -46,6 +46,21 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_doubleBom_isSupported() = runBlocking {
+        // 反复转存的源开头可能带两个 BOM：只去一个就还剩一个，认不出 #EXTM3U
+        assertTrue(m3uParser.isSupport("", "\uFEFF\uFEFF$m3uData"))
+        val channels = m3uParser.parse("\uFEFF\uFEFF$m3uData")
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+    }
+
+    @Test
+    fun m3u_bomAfterBlankLines_isSupported() {
+        // BOM 在空行后面：先去空行再去 BOM，顺序混排也要认出来
+        assertTrue(m3uParser.isSupport("", "\n\uFEFF$m3uData"))
+    }
+
+    @Test
     fun m3u_leadingBlankLines_isSupported() {
         assertTrue(m3uParser.isSupport("", "\n\n$m3uData"))
     }
