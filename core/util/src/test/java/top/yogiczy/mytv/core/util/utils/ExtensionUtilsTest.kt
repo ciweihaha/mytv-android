@@ -68,6 +68,16 @@ class ExtensionUtilsTest {
     }
 
     @Test
+    fun compareVersion_preReleaseNumericVsAlpha() {
+        // 预发布段同一位置一段是数字、一段是字母时，数字段更小（semver 规则）：
+        // 符号写反了，更新检查会把预发布版的先后判错
+        assertEquals(-1, "1.4.4-1".compareVersion("1.4.4-alpha"))
+        assertEquals(1, "1.4.4-alpha".compareVersion("1.4.4-1"))
+        assertEquals(-1, "1.4.4-rc.1".compareVersion("1.4.4-rc.x"))
+        assertEquals(1, "1.4.4-rc.x".compareVersion("1.4.4-rc.1"))
+    }
+
+    @Test
     fun compareVersion_multiDigitSegments() {
         // 本 fork 的版本号是 1.1.1.<构建号>，构建号已过百：多位数段必须按数值比，
         // 不能按字典比（字典比会把 1.1.1.135 判成大于 1.1.1.99，更新检查漏掉新版）
