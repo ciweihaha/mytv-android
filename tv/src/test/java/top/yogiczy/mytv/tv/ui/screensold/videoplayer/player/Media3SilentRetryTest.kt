@@ -52,4 +52,18 @@ class Media3SilentRetryTest {
     fun `还没重试时不等待`() {
         assertEquals(0L, silentRetryDelayMs(0))
     }
+
+    @Test
+    fun `2004 最多无声重试 3 次`() {
+        assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 0))
+        assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 1))
+        assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 2))
+        assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 3))
+    }
+
+    @Test
+    fun `非无声重试错误一次也不重试`() {
+        assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, 0))
+        assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, 2))
+    }
 }

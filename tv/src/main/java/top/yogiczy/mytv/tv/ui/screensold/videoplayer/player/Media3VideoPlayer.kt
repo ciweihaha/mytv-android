@@ -79,6 +79,14 @@ internal fun isSilentRetryError(errorCode: Int): Boolean =
  */
 internal fun silentRetryDelayMs(retryNumber: Int): Long = 1000L * retryNumber
 
+/**
+ * 还能不能无声重试：是无声重试类错误、且已重试次数没到上限
+ * （MAX_SILENT_RETRY = 3，最多重试 3 次）。调用处先判后加，
+ * 入参是“已重试次数”。抽出来方便单元测试直接调用、锁死上限。
+ */
+internal fun shouldSilentRetry(errorCode: Int, retriesSoFar: Int): Boolean =
+    isSilentRetryError(errorCode) && retriesSoFar < Media3VideoPlayer.MAX_SILENT_RETRY
+
 @OptIn(UnstableApi::class)
 class Media3VideoPlayer(
     private val context: Context,
@@ -396,8 +404,20 @@ class Media3VideoPlayer(
                 // 位置错误或瞬时网络错，尝试重新播放；连续多次都到不了
                 // READY 说明这条线已死，不再无声重试，上报错误让界面换线
                 isSilentRetryError(ex.errorCode) -> {
-                    silentRetryCount++
-                    if (silentRetryCount >= MAX_SILENT_RETRY) {
+                    // 先判后加：silentRetryCount 是“已重试次数”，没到
+                    // 上限（3 次）才再试一次；到上限才上报原始错误走换线
+                    if (shouldSilentRetry(ex.errorCode, silentRetryCount)) {
+                        silentRetryCount++
+                        // 退避后同一条线路再试一次：上游抖动是时间性的，
+                        // 立即重拉可能撞上同一次故障（票据刷新、CDN 瞬断）；
+                        // 按重试次数递增延迟（第 1 次 1s、第 2 次 2s、第 3 次 3s）
+                        silentRetryJob?.cancel()
+                        silentRetryJob = coroutineScope.launch {
+                            delay(silentRetryDelayMs(silentRetryCount))
+                            videoPlayer.seekToDefaultPosition()
+                            videoPlayer.prepare()
+                        }
+                    } else {
                         silentRetryCount = 0
                         triggerError(
                             PlaybackException(
@@ -405,16 +425,6 @@ class Media3VideoPlayer(
                                 ex.errorCode
                             )
                         )
-                    } else {
-                        // 退避后同一条线路再试一次：上游抖动是时间性的，
-                        // 立即重拉可能撞上同一次故障（票据刷新、CDN 瞬断）；
-                        // 按重试次数递增延迟（第 1 次 1s、第 2 次 2s）
-                        silentRetryJob?.cancel()
-                        silentRetryJob = coroutineScope.launch {
-                            delay(silentRetryDelayMs(silentRetryCount))
-                            videoPlayer.seekToDefaultPosition()
-                            videoPlayer.prepare()
-                        }
                     }
                 }
 
