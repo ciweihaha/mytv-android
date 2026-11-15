@@ -71,6 +71,14 @@ internal fun isSilentRetryError(errorCode: Int): Boolean =
         errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
         errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
 
+/**
+ * 无声重试第几次前等多久：第 1 次 1 秒、第 2 次 2 秒、第 3 次
+ * 3 秒。调用处先把 silentRetryCount 加一再算，入参就是第几次重试；
+ * 等多久是纯算式，抽出来方便单元测试直接调用、锁死档位，免得
+ * 以后改了倍数或先加后算的顺序、重试节奏悄悄变了没人知道。
+ */
+internal fun silentRetryDelayMs(retryNumber: Int): Long = 1000L * retryNumber
+
 @OptIn(UnstableApi::class)
 class Media3VideoPlayer(
     private val context: Context,
@@ -403,7 +411,7 @@ class Media3VideoPlayer(
                         // 按重试次数递增延迟（第 1 次 1s、第 2 次 2s）
                         silentRetryJob?.cancel()
                         silentRetryJob = coroutineScope.launch {
-                            delay(1000L * silentRetryCount)
+                            delay(silentRetryDelayMs(silentRetryCount))
                             videoPlayer.seekToDefaultPosition()
                             videoPlayer.prepare()
                         }

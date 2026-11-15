@@ -40,4 +40,16 @@ class Media3SilentRetryTest {
         assertFalse(isSilentRetryError(Media3PlaybackException.ERROR_CODE_DECODER_INIT_FAILED))
         assertFalse(isSilentRetryError(Media3PlaybackException.ERROR_CODE_DRM_DEVICE_REVOKED))
     }
+
+    @Test
+    fun `第 1 次重试等 1 秒、第 2 次 2 秒、第 3 次 3 秒`() {
+        assertEquals(1000L, silentRetryDelayMs(1))
+        assertEquals(2000L, silentRetryDelayMs(2))
+        assertEquals(3000L, silentRetryDelayMs(3))
+    }
+
+    @Test
+    fun `还没重试时不等待`() {
+        assertEquals(0L, silentRetryDelayMs(0))
+    }
 }
