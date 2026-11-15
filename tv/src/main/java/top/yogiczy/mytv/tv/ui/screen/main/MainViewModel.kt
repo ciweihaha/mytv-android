@@ -131,34 +131,7 @@ class MainViewModel : ViewModel() {
 
             _uiState.value = MainUiState.Loading("合并相似频道")
 
-            return@withContext ChannelGroupList(channelGroupList.map { group ->
-                group.copy(
-                    channelList = ChannelList(group.channelList
-                        .groupBy { channel -> channel.standardName }
-                        .map { (standardName, similarChannels) ->
-                            if (similarChannels.size == 1) {
-                                similarChannels.first()
-                            } else {
-                                val firstChannel = similarChannels.first()
-                                val mergedLineList = similarChannels
-                                    .asSequence()
-                                    .flatMap { channel ->
-                                        channel.lineList.asSequence().map { line ->
-                                            line.copy(name = channel.name)
-                                        }
-                                    }
-                                    .distinctBy { it.url }
-                                    .toList()
-
-                                firstChannel.copy(
-                                    name = standardName,
-                                    lineList = ChannelLineList(mergedLineList)
-                                )
-                            }
-                        }
-                    )
-                )
-            })
+            return@withContext mergeSimilarChannels(channelGroupList)
         }
 
     private suspend fun hybridChannel(channelGroupList: ChannelGroupList) =
@@ -305,6 +278,41 @@ class MainViewModel : ViewModel() {
         var instance: MainViewModel? = null
     }
 }
+
+/**
+ * 合并相似频道（纯函数，方便单元测试直接调用）：按标准名分组，同一标准名
+ * 的多个频道合成一个——名字取标准名，线路是各频道线路的并集（线路名取
+ * 原频道名）、按地址去重；独苗频道原样不动。
+ */
+internal fun mergeSimilarChannels(channelGroupList: ChannelGroupList): ChannelGroupList =
+    ChannelGroupList(channelGroupList.map { group ->
+        group.copy(
+            channelList = ChannelList(group.channelList
+                .groupBy { channel -> channel.standardName }
+                .map { (standardName, similarChannels) ->
+                    if (similarChannels.size == 1) {
+                        similarChannels.first()
+                    } else {
+                        val firstChannel = similarChannels.first()
+                        val mergedLineList = similarChannels
+                            .asSequence()
+                            .flatMap { channel ->
+                                channel.lineList.asSequence().map { line ->
+                                    line.copy(name = channel.name)
+                                }
+                            }
+                            .distinctBy { it.url }
+                            .toList()
+
+                        firstChannel.copy(
+                            name = standardName,
+                            lineList = ChannelLineList(mergedLineList)
+                        )
+                    }
+                }
+            )
+        )
+    })
 
 sealed interface MainUiState {
     data class Loading(val message: String? = null) : MainUiState
