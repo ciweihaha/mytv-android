@@ -53,14 +53,7 @@ fun SettingsUiTimeShowModeScreen(
                         .handleKeyEvents(onSelect = { onTimeShowModeChanged(mode) }),
                     headlineContent = { Text(mode.label) },
                     supportingContent = {
-                        Text(
-                            when (mode) {
-                                Configs.UiTimeShowMode.HIDDEN -> "不显示时间"
-                                Configs.UiTimeShowMode.ALWAYS -> "总是显示时间"
-                                Configs.UiTimeShowMode.EVERY_HOUR -> "整点前后${timeShowRangeSeconds}s显示时间"
-                                Configs.UiTimeShowMode.HALF_HOUR -> "半点前后${timeShowRangeSeconds}s显示时间"
-                            }
-                        )
+                        Text(timeShowModeSupportingText(mode, timeShowRangeSeconds))
                     },
                     trailingContent = {
                         if (currentTimeShowMode == mode) {
@@ -78,6 +71,19 @@ fun SettingsUiTimeShowModeScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * 时间显示模式的副文案：四档模式各一句话，整点/半点两档带动态秒数。
+ * 从界面里抽出来，只为能离线断言文案写没写错；行为与界面上显示的字逐字一致。
+ */
+internal fun timeShowModeSupportingText(mode: Configs.UiTimeShowMode, rangeSeconds: Long): String {
+    return when (mode) {
+        Configs.UiTimeShowMode.HIDDEN -> "不显示时间"
+        Configs.UiTimeShowMode.ALWAYS -> "总是显示时间"
+        Configs.UiTimeShowMode.EVERY_HOUR -> "整点前后${rangeSeconds}s显示时间"
+        Configs.UiTimeShowMode.HALF_HOUR -> "半点前后${rangeSeconds}s显示时间"
     }
 }
 
