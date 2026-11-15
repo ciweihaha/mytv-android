@@ -76,6 +76,7 @@ class EpgFetcherTest {
         assertFalse(xmlFetcher.isSupport("http://example.com/epg#x.xml"))
         assertFalse(gzFetcher.isSupport("http://example.com/epg#x.xml.gz"))
         assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg?file=x.xml") } is DefaultEpgFetcher)
+        assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg?file=x.xml.gz") } is DefaultEpgFetcher)
     }
 
     @Test
