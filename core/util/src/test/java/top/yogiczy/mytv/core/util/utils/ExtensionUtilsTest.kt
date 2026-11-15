@@ -86,4 +86,35 @@ class ExtensionUtilsTest {
         assertEquals(-1, "release-2024.11.09".compareVersion("1.1.1"))
         assertEquals(0, "".compareVersion(""))
     }
+
+    @Test
+    fun humanizeMs_boundaries() {
+        assertEquals("0秒", 0L.humanizeMs())
+        assertEquals("1秒", 1000L.humanizeMs())
+        assertEquals("59秒", 59999L.humanizeMs())
+        assertEquals("1分钟", 60000L.humanizeMs())
+        assertEquals("59分钟", 3599999L.humanizeMs())
+        assertEquals("1小时", 3600000L.humanizeMs())
+        assertEquals("23小时", 86399999L.humanizeMs())
+        assertEquals("1天", 86400000L.humanizeMs())
+        assertEquals("2天", 172800000L.humanizeMs())
+    }
+
+    @Test
+    fun humanizeBytes_boundaries() {
+        assertEquals("0B", 0L.humanizeBytes())
+        assertEquals("1023B", 1023L.humanizeBytes())
+        assertEquals("1KB", 1024L.humanizeBytes())
+        assertEquals("1023KB", 1048575L.humanizeBytes())
+        assertEquals("1MB", 1048576L.humanizeBytes())
+        assertEquals("1023MB", 1073741823L.humanizeBytes())
+        assertEquals("1GB", 1073741824L.humanizeBytes())
+    }
+
+    @Test
+    fun humanizeBufferNum_cases() {
+        assertEquals("0秒 | 0f", 0L.humanizeBufferNum())
+        assertEquals("1秒 | 30f", 1000L.humanizeBufferNum())
+        assertEquals("1分钟 | 1800f", 60000L.humanizeBufferNum())
+    }
 }
