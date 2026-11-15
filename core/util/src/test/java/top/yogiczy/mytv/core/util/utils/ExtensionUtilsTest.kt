@@ -117,4 +117,26 @@ class ExtensionUtilsTest {
         assertEquals("1秒 | 30f", 1000L.humanizeBufferNum())
         assertEquals("1分钟 | 1800f", 60000L.humanizeBufferNum())
     }
+
+    @Test
+    fun isIPv6_cases() {
+        assertTrue("http://[2409:8087:5e01:34::20]:6610/ZTE_CMS/00000001000000060000000000000131/index.m3u8?IAS".isIPv6())
+        assertTrue("[::1]".isIPv6())
+        assertTrue("[2001:db8::1]:8080".isIPv6())
+        assertTrue("http://[::1]/".isIPv6())
+        assertFalse("http://1.2.3.4/live".isIPv6())
+        assertFalse("https://example.com/live".isIPv6())
+        assertFalse("example.com".isIPv6())
+        assertFalse("".isIPv6())
+    }
+
+    @Test
+    fun urlHost_cases() {
+        assertEquals("example.com", "http://example.com/live".urlHost())
+        assertEquals("example.com", "http://example.com".urlHost())
+        assertEquals("example.com:8080", "https://example.com:8080/live".urlHost())
+        assertEquals("[2409:8087::20]:6610", "http://[2409:8087::20]:6610/x".urlHost())
+        assertEquals("", "example.com/live".urlHost())
+        assertEquals("", "".urlHost())
+    }
 }
