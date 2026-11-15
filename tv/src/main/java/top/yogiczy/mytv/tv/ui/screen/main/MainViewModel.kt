@@ -141,24 +141,7 @@ class MainViewModel : ViewModel() {
                 _uiState.value = MainUiState.Loading("匹配可用的网页源")
             }
 
-            return@withContext when (mode) {
-                Configs.IptvHybridMode.DISABLE -> channelGroupList
-                // 两种模式只差线路顺序：直播优先把网页线放后面、混合优先放前面，
-                // 分组/频道两层遍历原来在两个分支里各写了一份，并成一处
-                else -> {
-                    ChannelGroupList(channelGroupList.map { group ->
-                        group.copy(channelList = ChannelList(group.channelList.map { channel ->
-                            val webViewLines = ChannelUtil.getHybridWebViewLines(channel.epgName)
-                            val lineList = if (mode == Configs.IptvHybridMode.IPTV_FIRST) {
-                                channel.lineList + webViewLines
-                            } else {
-                                webViewLines + channel.lineList
-                            }
-                            channel.copy(lineList = ChannelLineList(lineList))
-                        }))
-                    })
-                }
-            }
+            return@withContext hybridChannels(channelGroupList, mode)
         }
 
     private suspend fun refreshEpg() {
@@ -289,6 +272,31 @@ internal fun refreshFavoriteChannels(
 
     channelFavorite.copy(channel = newChannel ?: channelFavorite.channel)
 })
+
+/**
+ * 网页混合线路（纯函数，方便单元测试直接调用）：按模式给每个频道拼上网页
+ * 线——禁用原样返回；直播优先把网页线放后面、网页优先放前面；没有网页
+ * 线的频道原样不动。两种模式只差线路顺序，两层遍历只写一份。
+ */
+internal fun hybridChannels(
+    channelGroupList: ChannelGroupList,
+    mode: Configs.IptvHybridMode,
+): ChannelGroupList = when (mode) {
+    Configs.IptvHybridMode.DISABLE -> channelGroupList
+    else -> {
+        ChannelGroupList(channelGroupList.map { group ->
+            group.copy(channelList = ChannelList(group.channelList.map { channel ->
+                val webViewLines = ChannelUtil.getHybridWebViewLines(channel.epgName)
+                val lineList = if (mode == Configs.IptvHybridMode.IPTV_FIRST) {
+                    channel.lineList + webViewLines
+                } else {
+                    webViewLines + channel.lineList
+                }
+                channel.copy(lineList = ChannelLineList(lineList))
+            }))
+        })
+    }
+}
 
 /**
  * 合并相似频道（纯函数，方便单元测试直接调用）：按标准名分组，同一标准名

@@ -10,6 +10,7 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLineList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
+import top.yogiczy.mytv.tv.ui.utils.Configs
 
 class MainViewModelTest {
     private fun channel(name: String, standardName: String, vararg urls: String): Channel {
@@ -231,5 +232,84 @@ class MainViewModelTest {
         // 分组在、台不在：同样留旧频道、不丢收藏
         val result = refreshFavoriteChannels(favorites, "源A", groups)
         assertEquals("http://old.com/1", result[0].channel.lineList[0].url)
+    }
+
+    @Test
+    fun hybridChannels_disable_returnsInput() {
+        val input = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "卫视",
+                    ChannelList(listOf(channel("江西卫视", "江西卫视", "http://a.com/jx"))),
+                )
+            )
+        )
+
+        assertEquals(input, hybridChannels(input, Configs.IptvHybridMode.DISABLE))
+    }
+
+    @Test
+    fun hybridChannels_iptvFirst_putsWebViewLinesAfter() {
+        val input = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "卫视",
+                    ChannelList(listOf(channel("江西卫视", "江西卫视", "http://a.com/jx"))),
+                )
+            )
+        )
+
+        val result = hybridChannels(input, Configs.IptvHybridMode.IPTV_FIRST)
+
+        // 直播线在前、两条网页线在后（江西卫视在网页混合表里有两条）
+        assertEquals(
+            listOf(
+                "http://a.com/jx",
+                "https://www.jxntv.cn/live/#/jxtv1",
+                "https://yangshipin.cn/tv/home?pid=600002503",
+            ),
+            result[0].channelList[0].lineList.map { it.url },
+        )
+    }
+
+    @Test
+    fun hybridChannels_hybridFirst_putsWebViewLinesBefore() {
+        val input = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "卫视",
+                    ChannelList(listOf(channel("江西卫视", "江西卫视", "http://a.com/jx"))),
+                )
+            )
+        )
+
+        val result = hybridChannels(input, Configs.IptvHybridMode.HYBRID_FIRST)
+
+        assertEquals(
+            listOf(
+                "https://www.jxntv.cn/live/#/jxtv1",
+                "https://yangshipin.cn/tv/home?pid=600002503",
+                "http://a.com/jx",
+            ),
+            result[0].channelList[0].lineList.map { it.url },
+        )
+    }
+
+    @Test
+    fun hybridChannels_channelWithoutWebViewLines_unchanged() {
+        val input = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "央视",
+                    ChannelList(listOf(channel("CCTV-1", "CCTV-1", "http://a.com/1"))),
+                )
+            )
+        )
+
+        // CCTV-1 不在网页混合表里：两种非禁用模式下线路都不变
+        val iptvFirst = hybridChannels(input, Configs.IptvHybridMode.IPTV_FIRST)
+        assertEquals(listOf("http://a.com/1"), iptvFirst[0].channelList[0].lineList.map { it.url })
+        val hybridFirst = hybridChannels(input, Configs.IptvHybridMode.HYBRID_FIRST)
+        assertEquals(listOf("http://a.com/1"), hybridFirst[0].channelList[0].lineList.map { it.url })
     }
 }
