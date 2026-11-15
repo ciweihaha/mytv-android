@@ -49,6 +49,12 @@ class FileCacheRepositoryTest {
             getOrRefreshInputStream(cacheTime) { throw RuntimeException("network down") }
                 .readBytes().decodeToString()
 
+        suspend fun getStreamRefreshFailsAfterConcurrentWrite(cacheTime: Long): String =
+            getOrRefreshInputStream(cacheTime) {
+                File(Globals.cacheDir, fileName).writeText("concurrent fresh data")
+                throw RuntimeException("network down")
+            }.readBytes().decodeToString()
+
         suspend fun getCancelling(cacheTime: Long): String =
             getOrRefresh(cacheTime) { throw CancellationException("cancelled") }
 
@@ -138,6 +144,15 @@ class FileCacheRepositoryTest {
         // 应捡回那份新写好的缓存，而不是抛错——开头没读到东西时这里会直接把刷新失败抛出去
         assertEquals("concurrent fresh data", repo.getRefreshFailsAfterConcurrentWrite(0))
         assertEquals("concurrent fresh data", File(Globals.cacheDir, "test.json").readText())
+    }
+
+    @Test
+    fun getOrRefreshInputStream_picksUpCacheWrittenDuringFailedRefresh() = runBlocking {
+        val repo = TestRepo("test.bin")
+        // 开头没有缓存；刷新操作里另一路并发刷新刚把新缓存写好、随后刷新失败：
+        // 流版本的失败分支本来就会再读磁盘，应捡回那份新写好的缓存，而不是抛错
+        assertEquals("concurrent fresh data", repo.getStreamRefreshFailsAfterConcurrentWrite(0))
+        assertEquals("concurrent fresh data", File(Globals.cacheDir, "test.bin").readText())
     }
 
     @Test
