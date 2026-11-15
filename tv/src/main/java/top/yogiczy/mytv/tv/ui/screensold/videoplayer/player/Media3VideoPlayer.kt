@@ -459,7 +459,12 @@ class Media3VideoPlayer(
                 triggerError(null)
                 triggerBuffering(true)
             } else if (playbackState == Player.STATE_READY) {
+                // 播起来了：重试计数清零；挂起的延迟重试任务也取消——
+                // 比如解码失败走软解重建（reInitPlayer）先一步把新播放器
+                // 拉起来了，旧的延迟任务再触发会把刚恢复的流从头再播一遍
                 silentRetryCount = 0
+                silentRetryJob?.cancel()
+                silentRetryJob = null
                 triggerReady()
                 triggerDuration(videoPlayer.duration)
 
@@ -722,6 +727,11 @@ class Media3VideoPlayer(
     override fun stop() {
         videoPlayer.stop()
         updatePositionJob?.cancel()
+        // 停掉的播放器别再被挂起的延迟重试拉起来：比如瞬时网络错后
+        // 1~2 秒内切到 WebView 台（只调 stop、不释放），旧任务到点
+        // 会把已停的流 seek + prepare，在 WebView 后面悄悄复播
+        silentRetryJob?.cancel()
+        silentRetryJob = null
         super.stop()
     }
 
