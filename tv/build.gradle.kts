@@ -202,11 +202,13 @@ dependencies {
 
     implementation(libs.tinypinyin)
 
-    // AI 实时字幕：sherpa-onnx 离线识别（JitPack）+ 解模型包用的 commons-compress。
-    // 注意别再引 onnxruntime-android：预编译 AAR 的 libsherpa-onnx-jni.so
-    // 要的是 OrtGetApiBase@VERS_1.27.1，onnxruntime-android 1.22.0 只有
-    // VERS_1.22.0，混用会链接失败。
-    implementation(libs.sherpa.onnx)
+    // AI 实时字幕：模型下载/解包只用 commons-compress 解 .tar.bz2 模型包。
+    // sherpa-onnx 的推理依赖先不引：libs.sherpa.onnx 这个坐标在 JitPack
+    // 上找不到（pom 404），引了构建直接红；树里也没有任何代码用到它的
+    // 类。等推理代码真正接入时，再按能解析的坐标加回来（注意别再引
+    // onnxruntime-android：预编译 AAR 的 libsherpa-onnx-jni.so 要的是
+    // OrtGetApiBase@VERS_1.27.1，onnxruntime-android 1.22.0 只有
+    // VERS_1.22.0，混用会链接失败）。
     implementation(libs.commons.compress)
 
     implementation(project(":core:data"))
