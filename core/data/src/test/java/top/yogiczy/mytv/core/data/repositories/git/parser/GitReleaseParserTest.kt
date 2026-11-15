@@ -1,10 +1,12 @@
 package top.yogiczy.mytv.core.data.repositories.git.parser
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import top.yogiczy.mytv.core.data.utils.Constants
+import top.yogiczy.mytv.core.data.utils.Globals
 
 /**
  * 发行版解析器测试：附件顺序 / 附件缺失 / 字段缺失 / tag 前缀。
@@ -220,5 +222,68 @@ class GitReleaseParserTest {
         )
         val release = customParser.parse(data)
         assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_firstElementNotObjectThrowsClearError() {
+        // 数组首元素不是对象：requiredObject 应报明确原因，而不是 ClassCastException
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse("""["not-an-object"]""") }
+        }
+    }
+
+    @Test
+    fun gitee_topLevelArrayThrowsClearError() {
+        // 顶层是数组不是对象：requiredObject 应报明确原因
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { giteeParser.parse("[]") }
+        }
+    }
+
+    @Test
+    fun github_missingAssetsKeyThrowsClearError() {
+        // 根本没有 assets 字段：requiredArray 应报缺字段，而不是空附件的错
+        val data = """[{"tag_name": "V2.2.0.219", "body": "notes"}]"""
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse(data) }
+        }
+    }
+
+    @Test
+    fun github_blankTagThrowsClearError() {
+        // tag_name 是空串：requiredString 把空值当缺失处理
+        val data = githubPayload(
+            "",
+            asset("mytv.apk", "https://example.com/mytv.apk"),
+        )
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse(data) }
+        }
+    }
+
+    @Test
+    fun gitee_missingBodyDefaultsToEmptyDescription() = runBlocking {
+        // 没有 body 字段：optionalString 应回默认空串，说明就是空
+        val data = """{"tag_name": "V1.1.1.135", "assets": [${asset("mytv.apk", "https://example.com/mytv.apk")}]}"""
+        val release = giteeParser.parse(data)
+        assertEquals("", release.description)
+    }
+
+    @Test
+    fun pickDownloadUrl_noKeywordsFallsBackToAnyApk() {
+        // 不传关键词：preferred 退路不存在，直接取第一个 APK
+        val assets = Globals.json.parseToJsonElement(
+            """[${asset("app-arm64.apk", "https://example.com/arm64.apk")}, ${asset("app-all.apk", "https://example.com/all.apk")}]""",
+        ) as JsonArray
+        assertEquals("https://example.com/arm64.apk", assets.pickDownloadUrl())
+    }
+
+    @Test
+    fun pickDownloadUrl_skipsBlankNameAndNonObjectElements() {
+        // 名字空白的附件与非对象元素都应跳过，不进候选
+        val assets = Globals.json.parseToJsonElement(
+            """[{"name": "", "browser_download_url": "https://example.com/blank.apk"}, "junk", ${asset("app.apk", "https://example.com/app.apk")}]""",
+        ) as JsonArray
+        assertEquals("https://example.com/app.apk", assets.pickDownloadUrl())
     }
 }
