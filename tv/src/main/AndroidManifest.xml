@@ -11,7 +11,14 @@
 
     <queries>
         <package android:name="com.google.android.webview" />
+        <!-- 语音搜索：系统语音识别器（RecognizerIntent） -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
     </queries>
+
+    <!-- 厂商语音服务（Peasun 小豚）：遥控器语音键的识别结果以广播推过来 -->
+    <uses-permission android:name="com.peasun.aispeech.aiopen.control" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -78,6 +85,19 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 厂商语音服务（Peasun 小豚）回调：遥控器语音键的识别结果以广播发过来。
+             类名与 3.x 保持一致（com.github.mytv.android.SharJeckOpenReceiver），
+             厂商服务可能按类名显式寻址 -->
+        <receiver
+            android:name="com.github.mytv.android.SharJeckOpenReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.peasun.aispeech.action.app.register.require" />
+                <action android:name="com.peasun.aispeech.action.live" />
             </intent-filter>
         </receiver>
 
