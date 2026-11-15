@@ -34,15 +34,30 @@ fun SettingsLogScreen(
                     index == 0,
                     Modifier.focusRequester(firstItemFocusRequester)
                 ),
-                leadingContent = { Text(log.level.toString()[0].toString()) },
+                leadingContent = { Text(logLevelLetter(log.level)) },
                 headlineContent = { Text(log.tag) },
-                supportingContent = { Text("${log.message} ${log.cause ?: ""}") },
+                supportingContent = { Text(logSupportingText(log.message, log.cause)) },
                 trailingContent = { Text(timeFormat.format(log.time)) },
                 selected = false,
                 onClick = {},
             )
         }
     }
+}
+
+/**
+ * 日志行前面的等级字母：取等级名的首字母（DEBUG→D、INFO→I、WARN→W、ERROR→E）。
+ * 从界面里抽出来，只为能离线断言字母写没写错；等级名一改字母就跟着变，单测会立刻发现。
+ */
+internal fun logLevelLetter(level: Logger.LevelType): String {
+    return level.toString()[0].toString()
+}
+
+/**
+ * 日志行的正文：消息后面跟原因，没有原因时留一个空格（现行写法原样保留）。
+ */
+internal fun logSupportingText(message: String, cause: String?): String {
+    return "$message ${cause ?: ""}"
 }
 
 @Preview(device = "id:Android TV (720p)")
