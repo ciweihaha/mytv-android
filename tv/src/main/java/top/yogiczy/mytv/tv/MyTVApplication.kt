@@ -24,6 +24,14 @@ import top.yogiczy.mytv.core.data.utils.Logger
 import top.yogiczy.mytv.core.util.utils.CrashLog
 import kotlin.system.exitProcess
 
+/**
+ * Sentry DSN 有没有配：没配（空串/空白）或 CI 没配时落下的字面量
+ * "null" 都算没配，不初始化。抽出来方便单元测试直接调用、锁死
+ * 这条线——字面量 "null" 曾经直接杀死启动（Sentry 6.26.0 解析
+ * 它抛 IllegalArgumentException）。
+ */
+internal fun isValidSentryDsn(dsn: String): Boolean = dsn.isNotBlank() && dsn != "null"
+
 class MyTVApplication : Application(), SingletonImageLoader.Factory {
     private val log = Logger.create("MyTVApplication")
 
@@ -62,7 +70,7 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
         // Sentry 6.26.0 解析它会抛 IllegalArgumentException，直接杀死启动。
         // 没配 DSN 就不初始化；再包一层防护，让 Sentry 永远杀不死 App。
         val dsn = BuildConfig.SENTRY_DSN
-        if (dsn.isBlank() || dsn == "null") return
+        if (!isValidSentryDsn(dsn)) return
         runCatching {
             SentryAndroid.init(this) { options ->
                 options.environment = BuildConfig.BUILD_TYPE
