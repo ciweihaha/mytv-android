@@ -83,6 +83,36 @@ class IptvRepositoryTest {
     }
 
     @Test
+    fun getChannelGroupList_localM3u_transformJsSuccess_returnsTransformedGroups() = runBlocking {
+        // 865 轮留下的尾巴：脚本成功那档能不能在单测里钉，取决于
+        // QuickJs 引擎在单测环境里能不能起来——直接试一把：脚本把
+        // 卫视那组滤掉，只留央视；引擎起不来时 transform 会兜底原样
+        // 返回，断言 1 组就失败，正好说明这档在单测里钉不住
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U x-tvg-url="http://example.com/epg.xml"
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+            #EXTINF:-1 tvg-name="湖南卫视" group-title="卫视",湖南卫视
+            http://example.com/hunan.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(
+            name = "test", url = m3uFile.path, isLocal = true,
+            transformJs = "function main(list) { return list.filter(function(item) { return item.groupName === '央视'; }); }",
+        )
+
+        val result = IptvRepository(source).getChannelGroupList(60_000)
+
+        assertEquals(1, result.size)
+        assertEquals("央视", result[0].name)
+        assertEquals(listOf("CCTV-1", "CCTV-2"), result[0].channelList.map { it.name })
+    }
+
+    @Test
     fun getChannelGroupList_localM3u_transformJsFails_returnsParsedGroups() = runBlocking {
         // 转换脚本跑不起来（抛错）时原样返回解析结果、不丢频道：
         // 脚本错被 runCatching 接住走兜底；就算 QuickJs 在单测环境里
