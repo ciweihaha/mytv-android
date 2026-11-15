@@ -82,13 +82,7 @@ fun SettingsIptvScreen(
 
             SettingsListItem(
                 headlineContent = "频道分组管理",
-                trailingContent = {
-                    if (hiddenCount == 0) {
-                        Text("共${allCount}个分组")
-                    } else {
-                        Text("共${allCount}个分组，已隐藏${hiddenCount}个分组")
-                    }
-                },
+                trailingContent = channelGroupManagementText(allCount, hiddenCount),
                 onSelect = toChannelGroupVisibilityScreen,
                 link = true,
             )
@@ -197,6 +191,15 @@ internal fun iptvSourceCacheTimeText(cacheTime: Long): String {
  */
 internal fun truncateCookieForDisplay(cookie: String): String {
     return if (cookie.length > 50) cookie.take(50) + "..." else cookie
+}
+
+/**
+ * 频道分组管理的显示文字：没隐藏分组只写总数，隐藏了就追加隐藏数。
+ * 从界面里抽出来，只为能离线断言隐藏 0 个与非 0 两档写没写对；行为逐字不变。
+ */
+internal fun channelGroupManagementText(allCount: Int, hiddenCount: Int): String {
+    return if (hiddenCount == 0) "共${allCount}个分组"
+    else "共${allCount}个分组，已隐藏${hiddenCount}个分组"
 }
 
 @Preview(device = "id:Android TV (720p)")

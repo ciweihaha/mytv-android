@@ -24,4 +24,12 @@ class SettingsIptvScreenTest {
         assertEquals("a".repeat(50) + "...", truncateCookieForDisplay("a".repeat(51)))
         assertEquals("a".repeat(50) + "...", truncateCookieForDisplay("a".repeat(100)))
     }
+
+    @Test
+    fun channelGroupManagementText_hiddenCounts() {
+        assertEquals("共0个分组", channelGroupManagementText(0, 0))
+        assertEquals("共10个分组", channelGroupManagementText(10, 0))
+        assertEquals("共10个分组，已隐藏3个分组", channelGroupManagementText(10, 3))
+        assertEquals("共10个分组，已隐藏10个分组", channelGroupManagementText(10, 10))
+    }
 }
