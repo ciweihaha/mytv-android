@@ -13,10 +13,17 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.tv.ui.utils.Configs
 
 class MainViewModelTest {
-    private fun channel(name: String, standardName: String, vararg urls: String): Channel {
+    private fun channel(
+        name: String,
+        standardName: String,
+        vararg urls: String,
+        // epgName 默认跟名字走：网页混合线路按 epgName 查表，留空就查不到
+        epgName: String = name,
+    ): Channel {
         return Channel(
             name = name,
             standardName = standardName,
+            epgName = epgName,
             lineList = ChannelLineList(urls.map { ChannelLine(url = it) }),
         )
     }
