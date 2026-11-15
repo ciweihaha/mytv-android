@@ -141,14 +141,17 @@ object EpgParser : Loggable("EpgParser") {
                                     }
                                     if (channelIds.contains(channel)) {
                                         title?.let {
-                                            programmeList.add(
-                                                ProgrammeItem(
-                                                    channel,
-                                                    parseTime(start, dateFormat, noZoneDateFormat),
-                                                    parseTime(stop, dateFormat, noZoneDateFormat),
-                                                    it
+                                            val startMillis = parseTime(start, dateFormat, noZoneDateFormat)
+                                            val endMillis = parseTime(stop, dateFormat, noZoneDateFormat)
+                                            // 非法时间记 0 的节目直接丢掉：开始为 0、结束在未来时，
+                                            // recentProgramme 只比时间、不验有效性，会把它当成正在播；
+                                            // 开始/结束都无效的零时长节目显示层本来就过滤，解析时丢掉
+                                            // 与显示一致（天光 1952 轮同款过滤）
+                                            if (startMillis > 0 && endMillis > startMillis) {
+                                                programmeList.add(
+                                                    ProgrammeItem(channel, startMillis, endMillis, it)
                                                 )
-                                            )
+                                            }
                                         }
                                     }
                                 }
