@@ -45,8 +45,7 @@ fun SettingsControlScreen(
 
             SettingsListItem(
                 headlineContent = "换台反转",
-                supportingContent = if (flip) "方向键上：下一个频道；方向键下：上一个频道"
-                else "方向键上：上一个频道；方向键下：下一个频道",
+                supportingContent = channelChangeFlipSupportingText(flip),
                 trailingContent = {
                     Switch(flip, null)
                 },
@@ -95,6 +94,15 @@ fun SettingsControlScreen(
             )
         }
     }
+}
+
+/**
+ * “换台反转”行的说明文字：反转开 → 方向键上是下一个频道、方向键下是上一个频道；反转关 → 反过来。
+ * 从界面里抽出来，只为能离线断言上下方向写没写反；两句话里“上/下”与“上一个/下一个”各出现一次，写反了肉眼很难发现。
+ */
+internal fun channelChangeFlipSupportingText(flip: Boolean): String {
+    return if (flip) "方向键上：下一个频道；方向键下：上一个频道"
+    else "方向键上：上一个频道；方向键下：下一个频道"
 }
 
 @Preview(device = "id:Android TV (720p)")
