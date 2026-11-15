@@ -70,11 +70,7 @@ fun SettingsIptvScreen(
 
             SettingsListItem(
                 headlineContent = "直播源缓存时间",
-                trailingContent = when (cacheTime) {
-                    0L -> "不缓存"
-                    Long.MAX_VALUE -> "永久"
-                    else -> cacheTime.humanizeMs()
-                },
+                trailingContent = iptvSourceCacheTimeText(cacheTime),
                 onSelect = toIptvSourceCacheTimeScreen,
                 link = true,
             )
@@ -182,6 +178,18 @@ fun SettingsIptvScreen(
                 remoteConfig = true,
             )
         }
+    }
+}
+
+/**
+ * 直播源缓存时间的显示文字：0 → “不缓存”，最大值 → “永久”，其余走已钉死的 `humanizeMs`。
+ * 从界面里抽出来，只为能离线断言两档特殊值写没写错；行为逐字不变。
+ */
+internal fun iptvSourceCacheTimeText(cacheTime: Long): String {
+    return when (cacheTime) {
+        0L -> "不缓存"
+        Long.MAX_VALUE -> "永久"
+        else -> cacheTime.humanizeMs()
     }
 }
 
