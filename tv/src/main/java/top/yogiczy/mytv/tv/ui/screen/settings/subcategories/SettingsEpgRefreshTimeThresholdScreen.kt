@@ -53,7 +53,7 @@ fun SettingsEpgRefreshTimeThresholdScreen(
                         .handleKeyEvents(onSelect = { onTimeThresholdChanged(timeThreshold) }),
                     headlineContent = {
                         Text(
-                            text = "${timeThreshold}:00",
+                            text = epgRefreshTimeThresholdText(timeThreshold),
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                         )
@@ -75,6 +75,22 @@ fun SettingsEpgRefreshTimeThresholdScreen(
             }
         }
     }
+}
+
+/**
+ * 刷新时间阈值的显示文字：阈值是整点小时（0–12），直接拼“:00”（"5:00"、"12:00"）。
+ * 原先同一份插值在节目单分类页与阈值子页两处各写了一份；抽成一个共用函数，文案逐字不变。
+ * 注意：主界面日志里那处是补零的 "05:00"（`MainViewModel.refreshEpg`），那是日志写法，不是一处，别顺手统一。
+ */
+internal fun epgRefreshTimeThresholdText(threshold: Int): String {
+    return "$threshold:00"
+}
+
+/**
+ * 刷新时间阈值的说明文字：复用上面的时间写法。
+ */
+internal fun epgRefreshTimeThresholdHintText(threshold: Int): String {
+    return "时间不到${epgRefreshTimeThresholdText(threshold)}节目单将不会刷新"
 }
 
 @Preview(device = "id:Android TV (720p)")
