@@ -5,6 +5,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -46,7 +47,7 @@ class EpgRepositoryTest {
      * 单测的编译 classpath 里）。只回一份固定的节目单 XML，并数一共被
      * 请求了几次。
      */
-    private class TestHttpServer(private val body: String) {
+    private class TestHttpServer(private val body: String, private val statusCode: Int = 200) {
         private val serverSocket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
         val port: Int get() = serverSocket.localPort
         val hits = AtomicInteger(0)
@@ -64,13 +65,22 @@ class EpgRepositoryTest {
                         val out = socket.getOutputStream()
                         if (requestLine.startsWith("GET /epg.xml ")) {
                             hits.incrementAndGet()
-                            val content = body.toByteArray(Charsets.UTF_8)
-                            out.write(
-                                "HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\nContent-Length: ${content.size}\r\nConnection: close\r\n\r\n"
-                                    .toByteArray()
-                            )
-                            out.write(content)
-                            out.flush()
+                            if (statusCode == 204) {
+                                // 无内容响应：不带 body，测 response.body 为空那档
+                                out.write(
+                                    "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.flush()
+                            } else {
+                                val content = body.toByteArray(Charsets.UTF_8)
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\nContent-Length: ${content.size}\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.write(content)
+                                out.flush()
+                            }
                         } else {
                             out.write(
                                 "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
@@ -207,5 +217,19 @@ class EpgRepositoryTest {
             result.flatMap { it.programmeList.map { p -> p.title } },
         )
         assertEquals("用缓存时不应走网络", 0, server.hits.get())
+    }
+
+    @Test
+    fun getEpgList_emptyBodyResponse_throwsEmptyProgrammeError() {
+        // 服务端回 204 无内容：响应体为空时应走到“节目单为空”的诚实报错，
+        // 而不是在 response.body!! 上抛空指针、被包成“请检查网络连接”
+        server = TestHttpServer("", statusCode = 204).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val ex = assertThrows(Exception::class.java) {
+            runBlocking { repo.getEpgList() }
+        }
+        assertEquals("获取节目单为空", ex.message)
     }
 }
