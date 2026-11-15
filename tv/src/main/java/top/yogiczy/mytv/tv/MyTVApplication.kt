@@ -29,12 +29,12 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        
-        initSentry()
+
         crashHandle()
+        initSentry()
         AppData.init(applicationContext)
         UnsafeTrustManager.enableUnsafeTrustManager()
-        
+
     }
 
     override fun newImageLoader(context: Context): ImageLoader {
@@ -58,25 +58,32 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
     }
 
     private fun initSentry() {
-        SentryAndroid.init(this) { options ->
-            options.environment = BuildConfig.BUILD_TYPE
-            options.dsn = BuildConfig.SENTRY_DSN
-            options.tracesSampleRate = 1.0
-            options.beforeSend =
-                SentryOptions.BeforeSendCallback { event: SentryEvent, _: Hint ->
-                    if (event.level == null) event.level = SentryLevel.FATAL
+        // fork 的 CI 没配 Sentry DSN：BuildConfig.SENTRY_DSN 是字面量 "null"，
+        // Sentry 6.26.0 解析它会抛 IllegalArgumentException，直接杀死启动。
+        // 没配 DSN 就不初始化；再包一层防护，让 Sentry 永远杀不死 App。
+        val dsn = BuildConfig.SENTRY_DSN
+        if (dsn.isBlank() || dsn == "null") return
+        runCatching {
+            SentryAndroid.init(this) { options ->
+                options.environment = BuildConfig.BUILD_TYPE
+                options.dsn = dsn
+                options.tracesSampleRate = 1.0
+                options.beforeSend =
+                    SentryOptions.BeforeSendCallback { event: SentryEvent, _: Hint ->
+                        if (event.level == null) event.level = SentryLevel.FATAL
 
-                    if (BuildConfig.DEBUG) return@BeforeSendCallback null
-                    if (SentryLevel.ERROR != event.level && SentryLevel.FATAL != event.level) return@BeforeSendCallback null
-                    if (event.exceptions?.any { ex -> ex.type?.contains("Http") == true } == true) return@BeforeSendCallback null
+                        if (BuildConfig.DEBUG) return@BeforeSendCallback null
+                        if (SentryLevel.ERROR != event.level && SentryLevel.FATAL != event.level) return@BeforeSendCallback null
+                        if (event.exceptions?.any { ex -> ex.type?.contains("Http") == true } == true) return@BeforeSendCallback null
 
-                    event
-                }
-        }
+                        event
+                    }
+            }
 
-        @Suppress("UnstableApiUsage")
-        Sentry.withScope { scope ->
-            Globals.deviceId = scope.options.distinctId ?: ""
+            @Suppress("UnstableApiUsage")
+            Sentry.withScope { scope ->
+                Globals.deviceId = scope.options.distinctId ?: ""
+            }
         }
     }
 
