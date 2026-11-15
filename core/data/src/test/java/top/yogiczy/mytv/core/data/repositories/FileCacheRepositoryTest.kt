@@ -171,6 +171,32 @@ class FileCacheRepositoryTest {
         }
     }
 
+    @Test
+    fun getOrRefresh_emptyRefreshResultFallsBackToStaleData() = runBlocking {
+        val repo = TestRepo("test.json")
+        assertEquals("v1", repo.get(Long.MAX_VALUE, "v1"))
+        // 过期后刷新回空串：不是成功，不能把好缓存盖成空，应复用旧的 v1、文件不动
+        assertEquals("v1", repo.get(0, ""))
+        assertEquals("v1", File(Globals.cacheDir, "test.json").readText())
+        // 纯空白也一样不算成功
+        assertEquals("v1", repo.get(0, "   "))
+        assertEquals("v1", File(Globals.cacheDir, "test.json").readText())
+    }
+
+    @Test
+    fun getOrRefresh_emptyRefreshResultThrowsWhenNoStaleData() = runBlocking {
+        val repo = TestRepo("test.json")
+        // 开头没有缓存、刷新又回空串：没东西可复用，应抛错、什么都不写
+        val ex = try {
+            repo.get(0, "")
+            null
+        } catch (e: Exception) {
+            e
+        }
+        assertEquals("刷新结果为空", ex?.message)
+        assertFalse(File(Globals.cacheDir, "test.json").exists())
+    }
+
     @Test(expected = CancellationException::class)
     fun getOrRefresh_rethrowsCancellationInsteadOfFallingBack() {
         runBlocking {
