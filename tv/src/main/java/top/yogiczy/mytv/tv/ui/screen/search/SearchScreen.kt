@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,13 @@ fun SearchScreen(
 
     var key by rememberSaveable { mutableStateOf("") }
 
+    // 语音搜索：点键盘上的麦克风键拉起系统识别器，识别出的文字直接填进搜索框；
+    // 遥控器语音键（厂商语音服务广播推过来的文字）也一样填进来。
+    val startVoiceSearch = rememberVoiceSearchLauncher { text -> key = text }
+    LaunchedEffect(Unit) {
+        VoiceSearchBus.voiceText.collect { text -> key = text }
+    }
+
     // 全表过滤只在关键词或频道单变了时才重算：之前 provider 是现场算的，
     // SearchResult 每次重画（焦点挪动、节目单刷新等）都要把几千个频道重滤一遍
     val channelGroupList = channelGroupListProvider()
@@ -67,6 +75,7 @@ fun SearchScreen(
                     .width(4.gridColumns()),
                 onInput = { key += it },
                 onDelete = { key = key.dropLast(1) },
+                onVoiceSearch = startVoiceSearch,
             )
 
             SearchResult(
