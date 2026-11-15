@@ -117,7 +117,7 @@ class Media3VideoPlayer(
     // 释放时取消，过期重试不干扰新频道
     private var silentRetryJob: Job? = null
 
-    private companion object {
+    companion object {
         const val MAX_SILENT_RETRY = 3
     }
 
