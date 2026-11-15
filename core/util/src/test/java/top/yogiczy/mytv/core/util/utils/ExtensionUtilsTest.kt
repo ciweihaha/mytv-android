@@ -83,7 +83,10 @@ class ExtensionUtilsTest {
         // 这条是 comparePreRelease 最后的 return part1.compareTo(part2)，
         // 之前只测过数字段与数字对字母，纯字母对字母一次也没断言过
         assertEquals(-1, "1.0.0-alpha".compareVersion("1.0.0-beta"))
-        assertEquals(1, "1.0.0-rc".compareVersion("1.0.0-beta"))
+        // 注意：这里只能断言符号、不能断言等于 1——compareVersion 原样
+        // 返回 part1.compareTo(part2)，"rc" 对 "beta" 首字母差是 16
+        // 不是 1；调用方（更新检查）也只看正负号，不看具体数值
+        assertTrue("1.0.0-rc".compareVersion("1.0.0-beta") > 0)
         assertEquals(-1, "1.0.0-alpha.1".compareVersion("1.0.0-beta.1"))
         // 前缀相同、段多的更大：段少的更小只测过一个方向，反方向也没断言过
         assertEquals(1, "1.0.0-alpha.1".compareVersion("1.0.0-alpha"))
