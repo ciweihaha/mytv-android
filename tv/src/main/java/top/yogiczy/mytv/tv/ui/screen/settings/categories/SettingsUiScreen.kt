@@ -111,10 +111,7 @@ fun SettingsUiScreen(
 
             SettingsListItem(
                 headlineContent = "超时自动关闭界面",
-                trailingContent = when (delay) {
-                    Long.MAX_VALUE -> "不关闭"
-                    else -> delay.humanizeMs()
-                },
+                trailingContent = uiScreenAutoCloseDelayText(delay),
                 onSelect = toUiScreenAutoCloseDelayScreen,
                 link = true,
             )
@@ -180,6 +177,17 @@ fun SettingsUiScreen(
             )
         }
 
+    }
+}
+
+/**
+ * “超时自动关闭界面”行的显示文字：最大值 → “不关闭”，其余走已钉死的 `humanizeMs`。
+ * 从界面里抽出来，只为能离线断言最大值那档写没写对；行为逐字不变。
+ */
+internal fun uiScreenAutoCloseDelayText(delay: Long): String {
+    return when (delay) {
+        Long.MAX_VALUE -> "不关闭"
+        else -> delay.humanizeMs()
     }
 }
 
