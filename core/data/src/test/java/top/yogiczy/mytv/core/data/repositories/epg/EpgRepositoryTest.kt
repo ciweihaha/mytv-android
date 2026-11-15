@@ -241,8 +241,8 @@ class EpgRepositoryTest {
 
         assertEquals(1, result.size)
         assertEquals("新闻联播", result.first().programmeList.first().title)
-        assertEquals(1794589200000L, result.first().programmeList.first().start)
-        assertEquals(1794592800000L, result.first().programmeList.first().end)
+        assertEquals(1794589200000L, result.first().programmeList.first().startAt)
+        assertEquals(1794592800000L, result.first().programmeList.first().endAt)
     }
 
     @Test
