@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.core.data.repositories.iptv.parser
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import top.yogiczy.mytv.core.data.repositories.iptv.parser.IptvParser.ChannelItem.Companion.toChannelGroupList
@@ -63,5 +64,32 @@ class IptvChannelGroupTest {
         assertEquals("id-2", cctv1OtherGroup.tvgId)
         assertEquals(1, cctv1OtherGroup.lineList.size)
         assertEquals("http://b.com/1", cctv1OtherGroup.lineList[0].url)
+    }
+
+    @Test
+    fun parseThenGroup_sameNameDuplicateRows_firstRowWins() = runBlocking {
+        // 端到端版（天光 1932 轮姊妹检查）：811 轮只钉了分组函数本身，
+        // 没走解析器——同名频道两行、tvg-name 与 tvg-id 各不相同时，
+        // 解析出来的两条 ChannelItem 合并后，频道名与 tvg-id 取第一条的、
+        // 地址两条都留着。只断言先赢哪一个，不钉标准名映射本身的值
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-id="cctv1" tvg-name="CCTV综合" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-id="cctv1-hd" tvg-name="CCTV-1 高清" group-title="央视",CCTV-1
+            http://example.com/cctv1-hd.m3u8
+        """.trimIndent()
+
+        val result = M3uIptvParser().parse(data).toChannelGroupList()
+
+        assertEquals(1, result.size)
+        assertEquals("央视", result[0].name)
+        val cctv1 = result[0].channelList.single()
+        assertEquals("CCTV-1", cctv1.name)
+        assertEquals(ChannelAlias.standardChannelName("CCTV综合"), cctv1.epgName)
+        assertEquals("cctv1", cctv1.tvgId)
+        assertEquals(2, cctv1.lineList.size)
+        assertEquals("http://example.com/cctv1.m3u8", cctv1.lineList[0].url)
+        assertEquals("http://example.com/cctv1-hd.m3u8", cctv1.lineList[1].url)
     }
 }
