@@ -124,21 +124,17 @@ fun SettingsCloudSyncScreen(
                 headlineContent = "云端数据",
                 supportingContent = "长按应用当前云端数据",
                 trailingContent = {
-                    if (syncData == null) {
-                        return@SettingsListItem CircularProgressIndicator(
+                    when (cloudSyncDataState(syncData, pullFailed)) {
+                        CloudSyncDataState.LOADING -> CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             color = LocalContentColor.current,
                             trackColor = MaterialTheme.colorScheme.surface.copy(0.1f),
                             strokeWidth = 3.dp,
                         )
-                    }
 
-                    syncData?.let { nnSyncData ->
-                        if (pullFailed) {
-                            Text("拉取失败，请重试")
-                        } else if (nnSyncData == CloudSyncData.EMPTY) {
-                            Text("无云端数据")
-                        } else {
+                        CloudSyncDataState.FAILED -> Text("拉取失败，请重试")
+                        CloudSyncDataState.EMPTY -> Text("无云端数据")
+                        CloudSyncDataState.DATA -> syncData?.let { nnSyncData ->
                             Column {
                                 Text("云端版本：${nnSyncData.version}")
 
@@ -271,6 +267,25 @@ fun SettingsCloudSyncScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * “云端数据”行的显示状态：数据为空是加载中；拉取失败优先于空数据
+ *（失败时 `pullSyncData()` 同时把数据置成 EMPTY，空档先判会把失败
+ * 显示成“无云端数据”）；空数据是没有云端数据；其余是有数据。
+ * 只抽判定本身，渲染原样不动。
+ */
+internal enum class CloudSyncDataState {
+    LOADING, FAILED, EMPTY, DATA
+}
+
+internal fun cloudSyncDataState(syncData: CloudSyncData?, pullFailed: Boolean): CloudSyncDataState {
+    return when {
+        syncData == null -> CloudSyncDataState.LOADING
+        pullFailed -> CloudSyncDataState.FAILED
+        syncData == CloudSyncData.EMPTY -> CloudSyncDataState.EMPTY
+        else -> CloudSyncDataState.DATA
     }
 }
 
