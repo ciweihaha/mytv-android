@@ -272,6 +272,56 @@ class EpgRepositoryTest {
     }
 
     @Test
+    fun getEpgList_stripsSingleLeadingBom() = runBlocking {
+        // 天光 1954 轮姊妹检查：节目单开头带一个 BOM。KXml 喂 Reader 时
+        // 不跳 BOM（只在 setInput(InputStream) 时按字节认 BOM），BOM 先
+        // 占一列、带 <?xml 声明的源在 "PI must not start with xml" 上抛错，
+        // 整个节目单加载失败；开头有几个 BOM 去几个
+        val now = System.currentTimeMillis()
+        server = TestHttpServer(
+            "\uFEFF" + epgXml(
+                "cctv1", "CCTV-1",
+                listOf(Triple(now - 30 * 60_000, now + 30 * 60_000, "正在播"))
+            )
+        ).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val result = repo.getEpgList()
+
+        assertEquals(1, result.size)
+        assertEquals(
+            "带一个 BOM 的节目单也应正常解析",
+            listOf("正在播"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+    }
+
+    @Test
+    fun getEpgList_stripsDoubleLeadingBom() = runBlocking {
+        // 反复转存、拼接过的源开头可能带两个 BOM：只去一个、剩一个照样
+        // 在 "PI must not start with xml" 上抛错；开头有几个去几个
+        val now = System.currentTimeMillis()
+        server = TestHttpServer(
+            "\uFEFF\uFEFF" + epgXml(
+                "cctv1", "CCTV-1",
+                listOf(Triple(now - 30 * 60_000, now + 30 * 60_000, "正在播"))
+            )
+        ).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val result = repo.getEpgList()
+
+        assertEquals(1, result.size)
+        assertEquals(
+            "带两个 BOM 的节目单也应正常解析",
+            listOf("正在播"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+    }
+
+    @Test
     fun getEpgList_emptyBodyResponse_throwsEmptyProgrammeError() {
         // 服务端回 204 无内容：响应体为空时应走到“节目单为空”的诚实报错，
         // 而不是在 response.body!! 上抛空指针、被包成“请检查网络连接”
