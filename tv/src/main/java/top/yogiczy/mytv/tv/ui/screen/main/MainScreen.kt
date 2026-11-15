@@ -141,8 +141,12 @@ fun MainScreen(
                 }
             }
 
-            if (!updateViewModel.isUpdateAvailable) return@launch
-            if (settingsViewModel.appLastLatestVersion == updateViewModel.latestRelease.version) return@launch
+            if (!shouldRemindUpdate(
+                    updateViewModel.isUpdateAvailable,
+                    updateViewModel.latestRelease.version,
+                    settingsViewModel.appLastLatestVersion,
+                )
+            ) return@launch
 
             settingsViewModel.appLastLatestVersion = updateViewModel.latestRelease.version
             if (settingsViewModel.updateForceRemind) {
@@ -342,3 +346,14 @@ fun MainScreen(
         )
     }
 }
+
+/**
+ * 启动 3 秒后查到新版时要不要提醒：有更新、且这个版本号不是上次已经提醒
+ * 过的，才提醒——否则同一版每次启动都弹一次。`appLastLatestVersion`
+ * 为空是从没提醒过。只抽判断本身，3 秒延迟与弹框/提示仍在界面里。
+ */
+internal fun shouldRemindUpdate(
+    isUpdateAvailable: Boolean,
+    latestVersion: String,
+    lastLatestVersion: String,
+): Boolean = isUpdateAvailable && latestVersion != lastLatestVersion
