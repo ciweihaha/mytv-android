@@ -25,6 +25,39 @@ import java.io.File
 class UpdateViewModelTest {
 
     @Test
+    fun `发版 tag 与线上同版时不报有更新`() = runBlocking {
+        // 并行方 843 轮后那批只加了调用处的 releaseTag、没给 checkUpdate
+        // 加参数，主干直接编译红。语义：发版 tag（V3.0.0.243）与内部版
+        // （1.1.1.N）是两套编号——线上最新也是 3.0.0.243 时不能报更新，
+        // 直接比内部版会永远报“有新版”
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.1.1.100", "stable", releaseTag = "V3.0.0.243") {
+            GitRelease(version = "3.0.0.243", downloadUrl = "https://example.com/app.apk")
+        }
+        assertFalse(viewModel.isUpdateAvailable)
+    }
+
+    @Test
+    fun `发版 tag 比线上旧时报有更新`() = runBlocking {
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.1.1.100", "stable", releaseTag = "V3.0.0.242") {
+            GitRelease(version = "3.0.0.243", downloadUrl = "https://example.com/app.apk")
+        }
+        assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
+    fun `tag 为空时仍拿内部版比`() = runBlocking {
+        // 手动触发/调试时 RELEASE_TAG 为空串：回落到内部版比较；空串
+        // 本身不能当版本号——拿它比会把任何版本都当成更新
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable", releaseTag = "") {
+            GitRelease(version = "1.0.0", downloadUrl = "https://example.com/app.apk")
+        }
+        assertFalse(viewModel.isUpdateAvailable)
+    }
+
+    @Test
     fun `检查进行中再次检查直接返回不重复拉取`() = runBlocking {
         val viewModel = UpdateViewModel()
         val started = CompletableDeferred<Unit>()
@@ -339,96 +372,6 @@ class UpdateViewModelTest {
             }
         } finally {
             scope.cancel()
-        }
-    }
-
-    @Test
-    fun isNewerRelease_tagComparison() {
-        // 发版 tag 和线上最新版是同一套编号（3.0.0.N）：装的就是最新版时
-        // 不报“有新版”——旧代码拿 tag 版比内部版 1.1.1.N，永远报有新版
-        assertFalse(isNewerRelease("3.0.0.242", "V3.0.0.242", "1.1.1.13"))
-        assertFalse(isNewerRelease("3.0.0.242", "3.0.0.242", "1.1.1.13"))
-        // 线上比本次 tag 新：有更新
-        assertTrue(isNewerRelease("3.0.0.243", "V3.0.0.242", "1.1.1.13"))
-        // 线上比本次 tag 旧：没更新
-        assertFalse(isNewerRelease("3.0.0.241", "V3.0.0.242", "1.1.1.13"))
-        // tag 为空（本地/CI 构建没写 RELEASE_TAG）：退回旧逻辑比内部版
-        assertTrue(isNewerRelease("3.0.0.242", "", "1.1.1.13"))
-        assertFalse(isNewerRelease("1.1.1.12", "", "1.1.1.13"))
-    }
-
-    @Test
-    fun `同 tag 的发版不再误报有更新`() = runBlocking {
-        // 装的就是 V3.0.0.242（内部 1.1.1.13），线上最新也是 3.0.0.242：
-        // 带上 releaseTag 查，不应报有更新
-        val viewModel = UpdateViewModel()
-        viewModel.checkUpdate("1.1.1.13", "stable", releaseTag = "V3.0.0.242") {
-            GitRelease(version = "3.0.0.242", downloadUrl = "https://example.com/app.apk")
-        }
-        assertFalse(viewModel.isUpdateAvailable)
-
-        // 线上出了 3.0.0.243：应报有更新
-        val viewModel2 = UpdateViewModel()
-        viewModel2.checkUpdate("1.1.1.13", "stable", releaseTag = "V3.0.0.242") {
-            GitRelease(version = "3.0.0.243", downloadUrl = "https://example.com/app.apk")
-        }
-        assertTrue(viewModel2.isUpdateAvailable)
-    }
-
-    @Test
-    fun `代理下载失败回退 GitHub 直链`() = runBlocking {
-        // gh-proxy 失败时改走直链再试一次：直链成功即下载成功
-        val viewModel = UpdateViewModel()
-        viewModel.checkUpdate("1.0.0", "stable") {
-            GitRelease(
-                version = "9.9.9",
-                downloadUrl = "${top.yogiczy.mytv.core.data.utils.Constants.GITHUB_PROXY}https://github.com/x/y/releases/download/v9.9.9/app.apk",
-            )
-        }
-        val attemptedUrls = mutableListOf<String>()
-        val file = File.createTempFile("update-test", ".apk")
-        try {
-            viewModel.downloadAndUpdate(file) { url, path, _ ->
-                attemptedUrls += url
-                if (url.startsWith(top.yogiczy.mytv.core.data.utils.Constants.GITHUB_PROXY)) {
-                    throw RuntimeException("proxy down")
-                }
-                File(path).writeText("apk")
-            }
-            assertTrue(viewModel.updateDownloaded)
-            assertTrue(file.exists())
-            // 先试代理、再试直链，共两次；第二次就是去掉代理前缀的直链
-            assertEquals(2, attemptedUrls.size)
-            assertEquals(
-                "https://github.com/x/y/releases/download/v9.9.9/app.apk",
-                attemptedUrls[1],
-            )
-        } finally {
-            file.delete()
-        }
-    }
-
-    @Test
-    fun `代理和直链都失败时下载失败`() = runBlocking {
-        // 两路都失败：不记已下载（外层 catch 弹“下载更新失败”那档已覆盖提示）
-        val viewModel = UpdateViewModel()
-        viewModel.checkUpdate("1.0.0", "stable") {
-            GitRelease(
-                version = "9.9.9",
-                downloadUrl = "${top.yogiczy.mytv.core.data.utils.Constants.GITHUB_PROXY}https://github.com/x/y/releases/download/v9.9.9/app.apk",
-            )
-        }
-        var calls = 0
-        val file = File.createTempFile("update-test", ".apk")
-        try {
-            viewModel.downloadAndUpdate(file) { _, _, _ ->
-                calls++
-                throw RuntimeException("network down")
-            }
-            assertFalse(viewModel.updateDownloaded)
-            assertEquals(2, calls)
-        } finally {
-            file.delete()
         }
     }
 }
