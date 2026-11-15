@@ -65,4 +65,13 @@ class EpgParserTest {
         assertEquals(0, parse("20261112"))
         assertEquals(0, parse(""))
     }
+
+    @Test
+    fun parseTime_invalidDate_returnsZero() {
+        // 非法日期（2 月 30 日、13 月、24 点）：宽容模式会顺延成有效日期，
+        // 节目出现在错误的那天；严格模式下应解析失败、返回 0
+        assertEquals(0, parse("20260230010000 +0800"))
+        assertEquals(0, parse("20261301010000 +0800"))
+        assertEquals(0, parse("20261112240000 +0800"))
+    }
 }
