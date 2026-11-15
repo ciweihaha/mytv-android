@@ -395,4 +395,19 @@ class EpgRepositoryTest {
             cached.flatMap { it.programmeList.map { p -> p.title } },
         )
     }
+
+    @Test
+    fun getEpgList_noCacheAndNetworkFails_throws() {
+        // 没有任何缓存、网络也不通：没有旧数据可顶，必须抛网络错、不
+        // 能静默返回空节目单——否则界面显示“无节目”，用户分不清是
+        // 没台还是断网；上一条“刷新失败回旧缓存”只钉了有缓存那支，
+        // 没缓存还抛不抛错一次也没断言过
+        source = EpgSource(name = "test", url = "http://127.0.0.1:9/epg.xml")
+        val repo = EpgRepository(source)
+
+        val ex = assertThrows(Exception::class.java) {
+            runBlocking { repo.getEpgList() }
+        }
+        assertEquals("获取节目单xml失败，请检查网络连接", ex.message)
+    }
 }
