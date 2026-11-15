@@ -60,7 +60,16 @@ object Downloader {
                     // 流式写入：原先用 body.bytes() 把整个文件读进内存再写，
                     // 下百 MB 的 APK 时低端电视盒子容易 OOM
                     val body = it.body ?: throw Exception("下载文件失败：服务器返回空数据")
-                    FileOutputStream(tmpFile).use { fos ->
+                    // 建输出流失败（如目标父目录不存在）单独包一层中文原因：
+                    // 原样抛 FileNotFoundException 时，日志里只有裸路径，
+                    // 与“下载文件失败…”的其它分支不一致；只包建流这一步，
+                    // 写一半断流仍走原路，别把网络错也说成写文件错
+                    val outputStream = try {
+                        FileOutputStream(tmpFile)
+                    } catch (ex: Exception) {
+                        throw Exception("下载文件失败：无法写入目标文件", ex)
+                    }
+                    outputStream.use { fos ->
                         body.byteStream().use { input -> input.copyTo(fos) }
                     }
                 }
