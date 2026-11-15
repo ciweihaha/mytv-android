@@ -78,6 +78,37 @@ class CrashLogTest {
     }
 
     @Test
+    fun readFromFile_reportPathIsDirectory_returnsNull() {
+        // 同名位置被目录占住时 readText 抛错：catch 那条路一次也没
+        // 断言过——目录的 length() 在 Linux 上大于 0，会进 readText
+        // 抛错、而不是被 length 守卫拦住，所以这档测的是真异常分支
+        val dir = Files.createTempDirectory("crashlog-test").toFile()
+        try {
+            File(dir, CrashLog.FILE_NAME).mkdir()
+
+            assertNull(CrashLog.readFromFile(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun readFromFile_reportPathIsNonEmptyDirectory_returnsNullAndLeavesItAlone() {
+        // 非空目录也一样回 null、不抛错；读回不删东西，目录原样留着
+        val dir = Files.createTempDirectory("crashlog-test").toFile()
+        try {
+            val reportDir = File(dir, CrashLog.FILE_NAME)
+            reportDir.mkdir()
+            File(reportDir, "stale.txt").writeText("stale")
+
+            assertNull(CrashLog.readFromFile(dir))
+            assertTrue(reportDir.exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun extractStacktrace_returnsOnlyStacktrace() {
         val text = CrashLog.buildText(message = "m", stacktrace = "TRACE-BODY")
         assertEquals("TRACE-BODY", CrashLog.extractStacktrace(text))
