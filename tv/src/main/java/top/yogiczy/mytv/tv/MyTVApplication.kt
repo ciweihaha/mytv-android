@@ -69,6 +69,8 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
         // fork 的 CI 没配 Sentry DSN：BuildConfig.SENTRY_DSN 是字面量 "null"，
         // Sentry 6.26.0 解析它会抛 IllegalArgumentException，直接杀死启动。
         // 没配 DSN 就不初始化；再包一层防护，让 Sentry 永远杀不死 App。
+        // 初始化失败只记日志、不抛：真 DSN 配错了也要能在日志里看到，
+        // 别静默丢掉——否则崩溃上报悄悄关了都不知道。
         val dsn = BuildConfig.SENTRY_DSN
         if (!isValidSentryDsn(dsn)) return
         runCatching {
@@ -92,7 +94,7 @@ class MyTVApplication : Application(), SingletonImageLoader.Factory {
             Sentry.withScope { scope ->
                 Globals.deviceId = scope.options.distinctId ?: ""
             }
-        }
+        }.onFailure { log.e("Sentry 初始化失败", it) }
     }
 
     private fun crashHandle() {
