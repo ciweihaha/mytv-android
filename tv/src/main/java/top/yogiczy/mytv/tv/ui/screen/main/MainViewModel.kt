@@ -262,15 +262,7 @@ class MainViewModel : ViewModel() {
         channelGroupList: ChannelGroupList,
     ) = withContext(Dispatchers.Default) {
         Configs.iptvChannelFavoriteList =
-            ChannelFavoriteList(Configs.iptvChannelFavoriteList.map { channelFavorite ->
-                if (iptvSource.name != channelFavorite.iptvSourceName) return@map channelFavorite
-
-                val newChannel = channelGroupList
-                    .firstOrNull { group -> group.name == channelFavorite.groupName }?.channelList
-                    ?.firstOrNull { channel -> channel.name == channelFavorite.channel.name }
-
-                channelFavorite.copy(channel = newChannel ?: channelFavorite.channel)
-            })
+            refreshFavoriteChannels(Configs.iptvChannelFavoriteList, iptvSource.name, channelGroupList)
         needRefresh()
     }
 
@@ -278,6 +270,25 @@ class MainViewModel : ViewModel() {
         var instance: MainViewModel? = null
     }
 }
+
+/**
+ * 刷新收藏列表里的频道（纯函数，方便单元测试直接调用）：只刷新属于这个源的
+ * 收藏；分组或频道在新源里找得到就换成新的频道对象（线路随源更新），找不
+ * 到就留旧的、不丢收藏。
+ */
+internal fun refreshFavoriteChannels(
+    favoriteList: ChannelFavoriteList,
+    sourceName: String,
+    channelGroupList: ChannelGroupList,
+): ChannelFavoriteList = ChannelFavoriteList(favoriteList.map { channelFavorite ->
+    if (sourceName != channelFavorite.iptvSourceName) return@map channelFavorite
+
+    val newChannel = channelGroupList
+        .firstOrNull { group -> group.name == channelFavorite.groupName }?.channelList
+        ?.firstOrNull { channel -> channel.name == channelFavorite.channel.name }
+
+    channelFavorite.copy(channel = newChannel ?: channelFavorite.channel)
+})
 
 /**
  * 合并相似频道（纯函数，方便单元测试直接调用）：按标准名分组，同一标准名

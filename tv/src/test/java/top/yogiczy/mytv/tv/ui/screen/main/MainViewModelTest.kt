@@ -3,6 +3,8 @@ package top.yogiczy.mytv.tv.ui.screen.main
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.Channel
+import top.yogiczy.mytv.core.data.entities.channel.ChannelFavorite
+import top.yogiczy.mytv.core.data.entities.channel.ChannelFavoriteList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
@@ -127,5 +129,107 @@ class MainViewModelTest {
         assertEquals(1, result[1].channelList.size)
         assertEquals("湖南卫视", result[1].channelList[0].name)
         assertEquals("http://a.com/hunan", result[1].channelList[0].lineList[0].url)
+    }
+
+    @Test
+    fun refreshFavoriteChannels_otherSource_unchanged() {
+        val favorites = ChannelFavoriteList(
+            listOf(
+                ChannelFavorite(
+                    channel = channel("CCTV-1", "CCTV-1", "http://old.com/1"),
+                    iptvSourceName = "源B",
+                    groupName = "央视",
+                )
+            )
+        )
+        val groups = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "央视",
+                    ChannelList(listOf(channel("CCTV-1", "CCTV-1", "http://new.com/1"))),
+                )
+            )
+        )
+
+        // 刷的是源A的单，别家源的收藏一根指头都别动
+        assertEquals(favorites, refreshFavoriteChannels(favorites, "源A", groups))
+    }
+
+    @Test
+    fun refreshFavoriteChannels_found_swapsToNewChannel() {
+        val favorites = ChannelFavoriteList(
+            listOf(
+                ChannelFavorite(
+                    channel = channel("CCTV-1", "CCTV-1", "http://old.com/1"),
+                    iptvSourceName = "源A",
+                    groupName = "央视",
+                )
+            )
+        )
+        val groups = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "央视",
+                    ChannelList(listOf(channel("CCTV-1", "CCTV-1", "http://new.com/1"))),
+                )
+            )
+        )
+
+        val result = refreshFavoriteChannels(favorites, "源A", groups)
+
+        // 找得到就换成新源里的频道对象，线路跟着新源走
+        assertEquals("http://new.com/1", result[0].channel.lineList[0].url)
+        assertEquals("源A", result[0].iptvSourceName)
+        assertEquals("央视", result[0].groupName)
+    }
+
+    @Test
+    fun refreshFavoriteChannels_groupMissing_keepsOldChannel() {
+        val favorites = ChannelFavoriteList(
+            listOf(
+                ChannelFavorite(
+                    channel = channel("CCTV-1", "CCTV-1", "http://old.com/1"),
+                    iptvSourceName = "源A",
+                    groupName = "央视",
+                )
+            )
+        )
+        val groups = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "卫视",
+                    ChannelList(listOf(channel("湖南卫视", "湖南卫视", "http://new.com/hunan"))),
+                )
+            )
+        )
+
+        // 新源里没这个分组：留旧频道、不丢收藏
+        val result = refreshFavoriteChannels(favorites, "源A", groups)
+        assertEquals("http://old.com/1", result[0].channel.lineList[0].url)
+    }
+
+    @Test
+    fun refreshFavoriteChannels_channelMissing_keepsOldChannel() {
+        val favorites = ChannelFavoriteList(
+            listOf(
+                ChannelFavorite(
+                    channel = channel("CCTV-1", "CCTV-1", "http://old.com/1"),
+                    iptvSourceName = "源A",
+                    groupName = "央视",
+                )
+            )
+        )
+        val groups = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    "央视",
+                    ChannelList(listOf(channel("CCTV-2", "CCTV-2", "http://new.com/2"))),
+                )
+            )
+        )
+
+        // 分组在、台不在：同样留旧频道、不丢收藏
+        val result = refreshFavoriteChannels(favorites, "源A", groups)
+        assertEquals("http://old.com/1", result[0].channel.lineList[0].url)
     }
 }
