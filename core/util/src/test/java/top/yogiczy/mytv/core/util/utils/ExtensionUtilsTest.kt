@@ -78,6 +78,19 @@ class ExtensionUtilsTest {
     }
 
     @Test
+    fun compareVersion_preReleaseAlphaLexicographicAndLongerLabel() {
+        // 预发布段两边都是字母时按字典比（semver）：alpha < beta < rc。
+        // 这条是 comparePreRelease 最后的 return part1.compareTo(part2)，
+        // 之前只测过数字段与数字对字母，纯字母对字母一次也没断言过
+        assertEquals(-1, "1.0.0-alpha".compareVersion("1.0.0-beta"))
+        assertEquals(1, "1.0.0-rc".compareVersion("1.0.0-beta"))
+        assertEquals(-1, "1.0.0-alpha.1".compareVersion("1.0.0-beta.1"))
+        // 前缀相同、段多的更大：段少的更小只测过一个方向，反方向也没断言过
+        assertEquals(1, "1.0.0-alpha.1".compareVersion("1.0.0-alpha"))
+        assertEquals(1, "1.0.0-rc.1.2".compareVersion("1.0.0-rc.1"))
+    }
+
+    @Test
     fun compareVersion_multiDigitSegments() {
         // 本 fork 的版本号是 1.1.1.<构建号>，构建号已过百：多位数段必须按数值比，
         // 不能按字典比（字典比会把 1.1.1.135 判成大于 1.1.1.99，更新检查漏掉新版）
