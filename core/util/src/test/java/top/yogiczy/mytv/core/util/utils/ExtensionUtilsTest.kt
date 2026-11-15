@@ -141,6 +141,16 @@ class ExtensionUtilsTest {
     }
 
     @Test
+    fun urlHost_cases() {
+        assertEquals("example.com", "http://example.com/live".urlHost())
+        assertEquals("example.com", "http://example.com".urlHost())
+        assertEquals("example.com:8080", "https://example.com:8080/live".urlHost())
+        assertEquals("[2409:8087::20]:6610", "http://[2409:8087::20]:6610/x".urlHost())
+        assertEquals("", "example.com/live".urlHost())
+        assertEquals("", "".urlHost())
+    }
+
+    @Test
     fun humanizeBitrate_cases() {
         // 码率显示：播放器元数据里视频/音频码率都走这里；负数先夹到 0
         assertEquals("0bps", 0.humanizeBitrate())
