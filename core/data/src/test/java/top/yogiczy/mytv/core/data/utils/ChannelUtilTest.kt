@@ -88,4 +88,42 @@ class ChannelUtilTest {
             ChannelUtil.urlToCanPlayback("rtsp://example.com/live/1"),
         )
     }
+
+    @Test
+    fun getHybridWebViewUrlProvider_cctv_returnsOfficial() {
+        assertEquals("官网", ChannelUtil.getHybridWebViewUrlProvider("https://tv.cctv.com/live/cctv1/"))
+    }
+
+    @Test
+    fun getHybridWebViewUrlProvider_yangshipin_returnsYangshipin() {
+        assertEquals(
+            "央视频",
+            ChannelUtil.getHybridWebViewUrlProvider("https://yangshipin.cn/tv/home?pid=600002503"),
+        )
+    }
+
+    @Test
+    fun getHybridWebViewUrlProvider_providerDomain_returnsOfficial() {
+        assertEquals("官网", ChannelUtil.getHybridWebViewUrlProvider("https://www.jstv.com/live"))
+    }
+
+    @Test
+    fun getHybridWebViewUrlProvider_otherDomain_returnsOther() {
+        assertEquals("其它", ChannelUtil.getHybridWebViewUrlProvider("https://example.com/live/1"))
+    }
+
+    @Test
+    fun getHybridWebViewUrlProvider_webviewPrefix_resolvesProvider() {
+        // webview:// 线路（解析器会原样保留这种线路）：去掉前缀后补协议再解析，
+        // 不然 URL() 报 no protocol、标签只能显示"未知"
+        assertEquals(
+            "官网",
+            ChannelUtil.getHybridWebViewUrlProvider("webview://www.jstv.com/live"),
+        )
+    }
+
+    @Test
+    fun getHybridWebViewUrlProvider_invalidUrl_returnsUnknown() {
+        assertEquals("未知", ChannelUtil.getHybridWebViewUrlProvider("not a url"))
+    }
 }

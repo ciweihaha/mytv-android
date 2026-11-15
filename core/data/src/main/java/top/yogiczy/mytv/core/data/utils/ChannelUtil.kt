@@ -311,9 +311,13 @@ object ChannelUtil {
 
     fun getHybridWebViewUrlProvider(url: String): String {
         try {
-            // 处理webview://前缀
+            // 处理webview://前缀：去掉前缀后剩下的只是 host+路径、没有协议，
+            // 直接喂给 URL() 会报 no protocol、整个函数掉进 catch 回"未知"；
+            // 没协议就默认补 https:// 再解析
             val processedUrl = if (url.startsWith("webview://")) {
-                url.substring("webview://".length)
+                url.substring("webview://".length).let {
+                    if (it.contains("://")) it else "https://$it"
+                }
             } else {
                 url
             }
