@@ -31,7 +31,9 @@ class GitReleaseParserTest {
     }
 
     @Test
-    fun github_picksOriginalAllAbiApk() = runBlocking {
+    fun github_picksOriginalArm64Apk() = runBlocking {
+        // 改拿 arm64 专版（16.9MB）而不是全架构包（48.5MB）：用户电视就是
+        // arm64，全架构包里其它架构的 .so 纯属浪费流量和下载时间
         val data = githubPayload(
             "V2.2.0.219",
             listOf(
@@ -42,11 +44,11 @@ class GitReleaseParserTest {
         )
         val release = githubParser.parse(data)
         assertEquals("2.2.0.219", release.version)
-        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
     }
 
     @Test
-    fun github_picksOriginalRegardlessOfAssetOrder() = runBlocking {
+    fun github_picksOriginalArm64RegardlessOfAssetOrder() = runBlocking {
         val data = githubPayload(
             "V2.2.0.219",
             listOf(
@@ -56,7 +58,7 @@ class GitReleaseParserTest {
             ).joinToString(","),
         )
         val release = githubParser.parse(data)
-        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
     }
 
     @Test
@@ -73,17 +75,17 @@ class GitReleaseParserTest {
 
     @Test
     fun github_fallsBackToOriginalOnlyApk() = runBlocking {
-        // 没有同时含 original＋all 的附件：第一级退路落空，退到只含 original 的 APK
-        //（598 轮纠正的四级退路之第二级，此前无单测覆盖）
+        // 没有 arm64 专版：第一级退路（original＋arm64-v8a）落空，退到
+        // 只含 original 的全架构包（pickDownloadUrl 的第二级退路）
         val data = githubPayload(
             "V2.2.0.219",
             listOf(
                 asset("mytv-android-tv-2.2.0.219-all-sdk23-disguised.apk", "https://example.com/disguised.apk"),
-                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23-original.apk", "https://example.com/arm64.apk"),
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-original.apk", "https://example.com/original.apk"),
             ).joinToString(","),
         )
         val release = githubParser.parse(data)
-        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
     }
 
     @Test
