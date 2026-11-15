@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -33,18 +34,12 @@ fun SettingsPermissionsScreen(
                 modifier = Modifier.focusRequester(firstItemFocusRequester),
                 headlineContent = "应用内安装其他应用",
                 trailingContent = {
-                    if (hasPermission) {
-                        Icon(
-                            imageVector = Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Cancel, contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    Icon(
+                        imageVector = permissionStatusIcon(hasPermission),
+                        contentDescription = null,
+                        tint = if (hasPermission) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.error,
+                    )
                 },
                 onSelect = {
                     requestPermission()
@@ -58,18 +53,12 @@ fun SettingsPermissionsScreen(
             SettingsListItem(
                 headlineContent = "读取外部存储/管理全部文件",
                 trailingContent = {
-                    if (hasPermission) {
-                        Icon(
-                            imageVector = Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Cancel, contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    Icon(
+                        imageVector = permissionStatusIcon(hasPermission),
+                        contentDescription = null,
+                        tint = if (hasPermission) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.error,
+                    )
                 },
                 onSelect = {
                     requestPermission()
@@ -77,6 +66,14 @@ fun SettingsPermissionsScreen(
             )
         }
     }
+}
+
+/**
+ * 权限行状态图标：有权限 → 对勾，没权限 → 叉。两行（应用内安装、读取存储）
+ * 是同一段 if/else，抽出来去重；图标颜色仍留在界面里按布尔取主色/错误色。
+ */
+internal fun permissionStatusIcon(hasPermission: Boolean): ImageVector {
+    return if (hasPermission) Icons.Outlined.CheckCircle else Icons.Outlined.Cancel
 }
 
 @Preview(device = "id:Android TV (720p)")
