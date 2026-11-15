@@ -1,5 +1,7 @@
 package top.yogiczy.mytv.core.util.utils
 
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -87,5 +89,54 @@ class FsUtilTest {
     fun isWithin_absoluteOutsideRejected() {
         val dir = tempDir()
         assertFalse(FsUtil.isWithin(File("/etc/passwd"), dir))
+    }
+
+    @Test
+    fun getDirSizeFlow_nestedDir_emitsPerFileThenTotal() = runBlocking {
+        val dir = tempDir()
+        try {
+            File(dir, "a.txt").writeText("aaa")
+            File(dir, "b.txt").writeText("bbbbb")
+            File(dir, "sub").mkdirs()
+            File(dir, "sub/c.txt").writeText("ccccccc")
+            val sizes = FsUtil.getDirSizeFlow(dir).toList()
+            // listFiles() 顺序不保证：只断言最后一位是总和、其余排好序是各文件大小
+            assertEquals(15L, sizes.last())
+            assertEquals(listOf(3L, 5L, 7L), sizes.dropLast(1).sorted())
+            assertEquals(4, sizes.size)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun getDirSizeFlow_emptyDir_emitsZero() = runBlocking {
+        val dir = tempDir()
+        try {
+            assertEquals(listOf(0L), FsUtil.getDirSizeFlow(dir).toList())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun getDirSizeFlow_missingDir_emitsZero() = runBlocking {
+        val dir = tempDir()
+        try {
+            assertEquals(listOf(0L), FsUtil.getDirSizeFlow(File(dir, "nope")).toList())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun getDirSizeFlow_regularFile_emitsZero() = runBlocking {
+        val file = Files.createTempFile("fsutil-test", ".txt").toFile()
+        try {
+            file.writeText("hello")
+            assertEquals(listOf(0L), FsUtil.getDirSizeFlow(file).toList())
+        } finally {
+            file.delete()
+        }
     }
 }
