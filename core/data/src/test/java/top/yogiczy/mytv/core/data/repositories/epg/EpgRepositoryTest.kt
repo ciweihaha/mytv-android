@@ -334,4 +334,37 @@ class EpgRepositoryTest {
         }
         assertEquals("获取节目单为空", ex.message)
     }
+
+    @Test
+    fun getEpgList_fallsBackToStaleCacheWhenForcedRefreshFails() = runBlocking {
+        // 天光 1977 轮姊妹检查：缓存里没有正在播的节目 → 强制刷新 → 网络
+        // 不通（127.0.0.1:9 丢弃端口、连接被拒）。刷新失败不应抛错、而应
+        // 返回旧缓存顶上：断网时昨天的节目单还能看，总比直接报错强
+        val now = System.currentTimeMillis()
+        source = EpgSource(name = "test", url = "http://127.0.0.1:9/epg.xml")
+        val repo = EpgRepository(source)
+
+        seedJsonCache(
+            source,
+            oneChannelEpg(
+                listOf(Triple(now - 25 * 3600_000, now - 24 * 3600_000, "昨天节目"))
+            ),
+        )
+
+        val result = repo.getEpgList()
+
+        assertEquals(
+            "强制刷新失败时应返回旧缓存、不抛错",
+            listOf("昨天节目"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+        val cached = Globals.json.decodeFromString<EpgList>(
+            File(Globals.cacheDir, source.cacheFileName("json")).readText()
+        )
+        assertEquals(
+            "刷新失败时缓存文件不应被改动",
+            listOf("昨天节目"),
+            cached.flatMap { it.programmeList.map { p -> p.title } },
+        )
+    }
 }
