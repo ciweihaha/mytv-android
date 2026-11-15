@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -137,6 +138,50 @@ class FsUtilTest {
             assertEquals(listOf(0L), FsUtil.getDirSizeFlow(file).toList())
         } finally {
             file.delete()
+        }
+    }
+
+    @Test
+    fun writeTextAtomically_newFile_writesContentNoTmpLeft() {
+        val dir = tempDir()
+        try {
+            val target = File(dir, "x.txt")
+            FsUtil.writeTextAtomically(target, "hello")
+            assertEquals("hello", target.readText())
+            assertFalse(File(dir, "x.txt.tmp").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun writeTextAtomically_overwrite_replacesContent() {
+        val dir = tempDir()
+        try {
+            val target = File(dir, "x.txt").apply { writeText("old") }
+            FsUtil.writeTextAtomically(target, "new")
+            assertEquals("new", target.readText())
+            assertFalse(File(dir, "x.txt.tmp").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun writeTextAtomically_failure_throwsAndNoTmpLeft() {
+        val dir = tempDir()
+        try {
+            val target = File(dir, "missing/x.txt")
+            try {
+                FsUtil.writeTextAtomically(target, "hello")
+                fail("写失败时应抛错")
+            } catch (e: Exception) {
+                // 预期：父目录不存在，写临时文件抛错
+            }
+            assertFalse(File(dir, "missing/x.txt.tmp").exists())
+            assertFalse(target.exists())
+        } finally {
+            dir.deleteRecursively()
         }
     }
 }
