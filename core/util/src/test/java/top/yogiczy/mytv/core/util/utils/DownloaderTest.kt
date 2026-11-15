@@ -82,6 +82,19 @@ class DownloaderTest {
                                 out.flush()
                             }
 
+                            requestLine.startsWith("GET /chunked ") -> {
+                                // 分块传输：不发 Content-Length，总长度未知
+                                val content = "chunked-bytes".toByteArray()
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.write("${content.size.toString(16)}\r\n".toByteArray())
+                                out.write(content)
+                                out.write("\r\n0\r\n\r\n".toByteArray())
+                                out.flush()
+                            }
+
                             else -> {
                                 out.write(
                                     "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
@@ -206,6 +219,27 @@ class DownloaderTest {
             // 无重复值（去重是关键性质；回调异步发，不断言顺序）
             assertEquals(seen.toSet().size, seen.size)
             assertTrue(seen.size <= 101)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadTo_chunked_neverFiresProgressCallback() {
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "chunked.bin")
+            val seen = Collections.synchronizedList(mutableListOf<Int>())
+            runBlocking {
+                Downloader.downloadTo(
+                    "http://127.0.0.1:${server.port}/chunked", target.path
+                ) { seen.add(it) }
+            }
+            assertEquals("chunked-bytes", target.readText())
+            // 回调是异步发的：下载完后等一会儿，有误报的 0 也该到了再断言
+            Thread.sleep(500)
+            assertTrue("总长度未知时进度回调一次也不应触发，实际 $seen", seen.isEmpty())
         } finally {
             server.stop()
         }
