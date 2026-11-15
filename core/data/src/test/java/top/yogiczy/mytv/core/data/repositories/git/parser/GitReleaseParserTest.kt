@@ -286,4 +286,26 @@ class GitReleaseParserTest {
         ) as JsonArray
         assertEquals("https://example.com/app.apk", assets.pickDownloadUrl())
     }
+
+    @Test
+    fun pickDownloadUrl_caseInsensitiveSuffixAndKeywords() {
+        // 后缀与关键词都不区分大小写：上游附件名大小写不保证，大写 .APK
+        // 或混写 Original/ALL 也要挑中原版全架构包；这档之前一次也没
+        // 断言过，ignoreCase 写漏时会把原版包漏掉、退到 arm64 专版
+        val assets = Globals.json.parseToJsonElement(
+            """[${asset("mytv-arm64.APK", "https://example.com/arm64.apk")}, ${asset("MyTV-ALL-ORIGINAL.APK", "https://example.com/original.apk")}]""",
+        ) as JsonArray
+        assertEquals("https://example.com/original.apk", assets.pickDownloadUrl("original", "all"))
+        assertEquals("https://example.com/original.apk", assets.pickDownloadUrl("ORIGINAL", "ALL"))
+    }
+
+    @Test
+    fun github_assetsNotArrayThrowsClearError() {
+        // assets 字段存在但不是数组：requiredArray 应报缺字段，而不是
+        // 拿字符串当数组用时抛类型转换错
+        val data = """[{"tag_name": "V2.2.0.219", "body": "notes", "assets": "not-an-array"}]"""
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse(data) }
+        }
+    }
 }
