@@ -190,9 +190,12 @@ class UpdateViewModelTest {
             val file = File.createTempFile("update-test", ".apk")
             try {
                 val first = async {
-                    viewModel.downloadAndUpdate(file) { _, _, _ ->
+                    viewModel.downloadAndUpdate(file) { _, path, _ ->
                         started.complete(Unit)
                         releaseGate.await()
+                        // 门放开后才写文件：downloadAndUpdate 开头会先删旧
+                        // 文件，假下载不写的话断言文件存在那档必败
+                        File(path).writeText("apk")
                     }
                 }
                 started.await()
