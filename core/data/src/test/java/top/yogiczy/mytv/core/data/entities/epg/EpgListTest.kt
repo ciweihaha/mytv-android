@@ -72,6 +72,34 @@ class EpgListTest {
     }
 
     @Test
+    fun match_blankIdEntry_stillMatchedByName() {
+        // 天光 1951 轮姊妹检查：没 id 的节目单不是废数据——按名查不看 id，
+        // 空串与只有空白的 id 都应照常按名认到；id 为空只影响 id 兜底那支
+        val list = EpgList(
+            listOf(
+                Epg(id = "", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "   ", channelList = listOf("CCTV-2 综合")),
+            )
+        )
+        assertEquals("", list.match(channel("CCTV-1 综合"))?.id)
+        assertEquals("   ", list.match(channel("CCTV-2 综合"))?.id)
+    }
+
+    @Test
+    fun match_blankIdEntry_neverMatchedById() {
+        // 空 id 的条目不进 id 兜底：频道带 tvg-id 时也不能认到空 id 的条目
+        // 上（壳这边没有天光那样的 id 表，matchByTvgId 里 `it.id.isNotBlank()`
+        // 是同一道守卫；`==` 本来也不会让空 id 等上号，这里只钉行为）
+        val list = EpgList(
+            listOf(
+                Epg(id = "", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "   ", channelList = listOf("CCTV-2 综合")),
+            )
+        )
+        assertEquals(Epg(), list.match(channel("CCTV综合", "cctv1")))
+    }
+
+    @Test
     fun match_nameTakesPrecedenceOverId() {
         // 名字能对上的台不走 id：epgName 是 CCTV-1 综合、tvg-id
         // 却写着 cctv5，按名认到 cctv1，不按 id 认到 cctv5
