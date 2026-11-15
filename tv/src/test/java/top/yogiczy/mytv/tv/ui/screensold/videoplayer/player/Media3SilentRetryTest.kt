@@ -66,4 +66,15 @@ class Media3SilentRetryTest {
         assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, 0))
         assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, 2))
     }
+
+    @Test
+    fun `BEHIND_LIVE_WINDOW 连报三次都重试、第四次上报`() {
+        val errorCode = Media3PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW
+        var retries = 0
+        repeat(3) {
+            assertTrue(shouldSilentRetry(errorCode, retries))
+            retries++
+        }
+        assertFalse(shouldSilentRetry(errorCode, retries))
+    }
 }
