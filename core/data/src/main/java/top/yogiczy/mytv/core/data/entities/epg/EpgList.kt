@@ -92,14 +92,20 @@ data class EpgList(
 
         /**
          * 按 tvg-id 查节目单：直播源的 tvg-id 和节目单 channel 的 id
-         * 是同一套；没 id 的频道、id 对不上的节目单都不进这里
+         * 是同一套；没 id 的频道、id 对不上的节目单都不进这里。
+         * id 按写法不敏感比：有的节目单源 id 是大写（CCTV1），直播源
+         * 的 tvg-id 是小写（cctv1），原样比查不到。名字复核除写法相
+         * 似外，还认显示名本身就是 tvg-id 的源（节目单显示名 CCTV1
+         * 对 tvg-id cctv1）：显示名与 tvg-id 相等本身就是同一台的强
+         * 证据；显示名是别的台名时这条不成立，4K/8K 的拦法还在。
          */
         private fun EpgList.matchByTvgId(channel: Channel): Epg? {
             if (channel.tvgId.isBlank()) return null
-            val byId = firstOrNull { it.id.isNotBlank() && it.id == channel.tvgId }
+            val byId = firstOrNull { it.id.isNotBlank() && it.id.equals(channel.tvgId, ignoreCase = true) }
                 ?: return null
             return byId.takeIf { epg ->
-                epg.channelList.any { isSameEpgChannelName(channel.epgName, it) }
+                epg.channelList.any { isSameEpgChannelName(channel.epgName, it) } ||
+                    epg.channelList.any { it.equals(channel.tvgId, ignoreCase = true) }
             }
         }
 

@@ -186,6 +186,40 @@ class EpgListTest {
         assertEquals("cctv1", matched?.id)
     }
 
+    @Test
+    fun match_byTvgId_idCaseIgnored() {
+        // 天光 910d613 姊妹检查：有的节目单源 id 是大写（CCTV1），
+        // 直播源的 tvg-id 是小写（cctv1），原样比查不到、显示“无节目”
+        val list = EpgList(
+            listOf(Epg(id = "CCTV1", channelList = listOf("CCTV-1综合")))
+        )
+        val matched = list.match(channel("CCTV-1 综合", "cctv1"))
+        assertEquals("CCTV1", matched?.id)
+    }
+
+    @Test
+    fun match_byTvgId_displayNameIsTvgId() {
+        // 天光 910d613 姊妹检查：节目单显示名本身就是 tvg-id
+        // （备用源的 CCTV1 对 tvg-id cctv1）：名字复核按写法比永远
+        // 对不上，但显示名与 tvg-id 相等本身就是同一台的强证据
+        val list = EpgList(
+            listOf(Epg(id = "cctv1", channelList = listOf("CCTV1")))
+        )
+        val matched = list.match(channel("CCTV-1 综合", "cctv1"))
+        assertEquals("cctv1", matched?.id)
+    }
+
+    @Test
+    fun match_byTvgId_displayNameIsOtherTvgId_rejected() {
+        // 显示名是 tvg-id 才认：节目单显示名是另一个台的 id
+        // （cctv1）时不能认到 tvg-id=cctv5 的台上，拦法还在
+        val list = EpgList(
+            listOf(Epg(id = "cctv5", channelList = listOf("cctv1")))
+        )
+        val matched = list.match(channel("CCTV-1 综合", "cctv5"))
+        assertEquals(Epg(), matched)
+    }
+
     private fun programmeListWith(vararg programmes: EpgProgramme) =
         EpgList(listOf(Epg(id = "cctv1", programmeList = EpgProgrammeList(programmes.toList()))))
 
