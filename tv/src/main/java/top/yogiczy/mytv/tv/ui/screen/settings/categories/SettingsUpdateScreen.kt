@@ -42,8 +42,7 @@ fun SettingsUpdateScreen(
 
             SettingsListItem(
                 headlineContent = "更新强提醒",
-                supportingContent = if (forceRemind) "检测到新版本时会全屏提醒"
-                else "检测到新版本时仅消息提示",
+                supportingContent = updateForceRemindSupportingText(forceRemind),
                 trailingContent = {
                     Switch(forceRemind, null)
                 },
@@ -53,6 +52,14 @@ fun SettingsUpdateScreen(
             )
         }
     }
+}
+
+/**
+ * “更新强提醒”行的说明文字：开 → 全屏提醒，关 → 仅消息提示。
+ * 从界面里抽出来，只为能离线断言两档写没写对；行为逐字不变。
+ */
+internal fun updateForceRemindSupportingText(forceRemind: Boolean): String {
+    return if (forceRemind) "检测到新版本时会全屏提醒" else "检测到新版本时仅消息提示"
 }
 
 @Preview(device = "id:Android TV (720p)")
