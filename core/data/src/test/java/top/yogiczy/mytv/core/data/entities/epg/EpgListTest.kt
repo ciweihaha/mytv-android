@@ -138,6 +138,26 @@ class EpgListTest {
         assertFalse(isSameEpgChannelName("CCTV综合", "湖南卫视"))
     }
 
+    @Test
+    fun isSameEpgChannelName_caseIgnored() {
+        // 天光 1940 轮姊妹检查：注释里写了“先把大小写去掉再比”，
+        // 但已有用例只覆盖了数字、空白、“-”“+”，大小写那档一次
+        // 也没断言过——源里小写写的台名对节目单里大写的，归一化
+        // 要先转小写才对得上；转小写写漏时这里会失败
+        assertTrue(isSameEpgChannelName("cctv综合", "CCTV-1 综合"))
+        assertTrue(isSameEpgChannelName("cctv-8k 超高清", "CCTV-8K 超高清"))
+        // 大小写不同、但本来就不是一个台：还是不能算对上
+        assertFalse(isSameEpgChannelName("cctv综合", "CCTV财经"))
+    }
+
+    @Test
+    fun match_byTvgId_lowercaseName_matches() {
+        // 同一档走完整匹配：直播源里小写写的“cctv综合”，按名查不到、
+        // 按 tvg-id=cctv1 找回后名字复核要过大小写这一关
+        val matched = epgList().match(channel("cctv综合", "cctv1"))
+        assertEquals("cctv1", matched?.id)
+    }
+
     private fun programmeListWith(vararg programmes: EpgProgramme) =
         EpgList(listOf(Epg(id = "cctv1", programmeList = EpgProgrammeList(programmes.toList()))))
 
