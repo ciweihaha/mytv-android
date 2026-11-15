@@ -131,7 +131,13 @@ abstract class FileCacheRepository(
         }
 
         return try {
-            refreshOp().also { setCacheData(it) }
+            refreshOp().also {
+                // 刷新结果是空的不是成功：服务端回 204/空体时不能把好缓存
+                // 直接盖成空（直播源原文被盖空后会解析出“未知格式”提示组，
+                // 好频道全丢）；走失败分支复用旧缓存，没旧缓存才抛错
+                if (it.isBlank()) throw Exception("刷新结果为空")
+                setCacheData(it)
+            }
         } catch (ex: Exception) {
             // 刷新中途被取消不是刷新失败：取消信号原样抛出去，别拿旧数据顶上、
             // 把一次取消记成一次成功加载（天光 1658 轮同款问题）
