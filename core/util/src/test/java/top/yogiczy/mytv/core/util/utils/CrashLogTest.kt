@@ -57,6 +57,27 @@ class CrashLogTest {
     }
 
     @Test
+    fun readFromFile_emptyFile_returnsNull() {
+        val dir = Files.createTempDirectory("crashlog-test").toFile()
+        try {
+            File(dir, CrashLog.FILE_NAME).writeText("")
+            assertNull(CrashLog.readFromFile(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun writeToFile_notADirectory_returnsNull() {
+        val file = Files.createTempFile("crashlog-test", ".tmp").toFile()
+        try {
+            assertNull(CrashLog.writeToFile(file, "hello crash"))
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
     fun extractStacktrace_returnsOnlyStacktrace() {
         val text = CrashLog.buildText(message = "m", stacktrace = "TRACE-BODY")
         assertEquals("TRACE-BODY", CrashLog.extractStacktrace(text))
@@ -70,6 +91,12 @@ class CrashLogTest {
     @Test
     fun truncateForIntent_short_unchanged() {
         assertEquals("short", CrashLog.truncateForIntent("short"))
+    }
+
+    @Test
+    fun truncateForIntent_exactLength_unchanged() {
+        val exact = "x".repeat(CrashLog.MAX_INTENT_STACKTRACE_LENGTH)
+        assertEquals(exact, CrashLog.truncateForIntent(exact))
     }
 
     @Test
