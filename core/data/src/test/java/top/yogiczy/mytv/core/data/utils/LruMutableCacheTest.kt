@@ -46,9 +46,12 @@ class LruMutableCacheTest {
         // "a" 是最久未用的，已被淘汰，再取要重新算
         assertEquals("A", cache.getOrPut("a") { computeCount++; "A" })
         assertEquals(4, computeCount)
-        // "b" 还在缓存里，不再算
+        // 重新放回 "a" 时把当时最久未用的 "b" 挤掉了，"b" 再取也要重新算
         assertEquals("B", cache.getOrPut("b") { computeCount++; "B" })
-        assertEquals(4, computeCount)
+        assertEquals(5, computeCount)
+        // "a" 仍在缓存里，不再算
+        assertEquals("A", cache.getOrPut("a") { computeCount++; "A" })
+        assertEquals(5, computeCount)
     }
 
     @Test
