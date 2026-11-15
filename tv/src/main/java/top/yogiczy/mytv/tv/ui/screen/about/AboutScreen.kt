@@ -214,20 +214,17 @@ fun AboutScreen(
                     modifier = Modifier.handleKeyEvents(onSelect = toUpdateScreen),
                     headlineContent = { Text("检查更新") },
                     trailingContent = {
-                        val currentVersion = BuildConfig.VERSION_NAME
-                        val latestVersion = latestVersionProvider().ifBlank { currentVersion }
-
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (checkFailedProvider()) {
-                                Text("检查更新失败")
-                            } else if (latestVersion.compareVersion(currentVersion) > 0) {
-                                Text("新版本: $latestVersion")
-                            } else {
-                                Text("无更新")
-                            }
+                            Text(
+                                updateCheckHintText(
+                                    checkFailedProvider(),
+                                    BuildConfig.VERSION_NAME,
+                                    latestVersionProvider(),
+                                )
+                            )
 
                             Icon(
                                 Icons.Default.ChevronRight,
@@ -241,6 +238,20 @@ fun AboutScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * 关于页“检查更新”行的提示文字：检查失败 → “检查更新失败”；最新版比当前版新 → “新版本: 最新版”；否则 → “无更新”。
+ * 最新版为空时按当前版算（界面上就是“无更新”）。版本号比较走已钉死的 `compareVersion`。
+ * 从界面里抽出来，只为能离线断言三档分支写没写错；行为逐字不变。
+ */
+internal fun updateCheckHintText(checkFailed: Boolean, currentVersion: String, latestVersion: String): String {
+    val latest = latestVersion.ifBlank { currentVersion }
+    return when {
+        checkFailed -> "检查更新失败"
+        latest.compareVersion(currentVersion) > 0 -> "新版本: $latest"
+        else -> "无更新"
     }
 }
 
