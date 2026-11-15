@@ -246,6 +246,32 @@ class EpgRepositoryTest {
     }
 
     @Test
+    fun getEpgList_dropsProgrammesWithInvalidDates() = runBlocking {
+        // 天光 1952 轮姊妹检查：830 轮把非法日期改成解析失败记 0，但 0 开头的
+        // 节目还留在列表里——开始为 0、结束在未来时会被当成正在播（recentProgramme
+        // 只比时间、不验有效性）；解析时直接丢掉无效节目，好节目不受影响
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <tv>
+              <channel id="cctv1"><display-name>CCTV-1 综合</display-name></channel>
+              <programme start="20261113080000 +0800" stop="20261113090000 +0800" channel="cctv1"><title>新闻联播</title></programme>
+              <programme start="20260230080000 +0800" stop="20260230090000 +0800" channel="cctv1"><title>不存在的日期</title></programme>
+              <programme start="20261113080000 +0800" stop="20261301090000 +0800" channel="cctv1"><title>不存在的月份</title></programme>
+              <programme start="20261112240000 +0800" stop="20261113010000 +0800" channel="cctv1"><title>不存在的钟点</title></programme>
+            </tv>
+        """.trimIndent()
+        server = TestHttpServer(xml).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val result = repo.getEpgList()
+
+        assertEquals(1, result.size)
+        assertEquals(1, result.first().programmeList.size)
+        assertEquals("新闻联播", result.first().programmeList.first().title)
+    }
+
+    @Test
     fun getEpgList_emptyBodyResponse_throwsEmptyProgrammeError() {
         // 服务端回 204 无内容：响应体为空时应走到“节目单为空”的诚实报错，
         // 而不是在 response.body!! 上抛空指针、被包成“请检查网络连接”
