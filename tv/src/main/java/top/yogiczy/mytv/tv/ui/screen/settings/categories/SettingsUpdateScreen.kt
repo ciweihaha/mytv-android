@@ -10,6 +10,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsCategoryScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsListItem
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.updateChannelLabel
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 
 @Composable
@@ -30,12 +31,7 @@ fun SettingsUpdateScreen(
             SettingsListItem(
                 modifier = Modifier.focusRequester(firstItemFocusRequester),
                 headlineContent = "更新通道",
-                trailingContent = when (channel) {
-                    "stable" -> "稳定版"
-                    "beta" -> "测试版"
-                    "dev" -> "开发版"
-                    else -> channel
-                },
+                trailingContent = updateChannelLabel(channel),
                 onSelect = toUpdateChannelScreen,
                 link = true,
             )

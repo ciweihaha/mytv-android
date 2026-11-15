@@ -53,12 +53,7 @@ fun SettingsUpdateChannelScreen(
                         .handleKeyEvents(onSelect = { onUpdateChannelChanged(channel) }),
                     headlineContent = {
                         Text(
-                            when (channel) {
-                                "stable" -> "稳定版"
-                                "beta" -> "测试版"
-                                "dev" -> "开发版"
-                                else -> channel
-                            },
+                            updateChannelLabel(channel),
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                         )
@@ -79,6 +74,20 @@ fun SettingsUpdateChannelScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * 更新通道代号的显示文案：stable→稳定版、beta→测试版、dev→开发版，其他代号原样显示。
+ * 原先同一份 `when` 在更新分类页与更新通道子页两处各写了一份，改错一处另一处就对不上；
+ * 抽成一个共用函数，两处都调它，文案逐字不变。
+ */
+internal fun updateChannelLabel(channel: String): String {
+    return when (channel) {
+        "stable" -> "稳定版"
+        "beta" -> "测试版"
+        "dev" -> "开发版"
+        else -> channel
     }
 }
 
