@@ -220,6 +220,32 @@ class EpgRepositoryTest {
     }
 
     @Test
+    fun getEpgList_parsesNegativeTimezoneOnMainPath() = runBlocking {
+        // 主解析只认 `yyyyMMddHHmmss Z`（时区前有空格）：美洲源的负时区
+        // -0800 只能走主解析——parseTime 单测（807 轮）只钉了时间戳差值，
+        // 端到端一次也没断言过：XML 属性里的 -0800 必须一路进 parseTime、
+        // 不能被中间环节吞掉。09:00-0800 是 UTC 17:00，只看标题断言不到
+        // 时间，必须断言 startAt/endAt 绝对值
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <tv>
+              <channel id="cctv1"><display-name>CCTV-1 综合</display-name></channel>
+              <programme start="20261113090000 -0800" stop="20261113100000 -0800" channel="cctv1"><title>新闻联播</title></programme>
+            </tv>
+        """.trimIndent()
+        server = TestHttpServer(xml).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val result = repo.getEpgList()
+
+        assertEquals(1, result.size)
+        assertEquals("新闻联播", result.first().programmeList.first().title)
+        assertEquals(1794589200000L, result.first().programmeList.first().start)
+        assertEquals(1794592800000L, result.first().programmeList.first().end)
+    }
+
+    @Test
     fun getEpgList_emptyBodyResponse_throwsEmptyProgrammeError() {
         // 服务端回 204 无内容：响应体为空时应走到“节目单为空”的诚实报错，
         // 而不是在 response.body!! 上抛空指针、被包成“请检查网络连接”
