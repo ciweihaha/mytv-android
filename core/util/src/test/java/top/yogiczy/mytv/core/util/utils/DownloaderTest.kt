@@ -142,6 +142,46 @@ class DownloaderTest {
     }
 
     @Test
+    fun downloadTo_notFound_throwsAndLeavesNoFile() {
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "latest.apk")
+            val ex = assertThrows(Exception::class.java) {
+                runBlocking {
+                    Downloader.downloadTo(
+                        "http://127.0.0.1:${server.port}/unknown", target.path, null
+                    )
+                }
+            }
+            assertTrue(ex.message?.contains("下载文件失败: 404") == true)
+            assertFalse(target.exists())
+            assertFalse(File(dir, "latest.apk.tmp").exists())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadTo_connectionRefused_throwsNetworkMessage() {
+        val server = TestHttpServer().apply { start() }
+        val port = server.port
+        server.stop()
+        val dir = tempFolder.newFolder("dl")
+        val target = File(dir, "latest.apk")
+        val ex = assertThrows(Exception::class.java) {
+            runBlocking {
+                Downloader.downloadTo(
+                    "http://127.0.0.1:$port/x", target.path, null
+                )
+            }
+        }
+        assertTrue(ex.message?.contains("请检查网络连接") == true)
+        assertFalse(target.exists())
+        assertFalse(File(dir, "latest.apk.tmp").exists())
+    }
+
+    @Test
     fun downloadTo_progressCallback_onlyOnChange() {
         val server = TestHttpServer().apply { start() }
         try {
@@ -189,5 +229,10 @@ class DownloaderTest {
         assertEquals(0, calcDownloadProgress(10, -1))
         assertEquals(0, calcDownloadProgress(10, 0))
         assertEquals(0, calcDownloadProgress(0, -1))
+    }
+
+    @Test
+    fun calcDownloadProgress_negativeRead_returnsZero() {
+        assertEquals(0, calcDownloadProgress(-10, 100))
     }
 }
