@@ -20,7 +20,6 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
 key.properties
 keystore.jks
 .kotlin

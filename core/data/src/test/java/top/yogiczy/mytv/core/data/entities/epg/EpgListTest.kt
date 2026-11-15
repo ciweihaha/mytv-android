@@ -72,6 +72,34 @@ class EpgListTest {
     }
 
     @Test
+    fun match_blankIdEntry_stillMatchedByName() {
+        // 天光 1951 轮姊妹检查：没 id 的节目单不是废数据——按名查不看 id，
+        // 空串与只有空白的 id 都应照常按名认到；id 为空只影响 id 兜底那支
+        val list = EpgList(
+            listOf(
+                Epg(id = "", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "   ", channelList = listOf("CCTV-2 综合")),
+            )
+        )
+        assertEquals("", list.match(channel("CCTV-1 综合"))?.id)
+        assertEquals("   ", list.match(channel("CCTV-2 综合"))?.id)
+    }
+
+    @Test
+    fun match_blankIdEntry_neverMatchedById() {
+        // 空 id 的条目不进 id 兜底：频道带 tvg-id 时也不能认到空 id 的条目
+        // 上（壳这边没有天光那样的 id 表，matchByTvgId 里 `it.id.isNotBlank()`
+        // 是同一道守卫；`==` 本来也不会让空 id 等上号，这里只钉行为）
+        val list = EpgList(
+            listOf(
+                Epg(id = "", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "   ", channelList = listOf("CCTV-2 综合")),
+            )
+        )
+        assertEquals(Epg(), list.match(channel("CCTV综合", "cctv1")))
+    }
+
+    @Test
     fun match_nameTakesPrecedenceOverId() {
         // 名字能对上的台不走 id：epgName 是 CCTV-1 综合、tvg-id
         // 却写着 cctv5，按名认到 cctv1，不按 id 认到 cctv5
@@ -86,6 +114,32 @@ class EpgListTest {
         val list = epgList()
         assertEquals("cctv1", list.match(channel("CCTV综合", "cctv1"))?.id)
         assertEquals("cctv5", list.match(channel("CCTV综合", "cctv5"))?.id)
+    }
+
+    @Test
+    fun match_sameName_returnsFirst() {
+        // 同名节目单有两条：按名查留第一次出现的那份
+        val list = EpgList(
+            listOf(
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "cctv1b", channelList = listOf("CCTV-1 综合")),
+            )
+        )
+        val matched = list.match(channel("CCTV-1 综合"))
+        assertEquals("cctv1", matched?.id)
+    }
+
+    @Test
+    fun match_sameId_returnsFirst() {
+        // 同 id 节目单有两条：按 id 查留第一次出现的那份
+        val list = EpgList(
+            listOf(
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合", "CCTV-1 高清")),
+            )
+        )
+        val matched = list.match(channel("CCTV综合", "cctv1"))
+        assertEquals(listOf("CCTV-1 综合"), matched?.channelList)
     }
 
     @Test
@@ -110,5 +164,83 @@ class EpgListTest {
     @Test
     fun isSameEpgChannelName_differentName_rejected() {
         assertFalse(isSameEpgChannelName("CCTV综合", "湖南卫视"))
+    }
+
+    @Test
+    fun isSameEpgChannelName_caseIgnored() {
+        // 天光 1940 轮姊妹检查：注释里写了“先把大小写去掉再比”，
+        // 但已有用例只覆盖了数字、空白、“-”“+”，大小写那档一次
+        // 也没断言过——源里小写写的台名对节目单里大写的，归一化
+        // 要先转小写才对得上；转小写写漏时这里会失败
+        assertTrue(isSameEpgChannelName("cctv综合", "CCTV-1 综合"))
+        assertTrue(isSameEpgChannelName("cctv-8k 超高清", "CCTV-8K 超高清"))
+        // 大小写不同、但本来就不是一个台：还是不能算对上
+        assertFalse(isSameEpgChannelName("cctv综合", "CCTV财经"))
+    }
+
+    @Test
+    fun match_byTvgId_lowercaseName_matches() {
+        // 同一档走完整匹配：直播源里小写写的“cctv综合”，按名查不到、
+        // 按 tvg-id=cctv1 找回后名字复核要过大小写这一关
+        val matched = epgList().match(channel("cctv综合", "cctv1"))
+        assertEquals("cctv1", matched?.id)
+    }
+
+    private fun programmeListWith(vararg programmes: EpgProgramme) =
+        EpgList(listOf(Epg(id = "cctv1", programmeList = EpgProgrammeList(programmes.toList()))))
+
+    @Test
+    fun hasLiveProgramme_liveProgrammePresent_returnsTrue() {
+        // 有节目正在播：凌晨缓存是昨天文件时一个都没有，靠它判定过期
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now - 1000, endAt = now + 1000, title = "正在播"),
+        )
+        assertTrue(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_allProgrammesInPast_returnsFalse() {
+        // 全是过去的节目：昨天文件的典型样子，判定过期、重新拉一次
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now - 3000, endAt = now - 2000, title = "已播完"),
+            EpgProgramme(startAt = now - 2000, endAt = now - 1000, title = "已播完"),
+        )
+        assertFalse(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_allProgrammesInFuture_returnsFalse() {
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now + 1000, endAt = now + 2000, title = "还没开始"),
+        )
+        assertFalse(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_emptyList_returnsFalse() {
+        assertFalse(EpgList().hasLiveProgramme(1_700_000_000_000L))
+    }
+
+    @Test
+    fun hasLiveProgramme_programmeEndingNow_returnsFalse() {
+        // 右开：结束时间正好是现在，不算正在播
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now - 1000, endAt = now, title = "刚结束"),
+        )
+        assertFalse(list.hasLiveProgramme(now))
+    }
+
+    @Test
+    fun hasLiveProgramme_programmeStartingNow_returnsTrue() {
+        // 左闭：开始时间正好是现在，算正在播
+        val now = 1_700_000_000_000L
+        val list = programmeListWith(
+            EpgProgramme(startAt = now, endAt = now + 1000, title = "刚开始"),
+        )
+        assertTrue(list.hasLiveProgramme(now))
     }
 }

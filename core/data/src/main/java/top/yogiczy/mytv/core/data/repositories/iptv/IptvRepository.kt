@@ -1,11 +1,13 @@
 package top.yogiczy.mytv.core.data.repositories.iptv
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.network.request
 import top.yogiczy.mytv.core.data.repositories.FileCacheRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.parser.IptvParser
@@ -145,7 +147,13 @@ private class IptvRawRepository(private val source: IptvSource) : FileCacheRepos
             try {
                 source.url.request { body -> body.string() } ?: ""
             } catch (ex: Exception) {
+                // 拉取中途被取消不是拉取失败：取消信号原样抛出去，别包成“请检查网络连接”
+                // 的 HttpException——否则外层 690 轮的守卫接不到取消信号，会拿旧数据顶上、
+                // 把一次取消记成一次成功加载（691 轮发版仓库同款问题）
+                if (ex is CancellationException) throw ex
                 log.e("获取订阅源（${source.name}）失败", ex)
+                // 服务端状态码错（404/500 等）是地址/服务端问题，不是网络问题：原样抛
+                if (ex is HttpStatusException) throw ex
                 throw HttpException("获取订阅源失败，请检查网络连接", ex)
             }
         }

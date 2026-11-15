@@ -18,10 +18,6 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
         }
     }
 
@@ -44,8 +40,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.media3.ui)
 
@@ -55,6 +49,11 @@ dependencies {
     implementation(libs.quickjs.kt)
 
     testImplementation(libs.junit)
+    // EpgParser.fromXml 的单测要真解析器：android.util.Xml 在单测里是桩、
+    // 建解析器回 null；生产代码改走 XmlPullParserFactory 后，测试 classpath
+    // 里要有 kxml2 的真实现（xmlpull 只是接口）
+    testImplementation(libs.kxml2)
+    testImplementation(libs.xmlpull)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

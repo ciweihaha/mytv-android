@@ -151,6 +151,7 @@ private fun SettingsIptvSourceContent(
         items(iptvSourceList) { iptvSource ->
             IptvSourceItem(
                 iptvSourceProvider = { iptvSource },
+                currentIptvSourceProvider = currentIptvSourceProvider,
                 iptvSourceDetailProvider = {
                     iptvSourceDetailsProvider()[iptvSource.hashCode()] ?: IptvSourceDetail.None
                 },
@@ -185,6 +186,7 @@ private fun SettingsIptvSourceContent(
 private fun IptvSourceItem(
     modifier: Modifier = Modifier,
     iptvSourceProvider: () -> IptvSource = { IptvSource() },
+    currentIptvSourceProvider: () -> IptvSource = { IptvSource() },
     iptvSourceDetailProvider: () -> IptvSourceDetail = { IptvSourceDetail.Loading },
     isSelectedProvider: () -> Boolean = { false },
     onSetCurrent: () -> Unit = {},
@@ -293,6 +295,7 @@ private fun IptvSourceItem(
     ) {
         SettingsIptvSourceActions(
             iptvSourceProvider = { iptvSource },
+            currentIptvSourceProvider = currentIptvSourceProvider,
             onDismissRequest = { actionsVisible = false },
             onSetCurrent = {
                 onSetCurrent()

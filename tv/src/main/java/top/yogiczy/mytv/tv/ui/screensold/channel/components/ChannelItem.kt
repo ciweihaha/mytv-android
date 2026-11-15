@@ -56,6 +56,10 @@ fun ChannelItem(
 
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    // 当前节目只取一次：下面内容区与进度条原来各调一次
+    // rememberEpgProgrammeRecent、每项跑两个 100ms 轮询循环，
+    // 没节目单的台会一直空转；提上来取一次、两处共用同一份
+    val recentEpgProgramme = rememberEpgProgrammeRecent(recentEpgProgrammeProvider)
 
     LaunchedEffect(Unit) {
         if (initialFocused) {
@@ -96,7 +100,10 @@ fun ChannelItem(
                         channelProvider = channelProvider,
                     ) {
                         Text(
-                            channelProvider().no,
+                            // 收藏网格里的台序号固定是 -1，自带的序号会算出
+                            // “00”；跟 721 轮经典选台页那处一样，没号
+                            // 就显示“–”
+                            if (channelProvider().index <= -1) "–" else channelProvider().no,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -107,12 +114,12 @@ fun ChannelItem(
             Box(modifier = Modifier.height(53.dp)) {
                 ChannelItemContent(
                     channelProvider = channelProvider,
-                    recentEpgProgrammeProvider = recentEpgProgrammeProvider,
+                    recentEpgProgramme = recentEpgProgramme,
                     isFocusedProvider = { isFocused },
                 )
 
                 ChannelItemProgress(
-                    recentEpgProgrammeProvider = recentEpgProgrammeProvider,
+                    recentEpgProgramme = recentEpgProgramme,
                     showEpgProgrammeProgressProvider = showEpgProgrammeProgressProvider,
                     isFocusedProvider = { isFocused },
                     modifier = Modifier.align(Alignment.BottomStart),
@@ -126,11 +133,10 @@ fun ChannelItem(
 private fun ChannelItemContent(
     modifier: Modifier = Modifier,
     channelProvider: () -> Channel = { Channel() },
-    recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
+    recentEpgProgramme: EpgProgrammeRecent? = null,
     isFocusedProvider: () -> Boolean = { false },
 ) {
     val channel = channelProvider()
-    val recentEpgProgramme = rememberEpgProgrammeRecent(recentEpgProgrammeProvider)
     val isFocused = isFocusedProvider()
 
     Column(
@@ -159,11 +165,10 @@ private fun ChannelItemContent(
 @Composable
 private fun ChannelItemProgress(
     modifier: Modifier = Modifier,
-    recentEpgProgrammeProvider: () -> EpgProgrammeRecent? = { null },
+    recentEpgProgramme: EpgProgrammeRecent? = null,
     showEpgProgrammeProgressProvider: () -> Boolean = { false },
     isFocusedProvider: () -> Boolean = { false },
 ) {
-    val recentEpgProgramme = rememberEpgProgrammeRecent(recentEpgProgrammeProvider)
     val showEpgProgrammeProgress = showEpgProgrammeProgressProvider()
     val isFocused = isFocusedProvider()
 

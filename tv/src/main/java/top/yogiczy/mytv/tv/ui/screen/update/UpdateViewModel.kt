@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
 import top.yogiczy.mytv.core.data.repositories.git.GitRepository
 import top.yogiczy.mytv.core.data.utils.Constants
@@ -34,6 +35,13 @@ class UpdateViewModel(
     val updateDownloaded get() = _updateDownloaded
 
     /**
+     * 上一次检查是否失败：失败时 isUpdateAvailable 仍是 false，
+     * 不靠它区分会把“没查到”说成“已是最新”
+     */
+    private var _checkFailed by mutableStateOf(false)
+    val checkFailed get() = _checkFailed
+
+    /**
      * 消费“已下载待安装”标记：安装尝试后即清除，避免下次打开更新页
      * 时对陈旧的 latest.apk 再次自动弹出安装器。
      */
@@ -45,28 +53,46 @@ class UpdateViewModel(
     val latestRelease get() = _latestRelease
 
 
-    suspend fun checkUpdate(currentVersion: String, channel: String) {
+    suspend fun checkUpdate(
+        currentVersion: String,
+        channel: String,
+        releaseTag: String = "",
+        fetchLatestRelease: suspend (String) -> GitRelease = { GitRepository().latestRelease(it) },
+    ) {
         if (_isChecking) return
         if (_isUpdateAvailable) return
 
         try {
             log.i("开始检查更新（${channel}）...")
 
+            _checkFailed = false
             _isChecking = true
             val releaseUrl = Constants.GIT_RELEASE_LATEST_URL[channel] ?: return
-            _latestRelease = GitRepository().latestRelease(releaseUrl)
-            _isUpdateAvailable = _latestRelease.version.compareVersion(currentVersion) > 0
+            _latestRelease = fetchLatestRelease(releaseUrl)
+            // 发版 tag（如 V3.0.0.243）与内部版（1.1.1.N）是两套编号：
+            // 发版时拿 tag 和线上最新版比，手动触发/调试时 tag 为空、
+            // 拿内部版比；直接比内部版会永远报“有新版”
+            val baseVersion = releaseTag.ifBlank { currentVersion }
+            _isUpdateAvailable = _latestRelease.version.compareVersion(baseVersion) > 0
 
             log.i("最新版本: ${_latestRelease.version}")
         } catch (ex: Exception) {
+            // 检查中途被取消不是检查失败：取消信号原样抛出去，别记成一次失败、
+            // 别把取消原因写进版本说明里（690 轮同款问题）
+            if (ex is CancellationException) throw ex
             log.e("检查更新失败", ex)
+            _checkFailed = true
             _latestRelease = _latestRelease.copy(description = ex.message ?: "检查更新失败")
         } finally {
             _isChecking = false
         }
     }
 
-    suspend fun downloadAndUpdate(latestFile: File) {
+    suspend fun downloadAndUpdate(
+        latestFile: File,
+        download: suspend (String, String, ((Int) -> Unit)?) -> Unit =
+            { url, path, cb -> Downloader.downloadTo(url, path, cb) },
+    ) {
         if (!_isUpdateAvailable) return
         if (_isUpdating) return
         if (latestFile.exists()) {
@@ -84,7 +110,7 @@ class UpdateViewModel(
             _isUpdating = true
             _updateDownloaded = false
 
-            Downloader.downloadTo(_latestRelease.downloadUrl, latestFile.path) {
+            download(_latestRelease.downloadUrl, latestFile.path) {
                 Snackbar.show(
                     "正在下载更新: $it%",
                     leadingLoading = true,
@@ -97,6 +123,9 @@ class UpdateViewModel(
             Snackbar.show("下载更新成功")
             log.i("下载更新成功")
         } catch (ex: Exception) {
+            // 下载中途被取消不是下载失败：取消信号原样抛出去，别弹“下载更新失败”
+            // 的假报错（690 轮同款问题；天光 1658 轮提示里单点的就是这两处）
+            if (ex is CancellationException) throw ex
             Snackbar.show("下载更新失败", type = SnackbarType.ERROR)
             log.e("下载更新失败", ex)
         } finally {

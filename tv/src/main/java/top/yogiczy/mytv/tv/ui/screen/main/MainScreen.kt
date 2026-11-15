@@ -10,9 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -32,7 +30,6 @@ import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.PopupContent
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
-import top.yogiczy.mytv.tv.ui.material.Visibility
 import top.yogiczy.mytv.tv.ui.screen.Screens
 import top.yogiczy.mytv.tv.ui.screen.about.AboutScreen
 import top.yogiczy.mytv.tv.ui.screen.agreement.AgreementScreen
@@ -134,15 +131,29 @@ fun MainScreen(
             if (!quiet) Snackbar.show("正在检查更新...", leadingLoading = true, duration = 5000)
 
             delay(3000)
-            updateViewModel.checkUpdate(BuildConfig.VERSION_NAME, settingsViewModel.updateChannel)
+            updateViewModel.checkUpdate(
+                BuildConfig.VERSION_NAME,
+                settingsViewModel.updateChannel,
+                releaseTag = BuildConfig.RELEASE_TAG,
+            )
 
             if (!quiet) {
-                if (updateViewModel.isUpdateAvailable) Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
-                else Snackbar.show("当前已是最新版本")
+                when {
+                    updateViewModel.checkFailed -> Snackbar.show("检查更新失败")
+                    // 手动点“检测更新”查到新版：直接进更新页（有“立即更新”按钮），
+                    // 别只弹一条提示——只弹提示时用户永远找不到下载入口。
+                    updateViewModel.isUpdateAvailable ->
+                        navController.navigateSingleTop(Screens.Update())
+                    else -> Snackbar.show("当前已是最新版本")
+                }
             }
 
-            if (!updateViewModel.isUpdateAvailable) return@launch
-            if (settingsViewModel.appLastLatestVersion == updateViewModel.latestRelease.version) return@launch
+            if (!shouldRemindUpdate(
+                    updateViewModel.isUpdateAvailable,
+                    updateViewModel.latestRelease.version,
+                    settingsViewModel.appLastLatestVersion,
+                )
+            ) return@launch
 
             settingsViewModel.appLastLatestVersion = updateViewModel.latestRelease.version
             if (settingsViewModel.updateForceRemind) {
@@ -311,6 +322,7 @@ fun MainScreen(
             composable(Screens.About()) {
                 AboutScreen(
                     latestVersionProvider = { updateViewModel.latestRelease.version },
+                    checkFailedProvider = { updateViewModel.checkFailed },
                     toUpdateScreen = { navController.navigateSingleTop(Screens.Update()) },
                     onBackPressed = { navController.navigateUp() },
                 )
@@ -341,3 +353,14 @@ fun MainScreen(
         )
     }
 }
+
+/**
+ * 启动 3 秒后查到新版时要不要提醒：有更新、且这个版本号不是上次已经提醒
+ * 过的，才提醒——否则同一版每次启动都弹一次。`appLastLatestVersion`
+ * 为空是从没提醒过。只抽判断本身，3 秒延迟与弹框/提示仍在界面里。
+ */
+internal fun shouldRemindUpdate(
+    isUpdateAvailable: Boolean,
+    latestVersion: String,
+    lastLatestVersion: String,
+): Boolean = isUpdateAvailable && latestVersion != lastLatestVersion

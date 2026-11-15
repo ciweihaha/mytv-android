@@ -22,6 +22,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yogiczy.mytv.tv.sync.CloudSync
 import top.yogiczy.mytv.tv.sync.CloudSyncData
@@ -56,6 +57,9 @@ fun SettingsCloudSyncScreen(
         pullFailed = false
         runCatching { syncData = CloudSync.pull() }
             .onFailure {
+                // 拉取中途被取消不是拉取失败：`runCatching` 会把取消信号也吃掉，
+                // 原样抛出去，别弹“拉取云端失败”的假报错、别把数据置空（690 轮同款问题）
+                if (it is CancellationException) throw it
                 Snackbar.show("拉取云端失败")
                 pullFailed = true
                 syncData = CloudSyncData.EMPTY
@@ -98,7 +102,13 @@ fun SettingsCloudSyncScreen(
                                             Snackbar.show("推送云端失败")
                                         }
                                     }
-                                    .onFailure { Snackbar.show("推送云端失败") }
+                                    .onFailure {
+                                        // 推送中途被取消不是推送失败：`runCatching` 会把取消信号
+                                        // 也吃掉，原样抛出去，别弹“推送云端失败”的假报错
+                                        // （690 轮同款问题）
+                                        if (it is CancellationException) throw it
+                                        Snackbar.show("推送云端失败")
+                                    }
                                 pushLoading = false
                             }
                         },
@@ -114,21 +124,17 @@ fun SettingsCloudSyncScreen(
                 headlineContent = "云端数据",
                 supportingContent = "长按应用当前云端数据",
                 trailingContent = {
-                    if (syncData == null) {
-                        return@SettingsListItem CircularProgressIndicator(
+                    when (cloudSyncDataState(syncData, pullFailed)) {
+                        CloudSyncDataState.LOADING -> CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             color = LocalContentColor.current,
                             trackColor = MaterialTheme.colorScheme.surface.copy(0.1f),
                             strokeWidth = 3.dp,
                         )
-                    }
 
-                    syncData?.let { nnSyncData ->
-                        if (pullFailed) {
-                            Text("拉取失败，请重试")
-                        } else if (nnSyncData == CloudSyncData.EMPTY) {
-                            Text("无云端数据")
-                        } else {
+                        CloudSyncDataState.FAILED -> Text("拉取失败，请重试")
+                        CloudSyncDataState.EMPTY -> Text("无云端数据")
+                        CloudSyncDataState.DATA -> syncData?.let { nnSyncData ->
                             Column {
                                 Text("云端版本：${nnSyncData.version}")
 
@@ -261,6 +267,25 @@ fun SettingsCloudSyncScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * “云端数据”行的显示状态：数据为空是加载中；拉取失败优先于空数据
+ *（失败时 `pullSyncData()` 同时把数据置成 EMPTY，空档先判会把失败
+ * 显示成“无云端数据”）；空数据是没有云端数据；其余是有数据。
+ * 只抽判定本身，渲染原样不动。
+ */
+internal enum class CloudSyncDataState {
+    LOADING, FAILED, EMPTY, DATA
+}
+
+internal fun cloudSyncDataState(syncData: CloudSyncData?, pullFailed: Boolean): CloudSyncDataState {
+    return when {
+        syncData == null -> CloudSyncDataState.LOADING
+        pullFailed -> CloudSyncDataState.FAILED
+        syncData == CloudSyncData.EMPTY -> CloudSyncDataState.EMPTY
+        else -> CloudSyncDataState.DATA
     }
 }
 

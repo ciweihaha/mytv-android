@@ -1,7 +1,6 @@
 package top.yogiczy.mytv.core.data.entities.subtitle
 
 import android.graphics.Color
-import androidx.compose.runtime.Immutable
 import androidx.media3.ui.CaptionStyleCompat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.KSerializer
@@ -15,7 +14,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.PrimitiveKind
 
 /**
- * 频道节目列表
+ * 播放器字幕样式
  */
 @Serializable
 data class VideoPlayerSubtitleStyle(

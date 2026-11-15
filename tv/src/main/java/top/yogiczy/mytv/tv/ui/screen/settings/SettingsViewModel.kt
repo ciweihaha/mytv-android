@@ -553,24 +553,6 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _videoPlayerSkipMultipleFramesOnSameVSync by mutableStateOf(false)
-    var videoPlayerSkipMultipleFramesOnSameVSync: Boolean
-        get() = _videoPlayerSkipMultipleFramesOnSameVSync
-        set(value) {
-            _videoPlayerSkipMultipleFramesOnSameVSync = value
-            Configs.videoPlayerSkipMultipleFramesOnSameVSync = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _videoPlayerVolumeNormalization by mutableStateOf(false)
-    var videoPlayerVolumeNormalization: Boolean
-        get() = _videoPlayerVolumeNormalization
-        set(value) {
-            _videoPlayerVolumeNormalization = value
-            Configs.videoPlayerVolumeNormalization = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
     private var _networkRetryCount by mutableLongStateOf(Constants.NETWORK_RETRY_COUNT)
     var networkRetryCount: Long
         get() = _networkRetryCount
@@ -773,15 +755,14 @@ class SettingsViewModel : ViewModel() {
     init {
         runCatching { refresh() }
 
-        // 删除过期的预约
-        _epgChannelReserveList = EpgProgrammeReserveList(
+        // 删除过期的预约：走 setter 写回本地存储；直接改 _epgChannelReserveList
+        // 只动内存，过期记录会一直留在存里、每次启动重新读进来再清一遍
+        epgChannelReserveList = EpgProgrammeReserveList(
             _epgChannelReserveList.filter {
                 System.currentTimeMillis() < it.startAt + 60 * 1000
             }
         )
 
-        _iptvChannelChangeListLoop = Configs.iptvChannelChangeListLoop
-        _iptvChannelChangeCrossGroup = Configs.iptvChannelChangeCrossGroup
         _epgEnable = Configs.epgEnable
     }
 
@@ -812,6 +793,8 @@ class SettingsViewModel : ViewModel() {
         _iptvChannelLinePlayableHostList = Configs.iptvChannelLinePlayableHostList
         _iptvChannelLinePlayableUrlList = Configs.iptvChannelLinePlayableUrlList
         _iptvChannelChangeFlip = Configs.iptvChannelChangeFlip
+        _iptvChannelChangeListLoop = Configs.iptvChannelChangeListLoop
+        _iptvChannelChangeCrossGroup = Configs.iptvChannelChangeCrossGroup
         _iptvChannelNoSelectEnable = Configs.iptvChannelNoSelectEnable
         _epgEnable = Configs.epgEnable
         _epgSourceCurrent = Configs.epgSourceCurrent
@@ -852,7 +835,6 @@ class SettingsViewModel : ViewModel() {
         _videoPlayerDisplayMode = Configs.videoPlayerDisplayMode
         _videoPlayerForceSoftDecode = Configs.videoPlayerForceSoftDecode
         _videoPlayerStopPreviousMediaItem = Configs.videoPlayerStopPreviousMediaItem
-        _videoPlayerSkipMultipleFramesOnSameVSync = Configs.videoPlayerSkipMultipleFramesOnSameVSync
         _networkRetryCount = Configs.networkRetryCount
         _networkRetryInterval = Configs.networkRetryInterval
         _themeAppCurrent = Configs.themeAppCurrent
@@ -867,8 +849,6 @@ class SettingsViewModel : ViewModel() {
         _cloudSyncWebDavUrl = Configs.cloudSyncWebDavUrl
         _cloudSyncWebDavUsername = Configs.cloudSyncWebDavUsername
         _cloudSyncWebDavPassword = Configs.cloudSyncWebDavPassword
-        // _feiyangAllInOneFilePath = Configs.feiyangAllInOneFilePath
-        _videoPlayerVolumeNormalization = Configs.videoPlayerVolumeNormalization
     }
 
     companion object {

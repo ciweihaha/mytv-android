@@ -116,11 +116,11 @@ abstract class VideoPlayer(
         onBufferingListeners.forEach { it(buffering) }
     }
 
-    protected fun triggerPrepared() {
+    protected fun triggerPrepared(timeoutMs: Long = Configs.videoPlayerLoadTimeout) {
         onPreparedListeners.forEach { it() }
         loadTimeoutJob?.cancel()
         loadTimeoutJob = coroutineScope.launch {
-            delay(Configs.videoPlayerLoadTimeout)
+            delay(timeoutMs)
             triggerError(PlaybackException.LOAD_TIMEOUT)
         }
         interruptJob?.cancel()
@@ -242,7 +242,7 @@ abstract class VideoPlayer(
                     bitrate?.takeIf { nnBitrate -> nnBitrate > 0 }?.humanizeBitrate()
                 )
                     .joinToString(", ")
-                    .ifEmpty { mimeType ?: "" }
+                    .ifEmpty { mimeType?.takeIf { it.isNotBlank() } ?: "视轨 ${(index ?: 0) + 1}" }
         }
 
         data class Audio(
@@ -278,7 +278,7 @@ abstract class VideoPlayer(
                     language?.humanizeLanguage(),
                 )
                     .joinToString(", ")
-                    .ifEmpty { mimeType ?: "" }
+                    .ifEmpty { mimeType?.takeIf { it.isNotBlank() } ?: "音轨 ${(index ?: 0) + 1}" }
         }
 
         data class Subtitle(
@@ -306,7 +306,7 @@ abstract class VideoPlayer(
                     language?.humanizeLanguage(),
                 )
                     .joinToString(", ")
-                    .ifEmpty { mimeType ?: "" }
+                    .ifEmpty { mimeType?.takeIf { it.isNotBlank() } ?: "字幕 ${(index ?: 0) + 1}" }
         }
     }
 }

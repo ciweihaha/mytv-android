@@ -1,8 +1,10 @@
 package top.yogiczy.mytv.core.data.repositories
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.utils.Globals
+import top.yogiczy.mytv.core.data.utils.Logger
 import java.io.File
 import java.io.InputStream
 
@@ -13,6 +15,8 @@ abstract class FileCacheRepository(
     private val fileName: String,
     private val isFullPath: Boolean = false,
 ) {
+    private val log = Logger.create("FileCacheRepository")
+
     init {
         getCacheFile().parentFile?.let {
             if (!it.exists()) it.mkdirs()
@@ -93,6 +97,9 @@ abstract class FileCacheRepository(
             setCacheInputStream(refreshOp())
             getCacheInputStream()!!
         } catch (ex: Exception) {
+            // 刷新中途被取消不是刷新失败：取消信号原样抛出去，别拿旧文件顶上、
+            // 把一次取消记成一次成功加载（天光 1658 轮同款问题）
+            if (ex is CancellationException) throw ex
             val stale = getCacheInputStream()
             if (stale != null && stale.available() > 0) stale
             else {
@@ -114,8 +121,9 @@ abstract class FileCacheRepository(
         refreshOp: suspend () -> String,
     ): String {
         // 开头先把旧数据读出来记着：没过期直接返回；过期去刷新，
-        // 刷新失败（断网）时用它顶上，不再重读磁盘、也不直接抛错——
-        // 断网时旧单/旧节目单还能看；没旧数据时才抛错
+        // 刷新失败（断网）时先再读一次磁盘——另一路并发刷新可能刚把
+        // 新缓存写好，捡回它；磁盘仍是旧内容时用开头这份顶上；
+        // 都没有时才抛错。断网时旧单/旧节目单还能看。
         val staleData = getCacheData()
 
         if (!isExpired(getCacheFile().lastModified(), staleData) && !staleData.isNullOrBlank()) {
@@ -123,9 +131,21 @@ abstract class FileCacheRepository(
         }
 
         return try {
-            refreshOp().also { setCacheData(it) }
+            refreshOp().also {
+                // 刷新结果是空的不是成功：服务端回 204/空体时不能把好缓存
+                // 直接盖成空（直播源原文被盖空后会解析出“未知格式”提示组，
+                // 好频道全丢）；走失败分支复用旧缓存，没旧缓存才抛错
+                if (it.isBlank()) throw Exception("刷新结果为空")
+                setCacheData(it)
+            }
         } catch (ex: Exception) {
-            if (!staleData.isNullOrBlank()) staleData else throw ex
+            // 刷新中途被取消不是刷新失败：取消信号原样抛出去，别拿旧数据顶上、
+            // 把一次取消记成一次成功加载（天光 1658 轮同款问题）
+            if (ex is CancellationException) throw ex
+            val freshData = getCacheData()
+            if (!freshData.isNullOrBlank()) freshData
+            else if (!staleData.isNullOrBlank()) staleData
+            else throw ex
         }
     }
 
@@ -137,7 +157,7 @@ abstract class FileCacheRepository(
             // 目录里，“清除缓存”也清不掉，崩溃多了越积越多
             File(file.absoluteFile.parent, "${file.name}.tmp").delete()
         } catch (ex: Exception) {
-            ex.printStackTrace()
+            log.e("清除缓存失败", ex)
         }
     }
 

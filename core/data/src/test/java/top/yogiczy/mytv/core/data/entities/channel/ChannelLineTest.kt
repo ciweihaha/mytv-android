@@ -43,4 +43,28 @@ class ChannelLineTest {
             ChannelLine(url = "http://1.2.3.4/live.m3u8").playableUrl,
         )
     }
+
+    @Test
+    fun name_withLineSuffix_returnsSuffix() {
+        assertEquals(
+            "线路1",
+            ChannelLine(url = "http://1.2.3.4/live.m3u8\$线路1").name,
+        )
+    }
+
+    @Test
+    fun name_withoutSuffix_returnsNull() {
+        assertEquals(
+            null,
+            ChannelLine(url = "http://1.2.3.4/live.m3u8").name,
+        )
+    }
+
+    @Test
+    fun name_multipleDollarSigns_returnsLastPart() {
+        assertEquals(
+            "线路2",
+            ChannelLine(url = "http://1.2.3.4/live\$线路1\$线路2").name,
+        )
+    }
 }

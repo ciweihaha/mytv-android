@@ -15,28 +15,24 @@ object Constants {
     const val APP_TITLE = "电视直播"
 
     /**
-     * 应用 代码仓库
+     * 应用 代码仓库（本 fork；上游见 ORIGIN_APP_REPO）
      */
     const val ORIGIN_APP_REPO = "https://github.com/yaoxieyoulei/mytv-android"
-    const val APP_REPO = "https://github.com/mytv-android/mytv-android"
+    const val APP_REPO = "https://github.com/ciweihaha/mytv-android"
 
     /**
-     * 交流群 telegram
-     */
-    const val GROUP_TELEGRAM = "https://t.me/mytv_android_channel"
-
-    /**
-     * 订阅源
+     * 订阅源（本 fork 默认用自己的单子，不再用上游未经筛选的大单子；
+     * 只影响新装/恢复默认，已装好的配置存在本地、不受影响）
      */
     val IPTV_SOURCE_LIST = IptvSourceList(
         listOf(
             IptvSource(
-                name = "默认订阅源 iptv-api",
-                url = "https://gitee.com/mytv-android/iptv-api/raw/master/output/result.m3u",
+                name = "默认订阅源",
+                url = "https://live.ciweihaha.win/live.m3u",
             ),
             IptvSource(
-                name = "WebView订阅源",
-                url = "https://gitee.com/mytv-android/iptv-api/raw/master/output/webview.m3u",
+                name = "主订阅源",
+                url = "https://ysp.ciweihaha.win/ysp-tencent.m3u",
             )
         )
     )
@@ -47,13 +43,13 @@ object Constants {
     const val IPTV_SOURCE_CACHE_TIME = 1000 * 60 * 60L // 1小时
 
     /**
-     * 节目单来源
+     * 节目单来源（默认用自己的节目单）
      */
     val EPG_SOURCE_LIST = EpgSourceList(
         listOf(
             EpgSource(
-                name = "默认节目单 综合",
-                url = "https://gitee.com/mytv-android/myepg/raw/master/output/epg.gz",
+                name = "默认节目单",
+                url = "https://ysp.ciweihaha.win/epg.xml",
             ),
         )
     )
@@ -81,17 +77,28 @@ object Constants {
     const val CHANNEL_LOGO_PROVIDER = "https://gitee.com/mytv-android/myTVlogo/raw/main/img/{name|uppercase}.png"
 
     /**
-     * GitHub加速代理地址
+     * GitHub 发版下载代理：发版附件的下载地址前面拼它再下。
+     * 原来的 ghp.ci 已不通（2026-11-13 实测：本机与另一路出口都连不上，
+     * 同机 github.com 与 gitee.com 都是 200），改走实测能通的 gh-proxy.com。
+     * 两个解析器（Github、Custom）共用这一个常量；以后它再不通，
+     * 更新下载会失败，改这里一行就行，不用动解析逻辑。
      */
-    const val GITHUB_PROXY = "https://ghp.ci/"
+    const val GITHUB_PROXY = "https://gh-proxy.com/"
 
     /**
      * Git最新版本信息
+     *
+     * 查本 fork 自己的发版，不再查上游 Gitee：上游稳定版已是 V2.2.0.219，
+     * 按版本号比永远大于本 fork 的 1.1.1.N，启动检查每次都报“发现新版本”，
+     * 而上游包是作者签名、与本 fork 每轮构建现做的一次性签名对不上，
+     * 装上去会报签名不一致装不上。本 fork 目前没有发版，查不到就走
+     * “检查更新失败”，不提示、不下载；以后本 fork 发了版再按
+     * GithubGitReleaseParser 的规则（附件名含 original＋all）走。
      */
     val GIT_RELEASE_LATEST_URL = mapOf(
-        "stable" to "https://gitee.com/api/v5/repos/mytv-android/mytvstable/releases/latest",
-        "beta" to "https://gitee.com/api/v5/repos/mytv-android/mytvbeta/releases/latest",
-        "dev" to "https://gitee.com/api/v5/repos/mytv-android/mytvdev/releases/latest",
+        "stable" to "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest",
+        "beta" to "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest",
+        "dev" to "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest",
     )
 
     /**
@@ -110,9 +117,12 @@ object Constants {
     const val VIDEO_PLAYER_USER_AGENT = "okhttp"
 
     /**
-     * 播放器加载超时
+     * 播放器加载超时：同时是加载超时换线、断线检测（位置停滞后重播
+     * 同一线路）的时间。默认 5 秒：SCF 取票一次 1.3–2.7s，3 秒太贴
+     * 容易误判好线路，15 秒断线后等太久；5 秒留足取票余量又能快速
+     * 发现断线。用户可在设置 / 播放器 / 加载超时里改（1–60 秒）
      */
-    const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 15 // 15秒
+    const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 5 // 5秒
 
     /**
      * 播放器加载缓存时间

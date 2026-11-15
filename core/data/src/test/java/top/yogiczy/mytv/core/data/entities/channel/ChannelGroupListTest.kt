@@ -5,6 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelGroupIdx
+import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelIdx
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelLastOrNull
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelNumber
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.getOrClamped
@@ -188,5 +190,73 @@ class ChannelGroupListTest {
 
         assertEquals("–", list.channelNumber(Channel.EXAMPLE.copy(name = "不存在的频道")))
         assertEquals("–", ChannelGroupList().channelNumber(Channel.EXAMPLE))
+    }
+
+    @Test
+    fun channelGroupIdx_returnsGroupIndexOfChannel() {
+        // 分组下标全程没单测：调用点包着 max(0, …) 的地方不少，但下标本身
+        // （第几组、找不到回 -1）没人钉过
+        val target = Channel(name = "目标")
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "分组1", channelList = ChannelList(listOf(Channel(name = "A")))),
+                ChannelGroup(
+                    name = "分组2",
+                    channelList = ChannelList(listOf(Channel(name = "B"), target)),
+                ),
+            )
+        )
+
+        assertEquals(0, groupList.channelGroupIdx(Channel(name = "A")))
+        assertEquals(1, groupList.channelGroupIdx(target))
+    }
+
+    @Test
+    fun channelGroupIdx_returnsMinusOneWhenChannelMissing() {
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "分组1", channelList = ChannelList(listOf(Channel(name = "A")))),
+            )
+        )
+
+        assertEquals(-1, groupList.channelGroupIdx(Channel(name = "不存在")))
+        assertEquals(-1, ChannelGroupList().channelGroupIdx(Channel(name = "不存在")))
+    }
+
+    @Test
+    fun channelIdx_returnsFlatIndexAcrossGroups() {
+        // 扁平下标是跨分组连着数的：主界面跨分组切台（getPrevChannel /
+        // getNextChannel）靠它算上一条、下一条；只经 channelNumber 间接
+        // 钉过（台号是下标 +1），下标本身没人直接钉过
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    name = "分组1",
+                    channelList = ChannelList(listOf(Channel(name = "A"), Channel(name = "B"))),
+                ),
+                ChannelGroup(
+                    name = "分组2",
+                    channelList = ChannelList(listOf(Channel(name = "C"))),
+                ),
+            )
+        )
+
+        assertEquals(0, groupList.channelIdx(Channel(name = "A")))
+        assertEquals(1, groupList.channelIdx(Channel(name = "B")))
+        assertEquals(2, groupList.channelIdx(Channel(name = "C")))
+    }
+
+    @Test
+    fun channelIdx_returnsMinusOneWhenChannelMissing() {
+        // 找不到回 -1：切台那边 `currentIdx <= 0` 当“第一条”处理（上翻到
+        // 末尾或留在 0），-1 走同一条路，不会拿 -1 去取下标
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(name = "分组1", channelList = ChannelList(listOf(Channel(name = "A")))),
+            )
+        )
+
+        assertEquals(-1, groupList.channelIdx(Channel(name = "不存在")))
+        assertEquals(-1, ChannelGroupList().channelIdx(Channel(name = "不存在")))
     }
 }

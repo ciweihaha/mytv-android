@@ -2,6 +2,7 @@ package top.yogiczy.mytv.core.data.repositories.iptv.parser
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,6 +43,21 @@ class IptvParserTest {
     @Test
     fun m3u_withBom_getEpgUrl() = runBlocking {
         assertEquals("http://example.com/epg.xml", m3uParser.getEpgUrl("\uFEFF$m3uData"))
+    }
+
+    @Test
+    fun m3u_doubleBom_isSupported() = runBlocking {
+        // 反复转存的源开头可能带两个 BOM：只去一个就还剩一个，认不出 #EXTM3U
+        assertTrue(m3uParser.isSupport("", "\uFEFF\uFEFF$m3uData"))
+        val channels = m3uParser.parse("\uFEFF\uFEFF$m3uData")
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+    }
+
+    @Test
+    fun m3u_bomAfterBlankLines_isSupported() {
+        // BOM 在空行后面：先去空行再去 BOM，顺序混排也要认出来
+        assertTrue(m3uParser.isSupport("", "\n\uFEFF$m3uData"))
     }
 
     @Test
@@ -198,6 +214,17 @@ class IptvParserTest {
         val channels = txtParser.parse(txtData)
         assertEquals(1, channels.size)
         assertEquals("央视", channels[0].groupName)
+    }
+
+    @Test
+    fun txt_lineWithoutComma_skipped() = runBlocking {
+        // 没逗号的行跳过：既不是分组行、也切不出名字和地址，不能把它
+        // 当成一条频道
+        val txtData = "央视,#genre#\nCCTV-1,http://example.com/cctv1\nCCTV-9\nCCTV-5,http://example.com/cctv5"
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-5", channels[1].name)
     }
 
     @Test
@@ -397,6 +424,27 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_extinfBlankNameWithoutTvgName_skipped() = runBlocking {
+        // 残缺行：逗号后显示名空白、又没有 tvg-name，直接跳过；且下一行
+        // URL 不会误填到上一条频道上造成重复——与“没逗号且没 tvg-name”
+        // 那档走同一条回落链，但“逗号后空白”这一步之前没用例钉过
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 group-title="央视",
+            http://example.com/garbage.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-2", channels[1].name)
+        assertTrue(channels.none { it.url == "http://example.com/garbage.m3u8" })
+    }
+
+    @Test
     fun m3u_mixedCaseAttributeNames_areRecognized() = runBlocking {
         // 属性名大小写混写：有源把属性写成 TVG-NAME / Tvg-Name /
         // GROUP-TITLE；区分大小写时 tvg-name、group-title 全取不到，
@@ -437,5 +485,28 @@ class IptvParserTest {
         assertEquals("CCTV综合", channels[0].epgName)
         assertEquals("cctv5", channels[1].tvgId)
         assertEquals("", channels[2].tvgId)
+    }
+
+    @Test
+    fun txt_degenerateGenreLineFirst_channelsFallBackToOther() = runBlocking {
+        // 天光 1932 轮提示的退化分组行：`#genre#,#genre#` 去掉两个标记后
+        // 只剩逗号，分组名为空、保留上一个分组；它是文件第一行时上一个
+        // 分组还没有，频道应进“其他”，不能出现空白分组名、也不能崩
+        val txtData = "#genre#,#genre#\nCCTV-1,http://example.com/cctv1"
+        assertTrue(txtParser.isSupport("", txtData))
+        val channels = txtParser.parse(txtData)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("其他", channels[0].groupName)
+    }
+
+    @Test
+    fun emptyInput_parsesToEmpty() = runBlocking {
+        // 空源：两个解析器都不认、解析出空列表、不崩；节目单地址也取不到
+        assertFalse(m3uParser.isSupport("", ""))
+        assertFalse(txtParser.isSupport("", ""))
+        assertTrue(m3uParser.parse("").isEmpty())
+        assertTrue(txtParser.parse("").isEmpty())
+        assertEquals(null, m3uParser.getEpgUrl(""))
     }
 }

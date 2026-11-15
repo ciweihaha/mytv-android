@@ -65,17 +65,23 @@ object ChannelAlias : Loggable("ChannelAlias") {
     /**
      * 反复去掉名字尾部的质量后缀，直到去无可去：后缀表只扫一遍时，
      * `CCTV-1-4K-HD` 先去掉 `-HD` 露出 `-4K`，而 `-4K` 在表里排在
-     * 前面已扫过，会残留 `-4K`，标准名错导致 EPG 匹配不上
+     * 前面已扫过，会残留 `-4K`，标准名错导致 EPG 匹配不上。
+     * 大小写不敏感：后缀表里全是大写（-HD/-4K），源里写成小写
+     * （-hd/-4k）时也要去掉；别名查表本身不区分大小写，这里区分
+     * 的话小写后缀的台就匹配不上节目单。
      */
     internal fun stripChannelNameSuffixes(name: String, suffixes: List<String>): String {
+        // 空后缀先滤掉："" 恒满足 endsWith、dropLast(0) 又不变，changed
+        // 永远是 true，循环永不结束；后缀表一半来自用户手写的映射文件，
+        // 空串混进来就能把解析线程卡死
+        val effectiveSuffixes = suffixes.filter { it.isNotBlank() }
         var result = name
         var changed: Boolean
         do {
             changed = false
-            for (suffix in suffixes) {
-                val stripped = result.removeSuffix(suffix)
-                if (stripped != result) {
-                    result = stripped
+            for (suffix in effectiveSuffixes) {
+                if (result.endsWith(suffix, ignoreCase = true)) {
+                    result = result.dropLast(suffix.length)
                     changed = true
                 }
             }
@@ -121,10 +127,19 @@ object ChannelAlias : Loggable("ChannelAlias") {
     }
 
     private val defaultAlias by lazy {
-        Globals.json.decodeFromString<Map<String, List<String>>>(
-            Globals.resources.openRawResource(R.raw.channel_name_alias).bufferedReader()
-                .use { it.readText() }).also { map ->
-            log.d("加载默认频道名映射表完成，共 ${map.values.sumOf { it.size }} 个映射")
+        // 映射表是锦上添花：资源读不到（单测里 Globals.resources 未初始
+        // 化、或 raw 资源缺失）时用空表兜底，只丢别名/后缀处理、不丢节目
+        // ——原先这里抛错，解析器按条 runCatching 吞掉后每个频道的
+        // display-name 都记不上，整份节目单会被解析成空表
+        runCatching {
+            Globals.json.decodeFromString<Map<String, List<String>>>(
+                Globals.resources.openRawResource(R.raw.channel_name_alias).bufferedReader()
+                    .use { it.readText() }).also { map ->
+                log.d("加载默认频道名映射表完成，共 ${map.values.sumOf { it.size }} 个映射")
+            }
+        }.getOrElse {
+            log.w("加载默认频道名映射表失败，使用空映射", it)
+            emptyMap()
         }
     }
 }

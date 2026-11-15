@@ -70,11 +70,7 @@ fun SettingsIptvScreen(
 
             SettingsListItem(
                 headlineContent = "直播源缓存时间",
-                trailingContent = when (cacheTime) {
-                    0L -> "不缓存"
-                    Long.MAX_VALUE -> "永久"
-                    else -> cacheTime.humanizeMs()
-                },
+                trailingContent = iptvSourceCacheTimeText(cacheTime),
                 onSelect = toIptvSourceCacheTimeScreen,
                 link = true,
             )
@@ -86,13 +82,7 @@ fun SettingsIptvScreen(
 
             SettingsListItem(
                 headlineContent = "频道分组管理",
-                trailingContent = {
-                    if (hiddenCount == 0) {
-                        Text("共${allCount}个分组")
-                    } else {
-                        Text("共${allCount}个分组，已隐藏${hiddenCount}个分组")
-                    }
-                },
+                trailingContent = channelGroupManagementText(allCount, hiddenCount),
                 onSelect = toChannelGroupVisibilityScreen,
                 link = true,
             )
@@ -176,13 +166,40 @@ fun SettingsIptvScreen(
             SettingsListItem(
                 headlineContent = "网页源央视频Cookie",
                 supportingContent = "登录到央视频以收看付费频道",
-                trailingContent = settingsViewModel.iptvHybridYangshipinCookie.let { cookie ->
-                    if (cookie.length > 50) cookie.take(50) + "..." else cookie
-                },
+                trailingContent = truncateCookieForDisplay(settingsViewModel.iptvHybridYangshipinCookie),
                 remoteConfig = true,
             )
         }
     }
+}
+
+/**
+ * 直播源缓存时间的显示文字：0 → “不缓存”，最大值 → “永久”，其余走已钉死的 `humanizeMs`。
+ * 从界面里抽出来，只为能离线断言两档特殊值写没写错；行为逐字不变。
+ */
+internal fun iptvSourceCacheTimeText(cacheTime: Long): String {
+    return when (cacheTime) {
+        0L -> "不缓存"
+        Long.MAX_VALUE -> "永久"
+        else -> cacheTime.humanizeMs()
+    }
+}
+
+/**
+ * 央视频 Cookie 的显示截断：超 50 字只显示前 50 字加 “...”，50 字以内原样显示。
+ * 从界面里抽出来，只为能离线断言 50 字边界写没写对；行为逐字不变。
+ */
+internal fun truncateCookieForDisplay(cookie: String): String {
+    return if (cookie.length > 50) cookie.take(50) + "..." else cookie
+}
+
+/**
+ * 频道分组管理的显示文字：没隐藏分组只写总数，隐藏了就追加隐藏数。
+ * 从界面里抽出来，只为能离线断言隐藏 0 个与非 0 两档写没写对；行为逐字不变。
+ */
+internal fun channelGroupManagementText(allCount: Int, hiddenCount: Int): String {
+    return if (hiddenCount == 0) "共${allCount}个分组"
+    else "共${allCount}个分组，已隐藏${hiddenCount}个分组"
 }
 
 @Preview(device = "id:Android TV (720p)")

@@ -238,12 +238,6 @@ object Configs {
         /** 播放器 停止上一媒体项 */
         VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM,
 
-        /** 播放器 跳过同一VSync渲染多帧 */
-        VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC,
-
-        /** 播放器音量均衡 */
-        VIDEO_PLAYER_VOLUME_NORMALIZATION,
-
         /** ==================== 主题 ==================== */
         /** 当前应用主题 */
         THEME_APP_CURRENT,
@@ -675,16 +669,6 @@ object Configs {
         get() = SP.getBoolean(KEY.VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM.name, false)
         set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM.name, value)
 
-    /** 播放器 跳过同一VSync渲染多帧 */
-    var videoPlayerSkipMultipleFramesOnSameVSync: Boolean
-        get() = SP.getBoolean(KEY.VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC.name, true)
-        set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC.name, value)
-
-    /** 播放器音量均衡 */
-    var videoPlayerVolumeNormalization: Boolean
-        get() = SP.getBoolean(KEY.VIDEO_PLAYER_VOLUME_NORMALIZATION.name, false)
-        set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_VOLUME_NORMALIZATION.name, value)
-
     /** ==================== 主题 ==================== */
     /** 当前应用主题 */
     var themeAppCurrent: AppThemeDef?
@@ -755,11 +739,6 @@ object Configs {
     var cloudSyncWebDavPassword: String
         get() = SP.getString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, "")
         set(value) = SP.putString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, value)
-
-    // /** 肥羊 AllInOne 文件路径 */
-    // var feiyangAllInOneFilePath: String
-    //     get() = SP.getString(KEY.FEIYANG_ALLINONE_FILE_PATH.name, "")
-    //     set(value) = SP.putString(KEY.FEIYANG_ALLINONE_FILE_PATH.name, value)
 
     // 添加网络重试次数和间隔时间
     var networkRetryCount: Long
@@ -919,8 +898,6 @@ object Configs {
             videoPlayerDisplayMode = videoPlayerDisplayMode,
             videoPlayerForceSoftDecode = videoPlayerForceSoftDecode,
             videoPlayerStopPreviousMediaItem = videoPlayerStopPreviousMediaItem,
-            videoPlayerSkipMultipleFramesOnSameVSync = videoPlayerSkipMultipleFramesOnSameVSync,
-            videoPlayerVolumeNormalization = videoPlayerVolumeNormalization,
             themeAppCurrent = themeAppCurrent,
             cloudSyncAutoPull = cloudSyncAutoPull,
             cloudSyncProvider = cloudSyncProvider,
@@ -933,7 +910,6 @@ object Configs {
             cloudSyncWebDavUrl = cloudSyncWebDavUrl,
             cloudSyncWebDavUsername = cloudSyncWebDavUsername,
             cloudSyncWebDavPassword = cloudSyncWebDavPassword,
-            // feiyangAllInOneFilePath = feiyangAllInOneFilePath,
             networkRetryCount = networkRetryCount,
             networkRetryInterval = networkRetryInterval,
         )
@@ -1010,8 +986,6 @@ object Configs {
         configs.videoPlayerDisplayMode?.let { videoPlayerDisplayMode = it }
         configs.videoPlayerForceSoftDecode?.let { videoPlayerForceSoftDecode = it }
         configs.videoPlayerStopPreviousMediaItem?.let { videoPlayerStopPreviousMediaItem = it }
-        configs.videoPlayerSkipMultipleFramesOnSameVSync?.let { videoPlayerSkipMultipleFramesOnSameVSync = it }
-        configs.videoPlayerVolumeNormalization?.let { videoPlayerVolumeNormalization = it }
         configs.themeAppCurrent?.let { themeAppCurrent = it }
         configs.cloudSyncAutoPull?.let { cloudSyncAutoPull = it }
         configs.cloudSyncProvider?.let { cloudSyncProvider = it }
@@ -1024,7 +998,6 @@ object Configs {
         configs.cloudSyncWebDavUrl?.let { cloudSyncWebDavUrl = it }
         configs.cloudSyncWebDavUsername?.let { cloudSyncWebDavUsername = it }
         configs.cloudSyncWebDavPassword?.let { cloudSyncWebDavPassword = it }
-        // configs.feiyangAllInOneFilePath?.let { feiyangAllInOneFilePath = it }
         configs.networkRetryCount?.let { networkRetryCount = it }
         configs.networkRetryInterval?.let { networkRetryInterval = it }
     }
@@ -1099,8 +1072,6 @@ object Configs {
         val videoPlayerDisplayMode: VideoPlayerDisplayMode? = null,
         val videoPlayerForceSoftDecode: Boolean? = null,
         val videoPlayerStopPreviousMediaItem: Boolean? = null,
-        val videoPlayerSkipMultipleFramesOnSameVSync: Boolean? = null,
-        val videoPlayerVolumeNormalization : Boolean? = null,
         val themeAppCurrent: AppThemeDef? = null,
         val cloudSyncAutoPull: Boolean? = null,
         val cloudSyncProvider: CloudSyncProvider? = null,
@@ -1113,7 +1084,6 @@ object Configs {
         val cloudSyncWebDavUrl: String? = null,
         val cloudSyncWebDavUsername: String? = null,
         val cloudSyncWebDavPassword: String? = null,
-        // val feiyangAllInOneFilePath: String? = null,
         val networkRetryCount: Long? = null,
         val networkRetryInterval: Long? = null,
     ) {

@@ -6,7 +6,11 @@ package top.yogiczy.mytv.core.data.repositories.iptv.parser
  * 解析前统一去掉。
  */
 internal fun String.stripPlaylistBom(): String {
-    return removePrefix("\uFEFF").trimStart()
+    // 反复转存、拼接过的源开头可能有多个 BOM，或 BOM 与空行混排：
+    // removePrefix 只去一个、BOM 又不是空白字符（trimStart 去不掉），
+    // 剩一个 BOM 就认不出 #EXTM3U、整条源被当成未知格式；开头统一按
+    // “BOM 或空白”一直去掉
+    return dropWhile { it == '\uFEFF' || it.isWhitespace() }
 }
 
 /**

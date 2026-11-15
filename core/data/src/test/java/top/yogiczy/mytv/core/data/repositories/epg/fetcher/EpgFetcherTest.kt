@@ -74,6 +74,24 @@ class EpgFetcherTest {
         assertEquals("http://example.com/epg.xml", "http://example.com/epg.xml".epgUrlPath())
     }
 
+    @Test
+    fun xml_fetch_passedThrough() = runBlocking {
+        // Xml 解析器取流本身没有单测：原样返回请求体内容
+        val xml = "<?xml version=\"1.0\"?><tv></tv>"
+        val stream = xmlFetcher.fetch(xml.toByteArray(Charsets.UTF_8).toResponseBody())
+        assertEquals(xml, stream.readBytes().toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun instances_firstMatchPicksRightFetcher() {
+        // 选取顺序就是 EpgRepository 用的 first{isSupport}：Xml 在前、
+        // XmlGz 居中、缺省兜底在最后；顺序颠倒会让所有地址都落进缺省解析
+        assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg.xml") } is XmlEpgFetcher)
+        assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg.xml.gz") } is XmlGzEpgFetcher)
+        assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg") } is DefaultEpgFetcher)
+        assertTrue(EpgFetcher.instances.first { it.isSupport("http://example.com/epg.xml?token=abc") } is XmlEpgFetcher)
+    }
+
     private fun gzipBytes(text: String): ByteArray {
         val out = ByteArrayOutputStream()
         GZIPOutputStream(out).use { it.write(text.toByteArray(Charsets.UTF_8)) }

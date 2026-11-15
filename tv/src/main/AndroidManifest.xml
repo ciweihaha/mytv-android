@@ -11,7 +11,14 @@
 
     <queries>
         <package android:name="com.google.android.webview" />
+        <!-- 语音搜索：系统语音识别器（RecognizerIntent） -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
     </queries>
+
+    <!-- 厂商语音服务（Peasun 小豚）：遥控器语音键的识别结果以广播推过来 -->
+    <uses-permission android:name="com.peasun.aispeech.aiopen.control" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -36,7 +43,6 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:requestLegacyExternalStorage="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyTV"
         android:usesCleartextTraffic="true"
@@ -46,7 +52,7 @@
         tools:targetApi="n">
         <activity
             android:name=".MainActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|screenLayout|keyboardHidden"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
             android:exported="true"
             android:resizeableActivity="true"
             android:screenOrientation="sensorLandscape"
@@ -59,7 +65,15 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".CrashHandlerActivity" />
+        <!-- 崩溃屏必须跑在独立进程：主线程崩溃后主线程（Looper）已死，
+             同进程的崩溃屏连启动都启动不了；就算后台线程崩溃主线程还活着，
+             崩溃处理里 1.2 秒后 killProcess 也会把同进程的崩溃屏一起杀掉，
+             用户根本来不及看日志、点重启。独立进程后 kill 的只是主进程，
+             崩溃屏不受影响；cacheDir 是按应用分的、两个进程共用同一份，
+             落盘的 crash.log 照样读得到 -->
+        <activity
+            android:name=".CrashHandlerActivity"
+            android:process=":crash" />
         <!-- 开机自启接收器：exported 必须为 true，否则系统广播发不到应用内的
              Receiver，设置里开了开机自启也不会拉起 -->
         <receiver
@@ -71,6 +85,19 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 厂商语音服务（Peasun 小豚）回调：遥控器语音键的识别结果以广播发过来。
+             类名与 3.x 保持一致（com.github.mytv.android.SharJeckOpenReceiver），
+             厂商服务可能按类名显式寻址 -->
+        <receiver
+            android:name="com.github.mytv.android.SharJeckOpenReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.peasun.aispeech.action.app.register.require" />
+                <action android:name="com.peasun.aispeech.action.live" />
             </intent-filter>
         </receiver>
 

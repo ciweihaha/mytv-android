@@ -38,4 +38,22 @@ class HashUtilTest {
         assertEquals(32, HashUtil.sha256Hex("x", 32).length)
         assertEquals(8, HashUtil.sha256Hex("x", 8).length)
     }
+
+    @Test
+    fun sha256Hex_emptyInput_fullVector() {
+        assertEquals(
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            HashUtil.sha256Hex("", 64)
+        )
+    }
+
+    @Test
+    fun sha256Hex_lengthBeyondDigest_returnsFullDigest() {
+        assertEquals(64, HashUtil.sha256Hex("x", 100).length)
+    }
+
+    @Test
+    fun sha256Hex_zeroLength_returnsEmpty() {
+        assertEquals("", HashUtil.sha256Hex("x", 0))
+    }
 }

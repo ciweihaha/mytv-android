@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.tv.sync.repositories
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.network.request
@@ -22,6 +23,9 @@ class NetworkUrlSyncRepository(
                 ?: throw Exception("拉取云端失败：服务器返回空数据")
             return@withContext Globals.json.decodeFromString<CloudSyncData>(data)
         } catch (ex: Exception) {
+            // 拉取中途被取消不是拉取失败：取消信号原样抛出去，别包成普通失败
+            // （690 轮同款问题）
+            if (ex is CancellationException) throw ex
             log.e("拉取云端失败", ex)
             throw Exception("拉取云端失败", ex)
         }

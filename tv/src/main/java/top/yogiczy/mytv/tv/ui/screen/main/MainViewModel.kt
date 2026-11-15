@@ -5,6 +5,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,6 +28,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.match
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
@@ -101,6 +103,10 @@ class MainViewModel : ViewModel() {
                 true
             }
             .catch {
+                // 取消不是失败：flow 的 catch 会把 CancellationException 也吃掉，
+                // 不原样抛出去，被取消的加载会被记成一次 Error（切源时旧任务的
+                // Error 可能落在新任务的 Loading 之后，界面闪一下“Job was cancelled”）
+                if (it is CancellationException) throw it
                 _uiState.value = MainUiState.Error(it.message)
             }
             .map { mergeSimilarChannel(it) }
@@ -157,32 +163,25 @@ class MainViewModel : ViewModel() {
 
     private suspend fun hybridChannel(channelGroupList: ChannelGroupList) =
         withContext(Dispatchers.Default) {
-            if (Configs.iptvHybridMode != Configs.IptvHybridMode.DISABLE) {
+            val mode = Configs.iptvHybridMode
+            if (mode != Configs.IptvHybridMode.DISABLE) {
                 _uiState.value = MainUiState.Loading("匹配可用的网页源")
             }
 
-            return@withContext when (Configs.iptvHybridMode) {
+            return@withContext when (mode) {
                 Configs.IptvHybridMode.DISABLE -> channelGroupList
-                Configs.IptvHybridMode.IPTV_FIRST -> {
+                // 两种模式只差线路顺序：直播优先把网页线放后面、混合优先放前面，
+                // 分组/频道两层遍历原来在两个分支里各写了一份，并成一处
+                else -> {
                     ChannelGroupList(channelGroupList.map { group ->
                         group.copy(channelList = ChannelList(group.channelList.map { channel ->
-                            channel.copy(
-                                lineList = ChannelLineList(
-                                    channel.lineList + ChannelUtil.getHybridWebViewLines(channel.epgName)
-                                )
-                            )
-                        }))
-                    })
-                }
-
-                Configs.IptvHybridMode.HYBRID_FIRST -> {
-                    ChannelGroupList(channelGroupList.map { group ->
-                        group.copy(channelList = ChannelList(group.channelList.map { channel ->
-                            channel.copy(
-                                lineList = ChannelLineList(
-                                    ChannelUtil.getHybridWebViewLines(channel.epgName) + channel.lineList
-                                )
-                            )
+                            val webViewLines = ChannelUtil.getHybridWebViewLines(channel.epgName)
+                            val lineList = if (mode == Configs.IptvHybridMode.IPTV_FIRST) {
+                                channel.lineList + webViewLines
+                            } else {
+                                webViewLines + channel.lineList
+                            }
+                            channel.copy(lineList = ChannelLineList(lineList))
                         }))
                     })
                 }
@@ -227,7 +226,11 @@ class MainViewModel : ViewModel() {
                 }
                 .catch {
                     emit(EpgList())
-                    Snackbar.show("节目单获取失败，请检查网络连接", type = SnackbarType.ERROR)
+                    if (it is HttpStatusException) {
+                        Snackbar.show("节目单获取失败：${it.message}", type = SnackbarType.ERROR)
+                    } else {
+                        Snackbar.show("节目单获取失败，请检查网络连接", type = SnackbarType.ERROR)
+                    }
                 }
                 .map { epgList ->
                     withContext(Dispatchers.Default) {

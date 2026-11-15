@@ -48,7 +48,12 @@ fun rememberCanRequestPackageInstallsPermission(): Pair<Boolean, () -> Unit> {
 
             if (!hasPermission) {
                 runCatching {
-                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                    // 带上本应用包名：直接打开本应用的开关页；不带则只打开
+                    // 应用列表、还得用户自己找到本应用（同文件管理全部文件
+                    // 权限那处就是带包名跳的，两边保持一致）
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
                     launcher.launch(intent)
                 }.onFailure {
                     Snackbar.show(

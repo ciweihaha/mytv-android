@@ -17,6 +17,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.tv.material3.MaterialTheme
+import top.yogiczy.mytv.core.data.utils.Logger
 import top.yogiczy.mytv.tv.ui.utils.backHandler
 import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
 import top.yogiczy.mytv.tv.ui.utils.ifElse
@@ -24,6 +25,7 @@ import java.util.UUID
 
 class PopupManager {
     private val stack = mutableListOf<StackItem>()
+    private val log = Logger.create("PopupManager")
 
     fun push(focusRequester: FocusRequester, emitter: Boolean = false) {
         stack.add(StackItem(focusRequester, emitter))
@@ -36,7 +38,7 @@ class PopupManager {
             last?.focusRequester?.requestFocus()
             if (last?.emitter == true) stack.remove(last)
         } catch (ex: Exception) {
-            ex.printStackTrace()
+            log.e("弹窗焦点恢复失败", ex)
             try {
                 stack.remove(last)
                 stack.lastOrNull()?.focusRequester?.requestFocus()

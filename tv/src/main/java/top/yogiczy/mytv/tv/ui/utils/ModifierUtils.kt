@@ -134,7 +134,13 @@ fun Modifier.handleDragGestures(
                         currentOnSwipeUp()
                     }
                 }
+                // 一次滑动结束就清零：不然偏移会攒到下一次滑动里，攒够距离后
+                // 随便轻轻一划就触发，等于距离门槛只对第一次滑动有效
+                verticalDragOffset = 0f
             },
+            // 滑动被取消（另一方向的手势抢赢、或手指中途被系统接管）时
+            // 不走 onDragEnd：不这里清零，偏移同样会攒到下一次滑动里
+            onDragCancel = { verticalDragOffset = 0f },
         ) { change, dragAmount ->
             verticalDragOffset += dragAmount
             verticalTracker.addPosition(change.uptimeMillis, change.position)
@@ -152,7 +158,11 @@ fun Modifier.handleDragGestures(
                             currentOnSwipeLeft()
                         }
                     }
+                    // 同上：横向偏移一次滑动结束就清零，别攒到下一次
+                    horizontalDragOffset = 0f
                 },
+                // 同上：取消时也不走 onDragEnd，这里同样清零
+                onDragCancel = { horizontalDragOffset = 0f },
             ) { change, dragAmount ->
                 horizontalDragOffset += dragAmount
                 horizontalTracker.addPosition(change.uptimeMillis, change.position)
@@ -178,6 +188,105 @@ fun Modifier.clickableNoIndication(
     }
 }
 
+/**
+ * 遥控按键“点按”映射表（纯函数，方便单元测试）：只收录真正传了
+ * 回调的键，没传的不进表；按下没进表的键时和原来一样不消费。
+ * 键盘 W/S/A/D 当长按方向用、L 当长按确定用（原有行为保留）；
+ * 数字键 0-9 按位数回调。
+ */
+internal fun keyTapMap(
+    onLeft: (() -> Unit)? = null,
+    onRight: (() -> Unit)? = null,
+    onUp: (() -> Unit)? = null,
+    onDown: (() -> Unit)? = null,
+    onSelect: (() -> Unit)? = null,
+    onLongLeft: (() -> Unit)? = null,
+    onLongRight: (() -> Unit)? = null,
+    onLongUp: (() -> Unit)? = null,
+    onLongDown: (() -> Unit)? = null,
+    onLongSelect: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
+    onNumber: ((Int) -> Unit)? = null,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+): Map<Int, () -> Unit> = buildMap {
+    onLeft?.let {
+        put(KeyEvent.KEYCODE_DPAD_LEFT, it)
+        if (sdkInt >= Build.VERSION_CODES.N_MR1) {
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_LEFT, it)
+        }
+    }
+    onRight?.let {
+        put(KeyEvent.KEYCODE_DPAD_RIGHT, it)
+        if (sdkInt >= Build.VERSION_CODES.N_MR1) {
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_RIGHT, it)
+        }
+    }
+    onUp?.let {
+        put(KeyEvent.KEYCODE_DPAD_UP, it)
+        put(KeyEvent.KEYCODE_CHANNEL_UP, it)
+        if (sdkInt >= Build.VERSION_CODES.N_MR1) {
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_UP, it)
+        }
+    }
+    onDown?.let {
+        put(KeyEvent.KEYCODE_DPAD_DOWN, it)
+        put(KeyEvent.KEYCODE_CHANNEL_DOWN, it)
+        if (sdkInt >= Build.VERSION_CODES.N_MR1) {
+            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_DOWN, it)
+        }
+    }
+    onSelect?.let {
+        put(KeyEvent.KEYCODE_DPAD_CENTER, it)
+        put(KeyEvent.KEYCODE_ENTER, it)
+        put(KeyEvent.KEYCODE_NUMPAD_ENTER, it)
+    }
+    onSettings?.let {
+        put(KeyEvent.KEYCODE_MENU, it)
+        put(KeyEvent.KEYCODE_SETTINGS, it)
+        put(KeyEvent.KEYCODE_HELP, it)
+        put(KeyEvent.KEYCODE_H, it)
+    }
+    // 键盘 W/S/A/D 当长按方向用、L 当长按确定用（原有行为保留）
+    onLongLeft?.let { put(KeyEvent.KEYCODE_A, it) }
+    onLongRight?.let { put(KeyEvent.KEYCODE_D, it) }
+    onLongUp?.let { put(KeyEvent.KEYCODE_W, it) }
+    onLongDown?.let { put(KeyEvent.KEYCODE_S, it) }
+    onLongSelect?.let { put(KeyEvent.KEYCODE_L, it) }
+    onNumber?.let { number ->
+        for (i in 0..9) {
+            put(KeyEvent.KEYCODE_0 + i) { number(i) }
+        }
+    }
+}
+
+/**
+ * 遥控按键“长按”映射表（纯函数，方便单元测试）：同样只收录真正传了
+ * 回调的键。
+ */
+internal fun keyLongTapMap(
+    onLongLeft: (() -> Unit)? = null,
+    onLongRight: (() -> Unit)? = null,
+    onLongUp: (() -> Unit)? = null,
+    onLongDown: (() -> Unit)? = null,
+    onLongSelect: (() -> Unit)? = null,
+): Map<Int, () -> Unit> = buildMap {
+    onLongLeft?.let { put(KeyEvent.KEYCODE_DPAD_LEFT, it) }
+    onLongRight?.let { put(KeyEvent.KEYCODE_DPAD_RIGHT, it) }
+    onLongUp?.let {
+        put(KeyEvent.KEYCODE_DPAD_UP, it)
+        put(KeyEvent.KEYCODE_CHANNEL_UP, it)
+    }
+    onLongDown?.let {
+        put(KeyEvent.KEYCODE_DPAD_DOWN, it)
+        put(KeyEvent.KEYCODE_CHANNEL_DOWN, it)
+    }
+    onLongSelect?.let {
+        put(KeyEvent.KEYCODE_ENTER, it)
+        put(KeyEvent.KEYCODE_NUMPAD_ENTER, it)
+        put(KeyEvent.KEYCODE_DPAD_CENTER, it)
+    }
+}
+
 fun Modifier.handleKeyEvents(
     onLeft: (() -> Unit)? = null,
     onLongLeft: (() -> Unit)? = null,
@@ -192,60 +301,26 @@ fun Modifier.handleKeyEvents(
     onSettings: (() -> Unit)? = null,
     onNumber: ((Int) -> Unit)? = null,
 ) = handleKeyEvents(
-    onKeyTap = mutableMapOf(
-        KeyEvent.KEYCODE_DPAD_LEFT to onLeft,
-        KeyEvent.KEYCODE_DPAD_RIGHT to onRight,
-        KeyEvent.KEYCODE_DPAD_UP to onUp,
-        KeyEvent.KEYCODE_CHANNEL_UP to onUp,
-        KeyEvent.KEYCODE_DPAD_DOWN to onDown,
-        KeyEvent.KEYCODE_CHANNEL_DOWN to onDown,
-
-        KeyEvent.KEYCODE_DPAD_CENTER to onSelect,
-        KeyEvent.KEYCODE_ENTER to onSelect,
-        KeyEvent.KEYCODE_NUMPAD_ENTER to onSelect,
-
-        KeyEvent.KEYCODE_MENU to onSettings,
-        KeyEvent.KEYCODE_SETTINGS to onSettings,
-        KeyEvent.KEYCODE_HELP to onSettings,
-        KeyEvent.KEYCODE_H to onSettings,
-
-        KeyEvent.KEYCODE_L to onLongSelect,
-        KeyEvent.KEYCODE_W to onLongUp,
-        KeyEvent.KEYCODE_S to onLongDown,
-        KeyEvent.KEYCODE_A to onLongLeft,
-        KeyEvent.KEYCODE_D to onLongRight,
-
-        KeyEvent.KEYCODE_0 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(0) } },
-        KeyEvent.KEYCODE_1 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(1) } },
-        KeyEvent.KEYCODE_2 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(2) } },
-        KeyEvent.KEYCODE_3 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(3) } },
-        KeyEvent.KEYCODE_4 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(4) } },
-        KeyEvent.KEYCODE_5 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(5) } },
-        KeyEvent.KEYCODE_6 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(6) } },
-        KeyEvent.KEYCODE_7 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(7) } },
-        KeyEvent.KEYCODE_8 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(8) } },
-        KeyEvent.KEYCODE_9 to onNumber?.let<(Int) -> Unit, () -> Unit> { { it(9) } },
-    ).apply {
-        // mapOf 出来的是只读表，apply 里写 `key to value` 只会造出
-        // 几个用完就扔的键值对，根本加不进表；改成可变表才能真加上
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_LEFT, onLeft)
-            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_RIGHT, onRight)
-            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_UP, onUp)
-            put(KeyEvent.KEYCODE_SYSTEM_NAVIGATION_DOWN, onDown)
-        }
-    },
-    onKeyLongTap = mapOf(
-        KeyEvent.KEYCODE_DPAD_LEFT to onLongLeft,
-        KeyEvent.KEYCODE_DPAD_RIGHT to onLongRight,
-        KeyEvent.KEYCODE_DPAD_UP to onLongUp,
-        KeyEvent.KEYCODE_CHANNEL_UP to onLongUp,
-        KeyEvent.KEYCODE_DPAD_DOWN to onLongDown,
-        KeyEvent.KEYCODE_CHANNEL_DOWN to onLongDown,
-
-        KeyEvent.KEYCODE_ENTER to onLongSelect,
-        KeyEvent.KEYCODE_NUMPAD_ENTER to onLongSelect,
-        KeyEvent.KEYCODE_DPAD_CENTER to onLongSelect,
+    onKeyTap = keyTapMap(
+        onLeft = onLeft,
+        onRight = onRight,
+        onUp = onUp,
+        onDown = onDown,
+        onSelect = onSelect,
+        onLongLeft = onLongLeft,
+        onLongRight = onLongRight,
+        onLongUp = onLongUp,
+        onLongDown = onLongDown,
+        onLongSelect = onLongSelect,
+        onSettings = onSettings,
+        onNumber = onNumber,
+    ),
+    onKeyLongTap = keyLongTapMap(
+        onLongLeft = onLongLeft,
+        onLongRight = onLongRight,
+        onLongUp = onLongUp,
+        onLongDown = onLongDown,
+        onLongSelect = onLongSelect,
     ),
 )
     .clickableNoIndication(

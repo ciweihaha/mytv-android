@@ -82,6 +82,19 @@ class DownloaderTest {
                                 out.flush()
                             }
 
+                            requestLine.startsWith("GET /chunked ") -> {
+                                // 分块传输：不发 Content-Length，总长度未知
+                                val content = "chunked-bytes".toByteArray()
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.write("${content.size.toString(16)}\r\n".toByteArray())
+                                out.write(content)
+                                out.write("\r\n0\r\n\r\n".toByteArray())
+                                out.flush()
+                            }
+
                             else -> {
                                 out.write(
                                     "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
@@ -142,6 +155,46 @@ class DownloaderTest {
     }
 
     @Test
+    fun downloadTo_notFound_throwsAndLeavesNoFile() {
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "latest.apk")
+            val ex = assertThrows(Exception::class.java) {
+                runBlocking {
+                    Downloader.downloadTo(
+                        "http://127.0.0.1:${server.port}/unknown", target.path, null
+                    )
+                }
+            }
+            assertTrue(ex.message?.contains("下载文件失败: 404") == true)
+            assertFalse(target.exists())
+            assertFalse(File(dir, "latest.apk.tmp").exists())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadTo_connectionRefused_throwsNetworkMessage() {
+        val server = TestHttpServer().apply { start() }
+        val port = server.port
+        server.stop()
+        val dir = tempFolder.newFolder("dl")
+        val target = File(dir, "latest.apk")
+        val ex = assertThrows(Exception::class.java) {
+            runBlocking {
+                Downloader.downloadTo(
+                    "http://127.0.0.1:$port/x", target.path, null
+                )
+            }
+        }
+        assertTrue(ex.message?.contains("请检查网络连接") == true)
+        assertFalse(target.exists())
+        assertFalse(File(dir, "latest.apk.tmp").exists())
+    }
+
+    @Test
     fun downloadTo_progressCallback_onlyOnChange() {
         val server = TestHttpServer().apply { start() }
         try {
@@ -172,6 +225,50 @@ class DownloaderTest {
     }
 
     @Test
+    fun downloadTo_chunked_neverFiresProgressCallback() {
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "chunked.bin")
+            val seen = Collections.synchronizedList(mutableListOf<Int>())
+            runBlocking {
+                Downloader.downloadTo(
+                    "http://127.0.0.1:${server.port}/chunked", target.path
+                ) { seen.add(it) }
+            }
+            assertEquals("chunked-bytes", target.readText())
+            // 回调是异步发的：下载完后等一会儿，有误报的 0 也该到了再断言
+            Thread.sleep(500)
+            assertTrue("总长度未知时进度回调一次也不应触发，实际 $seen", seen.isEmpty())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadTo_missingParentDir_throwsAndLeavesNoFile() {
+        // 目标父目录不存在：建输出流就抛错，应包成“下载文件失败：无法写入
+        // 目标文件”再抛出去、不留下残缺文件；downloadTo 本身不建目录
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(File(dir, "no-such-dir"), "latest.apk")
+            val ex = assertThrows(Exception::class.java) {
+                runBlocking {
+                    Downloader.downloadTo(
+                        "http://127.0.0.1:${server.port}/ok", target.path, null
+                    )
+                }
+            }
+            assertTrue(ex.message?.contains("无法写入目标文件") == true)
+            assertFalse(target.exists())
+            assertFalse(File(File(dir, "no-such-dir"), "latest.apk.tmp").exists())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun calcDownloadProgress_normal() {
         assertEquals(0, calcDownloadProgress(0, 100))
         assertEquals(50, calcDownloadProgress(50, 100))
@@ -189,5 +286,10 @@ class DownloaderTest {
         assertEquals(0, calcDownloadProgress(10, -1))
         assertEquals(0, calcDownloadProgress(10, 0))
         assertEquals(0, calcDownloadProgress(0, -1))
+    }
+
+    @Test
+    fun calcDownloadProgress_negativeRead_returnsZero() {
+        assertEquals(0, calcDownloadProgress(-10, 100))
     }
 }

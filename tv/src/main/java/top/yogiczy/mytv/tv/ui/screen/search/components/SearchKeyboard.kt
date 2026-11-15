@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ fun SearchKeyboard(
     modifier: Modifier = Modifier,
     onInput: (String) -> Unit = {},
     onDelete: () -> Unit = {},
+    onVoiceSearch: () -> Unit = {},
 ) {
     val childPadding = rememberChildPadding()
     val firstItemFocusRequester = remember { FocusRequester() }
@@ -59,6 +61,15 @@ fun SearchKeyboard(
                 modifier = Modifier.focusRequester(firstItemFocusRequester),
                 imageVector = Icons.AutoMirrored.Outlined.Backspace,
                 onSelected = onDelete,
+            )
+        }
+
+        // 语音搜索键：拉起系统语音识别器（或等厂商语音广播），识别出的文字
+        // 直接填进搜索框。放退格键旁边，焦点恢复仍落在退格键上。
+        item {
+            SearchKeyboardKey(
+                imageVector = Icons.Filled.Mic,
+                onSelected = onVoiceSearch,
             )
         }
 

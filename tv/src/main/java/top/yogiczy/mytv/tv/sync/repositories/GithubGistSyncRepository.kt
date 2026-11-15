@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.tv.sync.repositories
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
@@ -39,6 +40,9 @@ class GithubGistSyncRepository(
                 true
             } ?: false
         } catch (ex: Exception) {
+            // 推送中途被取消不是推送失败：取消信号原样抛出去，别按接口契约返回 false、
+            // 让界面弹一条“推送云端失败”的假报错（690 轮同款问题）
+            if (ex is CancellationException) throw ex
             log.e("推送云端失败", ex)
             // 按接口契约返回 false 而不是抛异常：调用方按返回值提示成败
             return false
@@ -76,6 +80,9 @@ class GithubGistSyncRepository(
                 }
             } ?: CloudSyncData.EMPTY
         } catch (ex: Exception) {
+            // 拉取中途被取消不是拉取失败：取消信号原样抛出去，别包成普通失败
+            // （690 轮同款问题）
+            if (ex is CancellationException) throw ex
             log.e("拉取云端失败", ex)
             throw Exception("拉取云端失败", ex)
         }

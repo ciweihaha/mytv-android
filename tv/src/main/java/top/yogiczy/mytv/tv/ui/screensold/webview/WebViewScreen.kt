@@ -3,7 +3,6 @@ package top.yogiczy.mytv.tv.ui.screensold.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -28,7 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 import top.yogiczy.mytv.tv.ui.material.Visibility
 import top.yogiczy.mytv.tv.ui.screensold.webview.components.WebViewPlaceholder
 import top.yogiczy.mytv.core.data.utils.Logger
@@ -103,8 +101,8 @@ fun WebViewScreen(
                     val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(this, true)
-                    cookies.forEach { cookie ->
-                        cookieManager.setCookie(".yangshipin.cn", cookie.trim())
+                    cookies.map { it.trim() }.filter { it.isNotEmpty() }.forEach { cookie ->
+                        cookieManager.setCookie(".yangshipin.cn", cookie)
                     }
                     cookieManager.flush()
                     
@@ -128,7 +126,6 @@ fun WebViewScreen(
                     settings.builtInZoomControls = false
                     settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     settings.mediaPlaybackRequiresUserGesture = false
-                    settings.domStorageEnabled = true
                     isHorizontalScrollBarEnabled = false
                     isVerticalScrollBarEnabled = false
                     isClickable = false
@@ -150,6 +147,10 @@ fun WebViewScreen(
                     it.loadUrl(actualUrl)
                 }
             },
+            // 离开组合时必须销毁：WebView 不调 destroy() 不会释放渲染器
+            // 等原生资源；切出台（Visibility 收起）或播放模式一变（外层
+            // key 换）都会重建一个，不销毁就越积越多
+            onRelease = { it.destroy() },
         )
 
         Visibility({ placeholderVisible }) {
@@ -175,7 +176,7 @@ class MyClient(
         if (isFaviconUrl(url)) {
             return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载
         }
-        if(blacklist != null && blacklist.isNotEmpty()){
+        if (blacklist.isNotEmpty()) {
             for (item in blacklist) {
                 if (url.contains(item)) {
                     return WebResourceResponse("text", "UTF-8", null) // 返回空响应以阻止加载

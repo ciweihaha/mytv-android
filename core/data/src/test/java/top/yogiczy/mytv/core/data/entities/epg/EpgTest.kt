@@ -104,6 +104,118 @@ class EpgTest {
     }
 
     @Test
+    fun recentProgramme_boundaryStartIsLive() {
+        // 开始那一刻算正在播（左闭）：与 isLive() 一致
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "第一"),
+                    EpgProgramme(startAt = 2000, endAt = 3000, title = "第二"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1000)
+        assertEquals("第一", recent.now?.title)
+        assertEquals("第二", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_boundaryEndIsNotLive() {
+        // 结束那一刻算已播完（右开）：与 isLive() 一致；相邻节目共用边界点时
+        // 只能命中后一个，不会随手返回前一个
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "第一"),
+                    EpgProgramme(startAt = 2000, endAt = 3000, title = "第二"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(2000)
+        assertEquals("第二", recent.now?.title)
+        assertNull(recent.next)
+    }
+
+    @Test
+    fun recentProgramme_nextSkipsAlreadyFinishedOverlap() {
+        // 脏数据：下一档与正在播的重叠、且已经播完（开始在现在之前、结束也
+        // 在现在之前），不能把它当成“下一个节目”；原来 next 直接取下一条，
+        // 会把已经播完的节目显示成“稍后播放”
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 3000, title = "正在播"),
+                    EpgProgramme(startAt = 1500, endAt = 2000, title = "已播完的重叠档"),
+                    EpgProgramme(startAt = 3000, endAt = 4000, title = "下一档"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(2500)
+        assertEquals("正在播", recent.now?.title)
+        assertEquals("下一档", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_nextKeepsOverlappingNotYetFinished() {
+        // 脏数据：下一档与正在播的重叠、但还没播完，仍是“下一个节目”；
+        // 上一条的修法不能把这种也跳过
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 3000, title = "正在播"),
+                    EpgProgramme(startAt = 2000, endAt = 2500, title = "重叠的下一档"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1500)
+        assertEquals("正在播", recent.now?.title)
+        assertEquals("重叠的下一档", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_nextPrefersOnTimeOverOverlapping() {
+        // 正在播 + 重叠档（开始在当前结束之前）+ 正点下一档（开始正好
+        // 等于当前结束）：下一档应是正点那档，不是重叠那档——
+        // 正点接档非空时不走“还没播完就当下一档”的退路；上一条用例
+        // （只有重叠档时仍算下一档）分不出这一档
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000000, endAt = 1020000, title = "正在播"),
+                    EpgProgramme(startAt = 1010000, endAt = 1015000, title = "重叠档"),
+                    EpgProgramme(startAt = 1020000, endAt = 1030000, title = "正点下一档"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(1000000)
+        assertEquals("正在播", recent.now?.title)
+        assertEquals("正点下一档", recent.next?.title)
+    }
+
+    @Test
+    fun recentProgramme_atExactEndOfLast_returnsEmpty() {
+        // 最后一档结束那一刻：正在播与下一个都为空（右开）；旧比较器下会
+        // 把最后一档当成正在播
+        val epg = Epg(
+            channelList = listOf("CCTV-1"),
+            programmeList = EpgProgrammeList(
+                listOf(
+                    EpgProgramme(startAt = 1000, endAt = 2000, title = "第一"),
+                    EpgProgramme(startAt = 2000, endAt = 3000, title = "第二"),
+                )
+            ),
+        ).sortedProgrammes()
+        val recent = epg.recentProgramme(3000)
+        assertNull(recent.now)
+        assertNull(recent.next)
+    }
+
+    @Test
     fun recentProgramme_afterLast_returnsEmpty() {
         // 当天最后一个节目也播完了：后面没有节目，now 和 next 都为空
         val now = System.currentTimeMillis()

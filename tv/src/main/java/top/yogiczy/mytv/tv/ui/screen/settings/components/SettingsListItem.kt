@@ -8,7 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +38,6 @@ fun SettingsListItem(
     trailingIcon: ImageVector? = null,
     onSelect: (() -> Unit)? = null,
     onLongSelect: () -> Unit = {},
-    locK: Boolean = false,
     remoteConfig: Boolean = false,
     link: Boolean = false,
 ) {
@@ -60,14 +58,6 @@ fun SettingsListItem(
                 trailingContent()
                 trailingIcon?.let {
                     Icon(it, contentDescription = null, modifier = Modifier.size(16.dp))
-                }
-
-                if (locK) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
                 }
 
                 if (remoteConfig) {
@@ -119,7 +109,6 @@ fun SettingsListItem(
     trailingIcon: ImageVector? = null,
     onSelect: (() -> Unit)? = null,
     onLongSelected: () -> Unit = {},
-    locK: Boolean = false,
     remoteConfig: Boolean = false,
     link: Boolean = false,
 ) {
@@ -137,7 +126,6 @@ fun SettingsListItem(
         trailingIcon = trailingIcon,
         onSelect = onSelect,
         onLongSelect = onLongSelected,
-        locK = locK,
         remoteConfig = remoteConfig,
         link = link,
     )
@@ -153,7 +141,6 @@ private fun SettingsListItemPreview() {
             trailingContent = "1.0.0",
             trailingIcon = Icons.Default.Circle,
             remoteConfig = true,
-            locK = true,
             link = true,
         )
     }

@@ -60,7 +60,16 @@ object Downloader {
                     // 流式写入：原先用 body.bytes() 把整个文件读进内存再写，
                     // 下百 MB 的 APK 时低端电视盒子容易 OOM
                     val body = it.body ?: throw Exception("下载文件失败：服务器返回空数据")
-                    FileOutputStream(tmpFile).use { fos ->
+                    // 建输出流失败（如目标父目录不存在）单独包一层中文原因：
+                    // 原样抛 FileNotFoundException 时，日志里只有裸路径，
+                    // 与“下载文件失败…”的其它分支不一致；只包建流这一步，
+                    // 写一半断流仍走原路，别把网络错也说成写文件错
+                    val outputStream = try {
+                        FileOutputStream(tmpFile)
+                    } catch (ex: Exception) {
+                        throw Exception("下载文件失败：无法写入目标文件", ex)
+                    }
+                    outputStream.use { fos ->
                         body.byteStream().use { input -> input.copyTo(fos) }
                     }
                 }
@@ -98,10 +107,13 @@ object Downloader {
                 override fun read(sink: okio.Buffer, byteCount: Long): Long {
                     val bytesRead = super.read(sink, byteCount)
                     totalBytesRead += if (bytesRead != -1L) bytesRead else 0
-                    val progress = calcDownloadProgress(totalBytesRead, contentLength())
+                    val contentLength = contentLength()
+                    val progress = calcDownloadProgress(totalBytesRead, contentLength)
                     // 百分比不变时不回调：原来每读 8KB 就调一次，100MB 下载要
-                    // 触发上万次 Snackbar 状态更新；百分比最多变 100 次
-                    if (progress != lastProgress) {
+                    // 触发上万次 Snackbar 状态更新；百分比最多变 100 次。
+                    // 总长度未知（分块传输）时一次也不报：百分比恒为 0，
+                    // 不拦会在第一读误报一次 0（天光 1912 轮同款）
+                    if (contentLength > 0 && progress != lastProgress) {
                         lastProgress = progress
                         progressScope.launch {
                             onProgressCb?.invoke(progress)

@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.core.data.repositories
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,7 +18,7 @@ class FileCacheRepositoryTest {
     @get:Rule
     val tempFolder = TemporaryFolder()
 
-    private class TestRepo(fileName: String) : FileCacheRepository(fileName) {
+    private class TestRepo(private val fileName: String) : FileCacheRepository(fileName) {
         var refreshCount = 0
 
         suspend fun get(cacheTime: Long, value: String): String =
@@ -38,8 +39,27 @@ class FileCacheRepositoryTest {
         suspend fun getFailing(cacheTime: Long): String =
             getOrRefresh(cacheTime) { throw RuntimeException("network down") }
 
+        suspend fun getRefreshFailsAfterConcurrentWrite(cacheTime: Long): String =
+            getOrRefresh(cacheTime) {
+                File(Globals.cacheDir, fileName).writeText("concurrent fresh data")
+                throw RuntimeException("network down")
+            }
+
         suspend fun getStreamFailing(cacheTime: Long): String =
             getOrRefreshInputStream(cacheTime) { throw RuntimeException("network down") }
+                .readBytes().decodeToString()
+
+        suspend fun getStreamRefreshFailsAfterConcurrentWrite(cacheTime: Long): String =
+            getOrRefreshInputStream(cacheTime) {
+                File(Globals.cacheDir, fileName).writeText("concurrent fresh data")
+                throw RuntimeException("network down")
+            }.readBytes().decodeToString()
+
+        suspend fun getCancelling(cacheTime: Long): String =
+            getOrRefresh(cacheTime) { throw CancellationException("cancelled") }
+
+        suspend fun getStreamCancelling(cacheTime: Long): String =
+            getOrRefreshInputStream(cacheTime) { throw CancellationException("cancelled") }
                 .readBytes().decodeToString()
     }
 
@@ -118,6 +138,24 @@ class FileCacheRepositoryTest {
     }
 
     @Test
+    fun getOrRefresh_picksUpCacheWrittenDuringFailedRefresh() = runBlocking {
+        val repo = TestRepo("test.json")
+        // 开头没有缓存；刷新操作里另一路并发刷新刚把新缓存写好、随后刷新失败：
+        // 应捡回那份新写好的缓存，而不是抛错——开头没读到东西时这里会直接把刷新失败抛出去
+        assertEquals("concurrent fresh data", repo.getRefreshFailsAfterConcurrentWrite(0))
+        assertEquals("concurrent fresh data", File(Globals.cacheDir, "test.json").readText())
+    }
+
+    @Test
+    fun getOrRefreshInputStream_picksUpCacheWrittenDuringFailedRefresh() = runBlocking {
+        val repo = TestRepo("test.bin")
+        // 开头没有缓存；刷新操作里另一路并发刷新刚把新缓存写好、随后刷新失败：
+        // 流版本的失败分支本来就会再读磁盘，应捡回那份新写好的缓存，而不是抛错
+        assertEquals("concurrent fresh data", repo.getStreamRefreshFailsAfterConcurrentWrite(0))
+        assertEquals("concurrent fresh data", File(Globals.cacheDir, "test.bin").readText())
+    }
+
+    @Test
     fun getOrRefreshInputStream_fallsBackToStaleDataWhenRefreshFails() = runBlocking {
         val repo = TestRepo("test.bin")
         assertEquals("hello", repo.getStream(Long.MAX_VALUE, "hello"))
@@ -130,6 +168,52 @@ class FileCacheRepositoryTest {
         runBlocking {
             val repo = TestRepo("test.bin")
             repo.getStreamFailing(0)
+        }
+    }
+
+    @Test
+    fun getOrRefresh_emptyRefreshResultFallsBackToStaleData() = runBlocking {
+        val repo = TestRepo("test.json")
+        assertEquals("v1", repo.get(Long.MAX_VALUE, "v1"))
+        // 过期后刷新回空串：不是成功，不能把好缓存盖成空，应复用旧的 v1、文件不动
+        assertEquals("v1", repo.get(0, ""))
+        assertEquals("v1", File(Globals.cacheDir, "test.json").readText())
+        // 纯空白也一样不算成功
+        assertEquals("v1", repo.get(0, "   "))
+        assertEquals("v1", File(Globals.cacheDir, "test.json").readText())
+    }
+
+    @Test
+    fun getOrRefresh_emptyRefreshResultThrowsWhenNoStaleData() = runBlocking {
+        val repo = TestRepo("test.json")
+        // 开头没有缓存、刷新又回空串：没东西可复用，应抛错、什么都不写
+        val ex = try {
+            repo.get(0, "")
+            null
+        } catch (e: Exception) {
+            e
+        }
+        assertEquals("刷新结果为空", ex?.message)
+        assertFalse(File(Globals.cacheDir, "test.json").exists())
+    }
+
+    @Test(expected = CancellationException::class)
+    fun getOrRefresh_rethrowsCancellationInsteadOfFallingBack() {
+        runBlocking {
+            val repo = TestRepo("test.json")
+            assertEquals("v1", repo.get(Long.MAX_VALUE, "v1"))
+            // 过期后刷新中途被取消：取消不是网络失败，不能拿旧的 v1 顶上、
+            // 把一次取消记成一次成功加载，取消信号要原样抛出去
+            repo.getCancelling(0)
+        }
+    }
+
+    @Test(expected = CancellationException::class)
+    fun getOrRefreshInputStream_rethrowsCancellationInsteadOfFallingBack() {
+        runBlocking {
+            val repo = TestRepo("test.bin")
+            assertEquals("hello", repo.getStream(Long.MAX_VALUE, "hello"))
+            repo.getStreamCancelling(0)
         }
     }
 

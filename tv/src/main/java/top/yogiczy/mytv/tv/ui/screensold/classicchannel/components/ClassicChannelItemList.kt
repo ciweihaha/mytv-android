@@ -40,8 +40,6 @@ import androidx.tv.material3.DenseListItem
 import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
-import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -251,7 +249,12 @@ private fun ClassicChannelItem(
                                 )
                         ) {
                             Text(
-                                channel.no,
+                                // 收藏分组里的台序号固定是 -1（MainScreen 那份
+                                // 收藏列表是 copy(index = -1) 出来的），自带的
+                                // 序号会算出“00”；新版网格那处（ChannelsChannelItemNo）
+                                // 碰到 -1 直接不画号，直播条那处用“–”，这里
+                                // 跟直播条：没号就显示“–”
+                                if (channel.index <= -1) "–" else channel.no,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier

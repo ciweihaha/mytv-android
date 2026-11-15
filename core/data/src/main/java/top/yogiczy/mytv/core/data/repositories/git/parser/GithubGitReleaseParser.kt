@@ -25,10 +25,12 @@ class GithubGitReleaseParser : GitReleaseParser {
             // 如果是对象，直接使用
             jsonElement.requiredObject()
         }
-        // 附件按上传顺序排列，不保证固定位置：按文件名挑原版全架构 APK，
-        // 而不是写死下标 [1]（附件少于 2 个或顺序变化时旧代码直接越界）
+        // 附件按上传顺序排列，不保证固定位置：按文件名挑原版 arm64 专版 APK，
+        // 而不是全架构包（全架构 48.5MB，arm64 专版 16.9MB；用户电视就是
+        // arm64，全架构包里其它架构的 .so 纯属浪费流量和下载时间）。
+        // 没 arm64 专版时 pickDownloadUrl 的退路会落到只含 original 的包。
         val downloadUrl = Constants.GITHUB_PROXY +
-            json.requiredArray("assets").pickDownloadUrl("original", "all")
+            json.requiredArray("assets").pickDownloadUrl("original", "arm64-v8a")
         return GitRelease(
             version = json.requiredString("tag_name").stripVersionPrefix(),
             downloadUrl = downloadUrl,

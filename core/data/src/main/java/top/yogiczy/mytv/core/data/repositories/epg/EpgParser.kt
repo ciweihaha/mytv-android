@@ -1,9 +1,9 @@
 package top.yogiczy.mytv.core.data.repositories.epg
 
-import android.util.Xml
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
 import top.yogiczy.mytv.core.data.entities.epg.Epg
 import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.sortedProgrammes
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
@@ -12,6 +12,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeList
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
 import top.yogiczy.mytv.core.data.utils.Loggable
 import java.io.InputStream
+import java.io.PushbackReader
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.time.measureTimedValue
@@ -30,6 +31,11 @@ object EpgParser : Loggable("EpgParser") {
         noZoneDateFormat: SimpleDateFormat,
     ): Long {
         if (time.length < 14) return 0
+        // 严格模式：SimpleDateFormat 默认宽容模式会把非法日期顺延成有效
+        // 日期（如 2 月 30 日算成 3 月 2 日），节目会出现在错误的那天；
+        // 非法日期应解析失败、按 0 处理（调用方按无效节目过滤）
+        dateFormat.isLenient = false
+        noZoneDateFormat.isLenient = false
         return runCatching { dateFormat.parse(time)?.time ?: 0 }.getOrElse {
             runCatching { noZoneDateFormat.parse(time.substring(0, 14))?.time ?: 0 }
                 .getOrDefault(0)
@@ -51,9 +57,22 @@ object EpgParser : Loggable("EpgParser") {
 
     private suspend fun parse(inputStream: InputStream) = withContext(Dispatchers.IO) {
         inputStream.use { stream ->
-            val parser: XmlPullParser = Xml.newPullParser()
+            // 不走 android.util.Xml.newPullParser()：它在真机上就是转调
+            // XmlPullParserFactory.newInstance().newPullParser()，但在单元
+            // 测试里 android.jar 的桩返回 null（isReturnDefaultValues），
+            // 直接建解析器就空指针、fromXml 一直没法进单测。直接调工厂与
+            // 真机行为一致；测试里用 kxml2 的真 KXmlParser
+            val parser: XmlPullParser = XmlPullParserFactory.newInstance().newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            parser.setInput(stream.reader(Charsets.UTF_8))
+            // KXml 喂 Reader 时不跳 BOM（只在 setInput(InputStream) 时按
+            // 字节认 BOM）：带 <?xml 声明的源开头有 BOM 时，BOM 先占一列、
+            // "PI must not start with xml" 上抛错，整个节目单加载失败；
+            // 开头有几个 BOM 去几个（反复转存、拼接过的源可能带多个）
+            val reader = PushbackReader(stream.reader(Charsets.UTF_8))
+            var c = reader.read()
+            while (c == 0xFEFF) c = reader.read()
+            if (c != -1) reader.unread(c)
+            parser.setInput(reader)
 
             val totalBytes = inputStream.available().toLong()
             var bytesRead: Long
@@ -131,14 +150,17 @@ object EpgParser : Loggable("EpgParser") {
                                     }
                                     if (channelIds.contains(channel)) {
                                         title?.let {
-                                            programmeList.add(
-                                                ProgrammeItem(
-                                                    channel,
-                                                    parseTime(start, dateFormat, noZoneDateFormat),
-                                                    parseTime(stop, dateFormat, noZoneDateFormat),
-                                                    it
+                                            val startMillis = parseTime(start, dateFormat, noZoneDateFormat)
+                                            val endMillis = parseTime(stop, dateFormat, noZoneDateFormat)
+                                            // 非法时间记 0 的节目直接丢掉：开始为 0、结束在未来时，
+                                            // recentProgramme 只比时间、不验有效性，会把它当成正在播；
+                                            // 开始/结束都无效的零时长节目显示层本来就过滤，解析时丢掉
+                                            // 与显示一致（天光 1952 轮同款过滤）
+                                            if (startMillis > 0 && endMillis > startMillis) {
+                                                programmeList.add(
+                                                    ProgrammeItem(channel, startMillis, endMillis, it)
                                                 )
-                                            )
+                                            }
                                         }
                                     }
                                 }

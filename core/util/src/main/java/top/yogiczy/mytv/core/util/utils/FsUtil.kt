@@ -28,6 +28,26 @@ object FsUtil {
     }
 
     /**
+     * 原子写文本：先写同目录临时文件再改名覆盖，写一半被杀只留 .tmp，
+     * 目标文件要么是旧的完整内容、要么是新的完整内容。
+     * 极少数文件系统改名失败时回退为覆盖复制；写失败时删临时文件再抛错。
+     * （缓存与下载两处已有同款写法，这里抽成共用，云同步本地文件也走它。）
+     */
+    fun writeTextAtomically(file: File, text: String) {
+        val tmpFile = File(file.absoluteFile.parent, "${file.name}.tmp")
+        try {
+            tmpFile.writeText(text)
+            if (!tmpFile.renameTo(file)) {
+                tmpFile.copyTo(file, overwrite = true)
+                tmpFile.delete()
+            }
+        } catch (e: Exception) {
+            tmpFile.delete()
+            throw e
+        }
+    }
+
+    /**
      * 递归计算文件夹大小
      */
     fun getDirSizeFlow(dir: File): Flow<Long> = flow {

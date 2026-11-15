@@ -32,6 +32,7 @@ fun CrashHandlerScreen(
     modifier: Modifier = Modifier,
     errorMessage: String,
     errorStacktrace: String = "",
+    crashLogPath: String = "",
     onRestart: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
@@ -89,7 +90,16 @@ fun CrashHandlerScreen(
 
             item { Text("错误信息：") }
             item { Text(errorMessage) }
-            
+
+            if (crashLogPath.isNotBlank()) {
+                item {
+                    Text(
+                        text = "日志文件：$crashLogPath",
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                }
+            }
+
             item { Text("堆栈跟踪：") }
             item { Text(errorStacktrace) }
             

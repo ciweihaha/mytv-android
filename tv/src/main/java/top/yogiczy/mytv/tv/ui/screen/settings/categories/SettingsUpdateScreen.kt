@@ -10,6 +10,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsCategoryScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsListItem
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.updateChannelLabel
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 
 @Composable
@@ -21,7 +22,7 @@ fun SettingsUpdateScreen(
 ) {
     SettingsCategoryScreen(
         modifier = modifier,
-        header = { Text("设置 / 系统") },
+        header = { Text("设置 / 更新") },
         onBackPressed = onBackPressed,
     ) { firstItemFocusRequester ->
         item {
@@ -30,12 +31,7 @@ fun SettingsUpdateScreen(
             SettingsListItem(
                 modifier = Modifier.focusRequester(firstItemFocusRequester),
                 headlineContent = "更新通道",
-                trailingContent = when (channel) {
-                    "stable" -> "稳定版"
-                    "beta" -> "测试版"
-                    "dev" -> "开发版"
-                    else -> channel
-                },
+                trailingContent = updateChannelLabel(channel),
                 onSelect = toUpdateChannelScreen,
                 link = true,
             )
@@ -46,8 +42,7 @@ fun SettingsUpdateScreen(
 
             SettingsListItem(
                 headlineContent = "更新强提醒",
-                supportingContent = if (forceRemind) "检测到新版本时会全屏提醒"
-                else "检测到新版本时仅消息提示",
+                supportingContent = updateForceRemindSupportingText(forceRemind),
                 trailingContent = {
                     Switch(forceRemind, null)
                 },
@@ -57,6 +52,14 @@ fun SettingsUpdateScreen(
             )
         }
     }
+}
+
+/**
+ * “更新强提醒”行的说明文字：开 → 全屏提醒，关 → 仅消息提示。
+ * 从界面里抽出来，只为能离线断言两档写没写对；行为逐字不变。
+ */
+internal fun updateForceRemindSupportingText(forceRemind: Boolean): String {
+    return if (forceRemind) "检测到新版本时会全屏提醒" else "检测到新版本时仅消息提示"
 }
 
 @Preview(device = "id:Android TV (720p)")

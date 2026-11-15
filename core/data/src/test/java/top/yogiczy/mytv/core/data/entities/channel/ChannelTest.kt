@@ -30,4 +30,16 @@ class ChannelTest {
         // 不应再被当成无频道
         assertTrue(Channel.EMPTY != Channel(lineList = ChannelLineList(listOf(ChannelLine.EXAMPLE))))
     }
+
+    @Test
+    fun no_defaultIndex_returns00() {
+        assertEquals("00", Channel.EMPTY.no)
+    }
+
+    @Test
+    fun no_indexPaddedToTwoDigits() {
+        assertEquals("01", Channel(index = 0).no)
+        assertEquals("10", Channel(index = 9).no)
+        assertEquals("100", Channel(index = 99).no)
+    }
 }

@@ -82,19 +82,6 @@ fun SettingsVideoPlayerScreen(
 
         item {
             SettingsListItem(
-                headlineContent = "跳过多帧渲染",
-                trailingContent = {
-                    Switch(settingsViewModel.videoPlayerSkipMultipleFramesOnSameVSync, null)
-                },
-                onSelect = {
-                    settingsViewModel.videoPlayerSkipMultipleFramesOnSameVSync =
-                        !settingsViewModel.videoPlayerSkipMultipleFramesOnSameVSync
-                },
-            )
-        }
-
-        item {
-            SettingsListItem(
                 headlineContent = "全局显示模式",
                 trailingContent = settingsViewModel.videoPlayerDisplayMode.label,
                 onSelect = toVideoPlayerDisplayModeScreen,
@@ -149,20 +136,6 @@ fun SettingsVideoPlayerScreen(
                 trailingIcon = if (!isValid) Icons.Default.ErrorOutline else null,
             )
         }
-
-        // item {
-        //     SettingsListItem(
-        //         headlineContent = "音量平衡",
-        //         supportingContent = "启用后，将统一均衡输出播放音量，解决直播源音量大小不一致的情况；仅支持Media3播放器",
-        //         trailingContent = {
-        //             Switch(settingsViewModel.videoPlayerVolumeNormalization, null)
-        //         },
-        //         onSelect = {
-        //             settingsViewModel.videoPlayerVolumeNormalization =
-        //                 !settingsViewModel.videoPlayerVolumeNormalization
-        //         },
-        //     )
-        // }
     }
 }
 

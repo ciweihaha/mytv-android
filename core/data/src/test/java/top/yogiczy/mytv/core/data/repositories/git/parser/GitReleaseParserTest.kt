@@ -1,9 +1,12 @@
 package top.yogiczy.mytv.core.data.repositories.git.parser
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import top.yogiczy.mytv.core.data.utils.Constants
+import top.yogiczy.mytv.core.data.utils.Globals
 
 /**
  * 发行版解析器测试：附件顺序 / 附件缺失 / 字段缺失 / tag 前缀。
@@ -28,7 +31,9 @@ class GitReleaseParserTest {
     }
 
     @Test
-    fun github_picksOriginalAllAbiApk() = runBlocking {
+    fun github_picksOriginalArm64Apk() = runBlocking {
+        // 改拿 arm64 专版（16.9MB）而不是全架构包（48.5MB）：用户电视就是
+        // arm64，全架构包里其它架构的 .so 纯属浪费流量和下载时间
         val data = githubPayload(
             "V2.2.0.219",
             listOf(
@@ -39,11 +44,11 @@ class GitReleaseParserTest {
         )
         val release = githubParser.parse(data)
         assertEquals("2.2.0.219", release.version)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
     }
 
     @Test
-    fun github_picksOriginalRegardlessOfAssetOrder() = runBlocking {
+    fun github_picksOriginalArm64RegardlessOfAssetOrder() = runBlocking {
         val data = githubPayload(
             "V2.2.0.219",
             listOf(
@@ -53,7 +58,7 @@ class GitReleaseParserTest {
             ).joinToString(","),
         )
         val release = githubParser.parse(data)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
     }
 
     @Test
@@ -65,7 +70,53 @@ class GitReleaseParserTest {
         )
         val release = githubParser.parse(data)
         assertEquals("2.2.0.219", release.version)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_fallsBackToOriginalOnlyApk() = runBlocking {
+        // 没有 arm64 专版：第一级退路（original＋arm64-v8a）落空，退到
+        // 只含 original 的全架构包（pickDownloadUrl 的第二级退路）
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-disguised.apk", "https://example.com/disguised.apk"),
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-original.apk", "https://example.com/original.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_fallsBackToAnyApk() = runBlocking {
+        // 没有含 original 的 APK：第一、二级退路都落空，退到任意一个 APK（取第一个）
+        //（598 轮纠正的四级退路之第三级；gitee/custom 的 wellFormed 用例只锁了
+        // 共用函数，GitHub 这条路还没单测覆盖）
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("mytv-android-tv-2.2.0.219-all-sdk23-disguised.apk", "https://example.com/disguised.apk"),
+                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23.apk", "https://example.com/arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/disguised.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_fallsBackToFirstAttachmentWhenNoApk() = runBlocking {
+        // 一个 APK 都没有：前三级退路都落空，退到第一个带下载地址的附件
+        //（598 轮纠正的四级退路之第四级，此前无单测覆盖）
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("release-notes.txt", "https://example.com/notes.txt"),
+                asset("mytv-android-tv-2.2.0.219.zip", "https://example.com/app.zip"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/notes.txt", release.downloadUrl)
     }
 
     @Test
@@ -157,7 +208,7 @@ class GitReleaseParserTest {
         )
         val release = customParser.parse(data)
         assertEquals("1.1.1.135", release.version)
-        assertEquals("https://ghp.ci/https://example.com/mytv.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/mytv.apk", release.downloadUrl)
     }
 
     @Test
@@ -172,6 +223,91 @@ class GitReleaseParserTest {
             ).joinToString(","),
         )
         val release = customParser.parse(data)
-        assertEquals("https://ghp.ci/https://example.com/original.apk", release.downloadUrl)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_firstElementNotObjectThrowsClearError() {
+        // 数组首元素不是对象：requiredObject 应报明确原因，而不是 ClassCastException
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse("""["not-an-object"]""") }
+        }
+    }
+
+    @Test
+    fun gitee_topLevelArrayThrowsClearError() {
+        // 顶层是数组不是对象：requiredObject 应报明确原因
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { giteeParser.parse("[]") }
+        }
+    }
+
+    @Test
+    fun github_missingAssetsKeyThrowsClearError() {
+        // 根本没有 assets 字段：requiredArray 应报缺字段，而不是空附件的错
+        val data = """[{"tag_name": "V2.2.0.219", "body": "notes"}]"""
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse(data) }
+        }
+    }
+
+    @Test
+    fun github_blankTagThrowsClearError() {
+        // tag_name 是空串：requiredString 把空值当缺失处理
+        val data = githubPayload(
+            "",
+            asset("mytv.apk", "https://example.com/mytv.apk"),
+        )
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse(data) }
+        }
+    }
+
+    @Test
+    fun gitee_missingBodyDefaultsToEmptyDescription() = runBlocking {
+        // 没有 body 字段：optionalString 应回默认空串，说明就是空
+        val data = """{"tag_name": "V1.1.1.135", "assets": [${asset("mytv.apk", "https://example.com/mytv.apk")}]}"""
+        val release = giteeParser.parse(data)
+        assertEquals("", release.description)
+    }
+
+    @Test
+    fun pickDownloadUrl_noKeywordsFallsBackToAnyApk() {
+        // 不传关键词：preferred 退路不存在，直接取第一个 APK
+        val assets = Globals.json.parseToJsonElement(
+            """[${asset("app-arm64.apk", "https://example.com/arm64.apk")}, ${asset("app-all.apk", "https://example.com/all.apk")}]""",
+        ) as JsonArray
+        assertEquals("https://example.com/arm64.apk", assets.pickDownloadUrl())
+    }
+
+    @Test
+    fun pickDownloadUrl_skipsBlankNameAndNonObjectElements() {
+        // 名字空白的附件与非对象元素都应跳过，不进候选
+        val assets = Globals.json.parseToJsonElement(
+            """[{"name": "", "browser_download_url": "https://example.com/blank.apk"}, "junk", ${asset("app.apk", "https://example.com/app.apk")}]""",
+        ) as JsonArray
+        assertEquals("https://example.com/app.apk", assets.pickDownloadUrl())
+    }
+
+    @Test
+    fun pickDownloadUrl_caseInsensitiveSuffixAndKeywords() {
+        // 后缀与关键词都不区分大小写：上游附件名大小写不保证，大写 .APK
+        // 或混写 Original/ALL 也要挑中原版全架构包；这档之前一次也没
+        // 断言过，ignoreCase 写漏时会把原版包漏掉、退到 arm64 专版
+        val assets = Globals.json.parseToJsonElement(
+            """[${asset("mytv-arm64.APK", "https://example.com/arm64.apk")}, ${asset("MyTV-ALL-ORIGINAL.APK", "https://example.com/original.apk")}]""",
+        ) as JsonArray
+        assertEquals("https://example.com/original.apk", assets.pickDownloadUrl("original", "all"))
+        assertEquals("https://example.com/original.apk", assets.pickDownloadUrl("ORIGINAL", "ALL"))
+    }
+
+    @Test
+    fun github_assetsNotArrayThrowsClearError() {
+        // assets 字段存在但不是数组：requiredArray 应报缺字段，而不是
+        // 拿字符串当数组用时抛类型转换错
+        val data = """[{"tag_name": "V2.2.0.219", "body": "notes", "assets": "not-an-array"}]"""
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { githubParser.parse(data) }
+        }
     }
 }

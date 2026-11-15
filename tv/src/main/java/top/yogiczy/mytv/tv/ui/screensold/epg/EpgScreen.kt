@@ -16,6 +16,7 @@ import kotlinx.collections.immutable.toPersistentList
 import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.epg.Epg
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme
+import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.isValid
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeList
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeReserveList
 import top.yogiczy.mytv.tv.ui.material.Drawer
@@ -46,7 +47,12 @@ fun EpgScreen(
 
     val dateFormat = remember { SimpleDateFormat("E MM-dd", Locale.getDefault()) }
     val epg = epgProvider()
-    val programDayGroup = remember(epg) { epg.programmeList.groupBy { dateFormat.format(it.startAt) } }
+    // 时间解析失败的节目（开始/结束为 0、结束 <= 开始）不过滤会单独成一个
+    // 1970-01-01 的日期分组、还挂着“回放”让人点，点了是拿 1970 年的时间戳
+    // 去拼回放地址、播不了；先拦掉再按天分组
+    val programDayGroup = remember(epg) {
+        epg.programmeList.filter { it.isValid() }.groupBy { dateFormat.format(it.startAt) }
+    }
     var currentDay by remember { mutableStateOf(dateFormat.format(System.currentTimeMillis())) }
 
     Drawer(

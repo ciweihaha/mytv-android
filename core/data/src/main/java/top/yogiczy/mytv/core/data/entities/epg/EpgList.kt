@@ -41,6 +41,15 @@ internal fun isSameEpgChannelName(m3uName: String, epgName: String): Boolean {
 }
 
 /**
+ * 节目单里有没有正在播的节目（左闭右开，与 EpgProgramme.isLive 同义）：
+ * 节目单文件只含当天节目，凌晨文件更新前（默认 2 点后）拉的缓存只有
+ * 昨天节目，日期没过期、但一个正在播的节目都没有；调用方据此判定缓存
+ * 已过期、重新拉一次。顶层函数方便单元测试直接调用。
+ */
+internal fun EpgList.hasLiveProgramme(now: Long = System.currentTimeMillis()): Boolean =
+    any { epg -> epg.programmeList.any { it.startAt <= now && now < it.endAt } }
+
+/**
  * 频道节目单列表
  */
 @Serializable

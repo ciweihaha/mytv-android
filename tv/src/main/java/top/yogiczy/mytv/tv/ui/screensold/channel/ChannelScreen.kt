@@ -208,6 +208,18 @@ private fun ChannelScreenBottomChannelItemListAllAndFavorite(
             Modifier.height(150.dp),
         ),
     ) {
+        // 打开收藏列表：分组列表按上、全部网格按上/列表为空都走这里，
+        // 原先两处逐字相同的判断各写了一份
+        val openFavoriteList = {
+            if (channelFavoriteEnabledProvider()) {
+                if (favoriteChannelListProvider().isNotEmpty()) {
+                    onChannelFavoriteListVisibleChange(true)
+                } else {
+                    Snackbar.show("没有收藏的频道")
+                }
+            }
+        }
+
         if (channelFavoriteListVisibleProvider()) {
             ChannelItemGrid(
                 title = "收藏",
@@ -232,15 +244,7 @@ private fun ChannelScreenBottomChannelItemListAllAndFavorite(
                     onChannelFavoriteToggle = onChannelFavoriteToggle,
                     epgListProvider = epgListProvider,
                     showEpgProgrammeProgressProvider = showEpgProgrammeProgressProvider,
-                    onToFavorite = {
-                        if (!channelFavoriteEnabledProvider()) return@ChannelItemGroupList
-
-                        if (favoriteChannelListProvider().isNotEmpty()) {
-                            onChannelFavoriteListVisibleChange(true)
-                        } else {
-                            Snackbar.show("没有收藏的频道")
-                        }
-                    },
+                    onToFavorite = openFavoriteList,
                     onUserAction = onUserAction,
                 )
             } else {
@@ -253,15 +257,7 @@ private fun ChannelScreenBottomChannelItemListAllAndFavorite(
                     onChannelFavoriteToggle = onChannelFavoriteToggle,
                     epgListProvider = epgListProvider,
                     showEpgProgrammeProgressProvider = showEpgProgrammeProgressProvider,
-                    onClose = {
-                        if (!channelFavoriteEnabledProvider()) return@ChannelItemGrid
-
-                        if (favoriteChannelListProvider().isNotEmpty()) {
-                            onChannelFavoriteListVisibleChange(true)
-                        } else {
-                            Snackbar.show("没有收藏的频道")
-                        }
-                    },
+                    onClose = openFavoriteList,
                     onUserAction = onUserAction,
                 )
             }

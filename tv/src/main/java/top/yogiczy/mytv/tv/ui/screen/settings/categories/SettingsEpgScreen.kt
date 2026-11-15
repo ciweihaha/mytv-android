@@ -10,6 +10,8 @@ import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsCategoryScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsListItem
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.epgRefreshTimeThresholdHintText
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.epgRefreshTimeThresholdText
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 
 @Composable
@@ -62,8 +64,8 @@ fun SettingsEpgScreen(
 
             SettingsListItem(
                 headlineContent = "刷新时间阈值",
-                trailingContent = { Text("${epgRefreshTimeThreshold}:00") },
-                supportingContent = "时间不到${epgRefreshTimeThreshold}:00节目单将不会刷新",
+                trailingContent = { Text(epgRefreshTimeThresholdText(epgRefreshTimeThreshold)) },
+                supportingContent = epgRefreshTimeThresholdHintText(epgRefreshTimeThreshold),
                 onSelect = toEpgRefreshTimeThresholdScreen,
                 link = true,
             )
