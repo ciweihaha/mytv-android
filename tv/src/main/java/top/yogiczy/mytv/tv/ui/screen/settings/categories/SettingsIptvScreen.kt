@@ -172,9 +172,7 @@ fun SettingsIptvScreen(
             SettingsListItem(
                 headlineContent = "网页源央视频Cookie",
                 supportingContent = "登录到央视频以收看付费频道",
-                trailingContent = settingsViewModel.iptvHybridYangshipinCookie.let { cookie ->
-                    if (cookie.length > 50) cookie.take(50) + "..." else cookie
-                },
+                trailingContent = truncateCookieForDisplay(settingsViewModel.iptvHybridYangshipinCookie),
                 remoteConfig = true,
             )
         }
@@ -191,6 +189,14 @@ internal fun iptvSourceCacheTimeText(cacheTime: Long): String {
         Long.MAX_VALUE -> "永久"
         else -> cacheTime.humanizeMs()
     }
+}
+
+/**
+ * 央视频 Cookie 的显示截断：超 50 字只显示前 50 字加 “...”，50 字以内原样显示。
+ * 从界面里抽出来，只为能离线断言 50 字边界写没写对；行为逐字不变。
+ */
+internal fun truncateCookieForDisplay(cookie: String): String {
+    return if (cookie.length > 50) cookie.take(50) + "..." else cookie
 }
 
 @Preview(device = "id:Android TV (720p)")
