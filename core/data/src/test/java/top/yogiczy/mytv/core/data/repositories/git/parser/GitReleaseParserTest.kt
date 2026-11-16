@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Globals
@@ -325,6 +326,23 @@ class GitReleaseParserTest {
         val data = """[{"tag_name": "V2.2.0.219", "body": "notes", "assets": "not-an-array"}]"""
         assertThrows(IllegalStateException::class.java) {
             runBlocking { githubParser.parse(data) }
+        }
+    }
+
+    @Test
+    fun defaultUpdateUrl_pointsToThisForkAndSelectsGithubParser() {
+        // 默认更新源地址是写死在常量里的：三档（stable/beta/dev）全指本 fork
+        // 的 releases/latest。写成上游 yaoxieyoulei/mytv-android 时查更新
+        // 永远报无更新（上游已归档、最新还是 2025 年的版本）；写错仓库名时
+        // GitHub 解析器照样认 "github.com"、照样能解析，错得悄无声息——
+        // 地址本身必须钉死，不能只靠"含 github.com 走 GitHub"那档
+        val expected = "https://api.github.com/repos/ciweihaha/mytv-android/releases/latest"
+        for (channel in listOf("stable", "beta", "dev")) {
+            val url = Constants.GIT_RELEASE_LATEST_URL[channel]
+            assertEquals(expected, url)
+            assertTrue(
+                GitReleaseParser.instances.first { it.isSupport(url!!) } is GithubGitReleaseParser
+            )
         }
     }
 }
