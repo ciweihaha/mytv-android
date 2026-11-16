@@ -398,12 +398,23 @@ fun LiveChannelsChannelInfoNetSpeed(
 ) {
     val decimalFormat = remember { DecimalFormat("#.#") }
     Text(
-        text = if (netSpeed < 1024 * 999) "${netSpeed / 1024}KB/s"
-        else "${decimalFormat.format(netSpeed / 1024 / 1024f)}MB/s",
+        text = formatNetSpeedText(netSpeed, decimalFormat),
         modifier = modifier.sizeIn(minWidth = 60.dp),
         maxLines = 1,
     )
 }
+
+/**
+ * 网速显示文案（天光 2053 轮姊妹检查）：不到 1024*999 字节/秒
+ * 显示 KB/s、以上显示 MB/s。KB 这一档原来是整数除法：网速不到
+ * 1KB/s 时算出来是 0，屏幕上永远 0KB/s；MB 那档原来是“先整数
+ * 除、再浮点除”：每秒 1101005 字节先按 Long 截掉 1024 以内的零头
+ * 再除 1024f、固定少算零头；两档都改成浮点除、留一位小数。
+ * 顶层函数方便单元测试直接调用。
+ */
+internal fun formatNetSpeedText(netSpeed: Long, speedFormat: DecimalFormat): String =
+    if (netSpeed < 1024 * 999) "${speedFormat.format(netSpeed / 1024f)}KB/s"
+    else "${speedFormat.format(netSpeed / 1024f / 1024f)}MB/s"
 
 /**
  * 两次流量采样算网速（顶层函数，方便单元测试直接调用）：
