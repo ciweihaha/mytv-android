@@ -103,10 +103,12 @@ class AsrModelManager(
             log.i("模型 ${model.displayName} 安装完成")
             Result.success(Unit)
         } catch (ex: Exception) {
-            if (ex is CancellationException) throw ex
-            log.e("模型 ${model.displayName} 安装失败", ex)
+            // 取消也要清半成品再抛：原来先 throw 再清，取消时清理根本跑不到，
+            // 会留下一个残缺模型目录（877 轮 P3-1；类注释本就写着“取消后清理半成品”）。
             tmpExtractDir.deleteRecursively()
             targetDir.deleteRecursively()
+            if (ex is CancellationException) throw ex
+            log.e("模型 ${model.displayName} 安装失败", ex)
             Result.failure(ex)
         } finally {
             tmpArchive.delete()
