@@ -84,4 +84,33 @@ class SnackbarUIStateTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun `到期藏起后再发新提示仍能显示并到期藏起`() = runBlocking {
+        // 天光 2102 轮姊妹检查：第一条到期藏起后，再发一条新提示，
+        // 应正常显示、到期再藏起；observe 若只取一次就停，第二条
+        // 到期也不会藏起，提示会一直挂在屏幕上
+        val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+        val state = SnackbarUIState(scope)
+        val observeJob = scope.launch { state.observe() }
+        try {
+            state.show("A", SnackbarData(duration = 500))
+            delay(200)
+            assertTrue(state.visible)
+
+            delay(800)
+            assertFalse(state.visible)
+
+            state.show("B", SnackbarData(duration = 500))
+            delay(200)
+            assertTrue(state.visible)
+            assertEquals("B", state.currentData.text)
+
+            delay(800)
+            assertFalse(state.visible)
+        } finally {
+            observeJob.cancel()
+            scope.cancel()
+        }
+    }
 }
