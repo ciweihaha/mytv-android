@@ -217,6 +217,22 @@ class IptvParserTest {
     }
 
     @Test
+    fun txt_spacesAfterComma_tolerated() = runBlocking {
+        // 分组行与频道行逗号后带空格：手改文件常写成 `央视, #genre#`；
+        // 分组名那路先 split 再 trim、地址那路先 trim，这两档一次也没断言过
+        //（天光 2153 轮同款）
+        val txtData = "央视, #genre#\nCCTV-1, http://example.com/cctv1\nCCTV-5,http://example.com/cctv5"
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("央视", channels[0].groupName)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("http://example.com/cctv1", channels[0].url)
+        assertEquals("央视", channels[1].groupName)
+        assertEquals("CCTV-5", channels[1].name)
+        assertEquals("http://example.com/cctv5", channels[1].url)
+    }
+
+    @Test
     fun txt_lineWithoutComma_skipped() = runBlocking {
         // 没逗号的行跳过：既不是分组行、也切不出名字和地址，不能把它
         // 当成一条频道
