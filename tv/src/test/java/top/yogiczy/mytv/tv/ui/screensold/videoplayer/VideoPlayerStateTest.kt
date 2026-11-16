@@ -36,6 +36,7 @@ class VideoPlayerStateTest {
         fun emitError(error: PlaybackException?) = triggerError(error)
         fun emitReady() = triggerReady()
         fun emitBuffering(buffering: Boolean) = triggerBuffering(buffering)
+        fun emitMetadata(metadata: Metadata) = triggerMetadata(metadata)
     }
 
     @Test
@@ -119,5 +120,37 @@ class VideoPlayerStateTest {
         player.emitError(VideoPlayer.PlaybackException.LOAD_TIMEOUT)
         assertEquals(1, notifyCount)
         assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
+    }
+
+    @Test
+    fun `就绪原样转给就绪监听器（天光 2052 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var readyCount = 0
+        state.onReady { readyCount++ }
+
+        // 播稳了：底层 onReady 应原样转给状态层监听器（主界面靠它清
+        // 掉“正在加载”与重连提示），这档一次也没断言过
+        player.emitReady()
+        assertEquals(1, readyCount)
+    }
+
+    @Test
+    fun `元数据原样存下来供界面读（天光 2052 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        // 底层报分辨率/编解码器等元数据：状态层应原样存下来，初始
+        // 空元数据、收到后才有值
+        assertNull(state.metadata.video)
+        player.emitMetadata(
+            VideoPlayer.Metadata(
+                video = VideoPlayer.Metadata.Video(width = 1920, height = 1080),
+            ),
+        )
+        assertEquals(1920, state.metadata.video?.width)
+        assertEquals(1080, state.metadata.video?.height)
     }
 }
