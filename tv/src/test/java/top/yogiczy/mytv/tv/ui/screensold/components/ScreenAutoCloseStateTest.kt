@@ -56,4 +56,21 @@ class ScreenAutoCloseStateTest {
         assertEquals(1, fired.get())
         job.cancel()
     }
+
+    @Test
+    fun `触发一次后再激活再触发一次`() = runBlocking {
+        // 天光 2101 轮姊妹检查：超时 200 毫秒，触发一次后、再 active 一次，
+        // 应再触发一次；observe 若只取一次就停，面板一辈子只自动关一次
+        val fired = AtomicInteger(0)
+        val state = ScreenAutoClose(timeout = 200) { fired.incrementAndGet() }
+        val job = launch { state.observe() }
+        state.active()
+        delay(400)
+        assertEquals(1, fired.get())
+
+        state.active()
+        delay(400)
+        assertEquals(2, fired.get())
+        job.cancel()
+    }
 }
