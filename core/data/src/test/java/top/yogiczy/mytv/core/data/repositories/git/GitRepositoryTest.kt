@@ -76,6 +76,26 @@ class GitRepositoryTest {
                                 out.flush()
                             }
 
+                            requestLine.startsWith("GET /raw.githubusercontent.com/releases ") -> {
+                                val content = """{"tag_name": "V2.2.0.219", "body": "notes", "assets": [{"name": "mytv-android-tv-2.2.0.219-all-sdk23-original.apk", "browser_download_url": "https://example.com/original.apk"}, {"name": "mytv-android-tv-2.2.0.219-arm64-v8a-sdk23-original.apk", "browser_download_url": "https://example.com/arm64.apk"}]}""".toByteArray()
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nContent-Length: ${content.size}\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.write(content)
+                                out.flush()
+                            }
+
+                            requestLine.startsWith("GET /example.com/releases ") -> {
+                                val content = "{}".toByteArray()
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nContent-Length: ${content.size}\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.write(content)
+                                out.flush()
+                            }
+
                             else -> {
                                 out.write(
                                     "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
@@ -130,6 +150,52 @@ class GitRepositoryTest {
             assertEquals("2.2.0.219", release.version)
             assertEquals("https://example.com/original.apk", release.downloadUrl)
             assertEquals("notes", release.description)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun latestRelease_custom_success_returnsParsedReleaseWithAllAbiApk() = runBlocking {
+        // 仓库层自定义路之前一次也没走通过，而且分发本身有个真 bug：分发
+        // 是 instances.first { it.isSupport(url) }，GitHub 解析器认
+        // "github.com" 子串，"raw.githubusercontent.com" 也含这个子串，
+        // GitHub 在前会把自定义源抢走——自定义解析器只在解析器层直接测
+        // 过 parse，仓库层永远走不到。修法把 Custom 提到 GitHub 前面
+        // （api.github.com 不含 raw.githubusercontent.com，GitHub 路
+        // 不受影响）。断三点和 GitHub 那档正好反过来：挑全架构原版
+        // （original + all）、下载地址带代理前缀、说明是 body 原样、
+        // 不带"伪装版本"前缀——修法前这用例会红在 arm64 与伪装前缀上
+        val server = TestHttpServer().apply { start() }
+        try {
+            val release = GitRepository().latestRelease(
+                "http://127.0.0.1:${server.port}/raw.githubusercontent.com/releases"
+            )
+            assertEquals("2.2.0.219", release.version)
+            assertEquals(
+                "${Constants.GITHUB_PROXY}https://example.com/original.apk",
+                release.downloadUrl,
+            )
+            assertEquals("notes", release.description)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun latestRelease_default_returnsUnsupportedPlaceholder() = runBlocking {
+        // 仓库层默认路之前一次也没走通过：前三路都不认的地址落到 Default
+        // 解析器兜底，直接回固定占位、不解析数据。断版本 0.0.0、下载
+        // 地址空、说明"不支持当前链接"——将来有人给 Default 加解析
+        // 逻辑时，这用例会先红、逼着把占位语义说清楚
+        val server = TestHttpServer().apply { start() }
+        try {
+            val release = GitRepository().latestRelease(
+                "http://127.0.0.1:${server.port}/example.com/releases"
+            )
+            assertEquals("0.0.0", release.version)
+            assertEquals("", release.downloadUrl)
+            assertEquals("不支持当前链接", release.description)
         } finally {
             server.stop()
         }

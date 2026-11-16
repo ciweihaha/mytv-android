@@ -17,10 +17,14 @@ interface GitReleaseParser {
     suspend fun parse(data: String): GitRelease
 
     companion object {
+        // 顺序不能乱：Custom 必须在 GitHub 前面——"raw.githubusercontent.com"
+        // 含 "github.com" 子串，GitHub 在前会把自定义源抢走，Custom 解析器
+        // 永远走不到（956 轮修法）；Custom 只认 raw.githubusercontent.com，
+        // api.github.com 不含它，GitHub 路不受影响
         val instances = listOf(
+            CustomGitReleaseParser(),
             GithubGitReleaseParser(),
             GiteeGitReleaseParser(),
-            CustomGitReleaseParser(),
             DefaultGitReleaseParser(),
         )
     }
