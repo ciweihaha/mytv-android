@@ -73,4 +73,21 @@ class ScreenAutoCloseStateTest {
         assertEquals(2, fired.get())
         job.cancel()
     }
+
+    @Test
+    fun `短时间连续激活只触发一次`() = runBlocking {
+        // 天光 2157 轮姊妹检查：遥控器连按时 active 会被连续调多次，
+        // 防抖加合并通道应只触发一次——通道若改成无上限缓冲，这里会
+        // 触发 5 次，面板关一次后又被重复触发；旧用例只测过隔 500 毫秒
+        // 再 active，没测过短时间内的连续 active
+        val fired = AtomicInteger(0)
+        val state = ScreenAutoClose(timeout = 300) { fired.incrementAndGet() }
+        val job = launch { state.observe() }
+        repeat(5) { state.active() }
+        delay(150)
+        assertEquals(0, fired.get())
+        delay(450)
+        assertEquals(1, fired.get())
+        job.cancel()
+    }
 }
