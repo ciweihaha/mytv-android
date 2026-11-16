@@ -66,6 +66,16 @@ class GitRepositoryTest {
                                 out.flush()
                             }
 
+                            requestLine.startsWith("GET /gitee.com/releases ") -> {
+                                val content = """{"tag_name": "V2.2.0.219", "body": "notes", "assets": [{"name": "mytv-android-tv-2.2.0.219-all-sdk23-original.apk", "browser_download_url": "https://example.com/original.apk"}, {"name": "mytv-android-tv-2.2.0.219-arm64-v8a-sdk23-original.apk", "browser_download_url": "https://example.com/arm64.apk"}]}""".toByteArray()
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nContent-Length: ${content.size}\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.write(content)
+                                out.flush()
+                            }
+
                             else -> {
                                 out.write(
                                     "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
@@ -99,6 +109,27 @@ class GitRepositoryTest {
                 release.downloadUrl,
             )
             assertTrue(release.description.startsWith("伪装版本请到Github项目主页手动更新"))
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun latestRelease_gitee_success_returnsParsedReleaseWithoutProxy() = runBlocking {
+        // 仓库层 Gitee 整条路之前一次也没走通过：解析器层 Gitee 用例
+        // 只测了 parse，分发挑 Gitee 解析器、下载地址不加代理前缀这
+        // 两档在仓库层都没断言过。地址里带 "gitee.com" 是为了让 Gitee
+        // 解析器接手——isSupport 只看子串，主机仍是 127.0.0.1，不走
+        // 外网。断下载地址是附件原地址、不带代理前缀，和 GitHub 那档
+        // 正好反过来：前缀写错、两边解析器选错都会红
+        val server = TestHttpServer().apply { start() }
+        try {
+            val release = GitRepository().latestRelease(
+                "http://127.0.0.1:${server.port}/gitee.com/releases"
+            )
+            assertEquals("2.2.0.219", release.version)
+            assertEquals("https://example.com/original.apk", release.downloadUrl)
+            assertEquals("notes", release.description)
         } finally {
             server.stop()
         }
