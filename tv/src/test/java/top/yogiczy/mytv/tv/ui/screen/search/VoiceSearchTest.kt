@@ -1,6 +1,9 @@
 package top.yogiczy.mytv.tv.ui.screen.search
 
 import android.speech.RecognizerIntent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -64,5 +67,15 @@ class VoiceSearchTest {
         // 非字符串的值不算识别文本
         assertNull(pickVoiceText(mapOf("text" to 123)))
         assertNull(pickVoiceText(mapOf(RecognizerIntent.EXTRA_RESULTS to arrayListOf(123))))
+    }
+
+    @Test
+    fun voiceSearchBus_secondResultReplacesFirstWhenPageNotOpen() = runBlocking {
+        // 搜索页没打开时连按两次语音键：第二次的结果要留下来（DROP_OLDEST），
+        // 而不是第一次占着缓冲、第二次被丢掉
+        VoiceSearchBus.emit("第一次")
+        VoiceSearchBus.emit("第二次")
+        val received = withTimeout(2000) { VoiceSearchBus.voiceText.first() }
+        assertEquals("第二次", received)
     }
 }
