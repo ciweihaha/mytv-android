@@ -49,4 +49,39 @@ class DebounceStateTest {
             job.cancel()
         }
     }
+
+    @Test
+    fun `等待为 0 时立即触发`() = runBlocking {
+        var runs = 0
+        val state = DebounceState(wait = 0) { runs++ }
+        val job = launch { state.observe() }
+        try {
+            state.send()
+            delay(200)
+            assertEquals(1, runs)
+        } finally {
+            job.cancel()
+        }
+    }
+
+    @Test
+    fun `中途再发送重置计时`() = runBlocking {
+        // 100 毫秒时再发一次：计时应从这次重算——200 毫秒时（距第
+        // 二次发送才 100 毫秒）还没触发，500 毫秒时（距第二次发送
+        // 400 毫秒）才触发一次；若窗口不重置，200 毫秒时就已触发
+        var runs = 0
+        val state = DebounceState(wait = 200) { runs++ }
+        val job = launch { state.observe() }
+        try {
+            state.send()
+            delay(100)
+            state.send()
+            delay(100)
+            assertEquals(0, runs)
+            delay(300)
+            assertEquals(1, runs)
+        } finally {
+            job.cancel()
+        }
+    }
 }
