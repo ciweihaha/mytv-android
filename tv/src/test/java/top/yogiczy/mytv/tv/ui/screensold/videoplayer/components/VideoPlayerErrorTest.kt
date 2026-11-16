@@ -77,7 +77,7 @@ class VideoPlayerErrorTest {
             "MEDIA3_ERROR_VIDEO_FRAME_PROCESSOR_INIT_FAILED" to "视频帧处理器初始化失败，请检查视频源。",
             "MEDIA3_ERROR_VIDEO_FRAME_PROCESSING_FAILED" to "视频帧处理失败，请检查视频源。",
             "MEDIA3_ERROR_FAILED_RUNTIME_CHECK" to "运行时检查失败，请检查视频源。",
-            "MEDIA3_ERROR_DRM_UNSPECIFIED" to "DRM错误，请稍后再试。",
+            "MEDIA3_ERROR_DRM_UNSPECIFIED" to "DRM错误，请检查视频源。",
             "MEDIA3_ERROR_DRM_CONTENT_ERROR" to "DRM密钥格式错误，请检查视频源。",
             "MEDIA3_ERROR_DRM_LICENSE_ACQUISITION_FAILED" to "DRM授权失败，请检查视频源。",
             "MEDIA3_ERROR_DRM_DISALLOWED_OPERATION" to "DRM不允许的操作，请检查视频源。",
