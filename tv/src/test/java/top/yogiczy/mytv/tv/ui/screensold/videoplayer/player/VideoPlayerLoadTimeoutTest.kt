@@ -192,4 +192,23 @@ class VideoPlayerLoadTimeoutTest {
         Thread.sleep(1000)
         assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
     }
+
+    @Test
+    fun `停止后位置归零，再报同一位置重新计时`() {
+        // stop() 里 currentPosition = 0 那行：停掉播放后位置归零，
+        // 之后再报一次之前冻住的同一位置，要当成“位置变了”重新挂
+        // 断流计时；没有这行归零，同一位置不会重新挂计时、新流卡住
+        // 就报不出来。计时本身会到由 VideoPlayerStateTest 里“位置不
+        // 动断流计时到期触发一次”证活
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 100L)
+        player.stop()
+        player.emitPosition(1000L, timeoutMs = 100L)
+
+        Thread.sleep(1000)
+        assertEquals(1, interruptCount.get())
+    }
 }
