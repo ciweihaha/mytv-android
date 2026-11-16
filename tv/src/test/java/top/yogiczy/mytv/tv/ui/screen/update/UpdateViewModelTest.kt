@@ -411,4 +411,65 @@ class UpdateViewModelTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun `直链重试时取消不弹失败提示、取消原样抛`() = runBlocking {
+        // 天光 2086 轮姊妹检查：代理先挂（普通网络错）走直链重试，直链那次
+        // 中途被取消。旧的取消用例全是代理那次就取消，走的是内层 catch；
+        // 直链重试时取消走的是外层 catch——漏了那行守卫时会吞掉取消、
+        // 弹“下载更新失败”，旧单测发现不了。壳这边结构一样：重试在内层
+        // catch 里调，外层 catch 管取消原样抛。残文件不用这里断：真的
+        // 下载写的是临时文件、失败删临时文件，那是 Downloader 自己的事，
+        // DownloaderTest 里已钉死，这里只断 ViewModel 这一层。
+        val scope = CoroutineScope(Dispatchers.Default)
+        try {
+            SnackbarUIState.I = SnackbarUIState(scope)
+            val viewModel = UpdateViewModel()
+            viewModel.checkUpdate("1.0.0", "stable") {
+                GitRelease(
+                    version = "9.9.9",
+                    downloadUrl = "${Constants.GITHUB_PROXY}https://example.com/app.apk",
+                )
+            }
+            val file = File.createTempFile("update-test", ".apk")
+            try {
+                val triedUrls = mutableListOf<String>()
+                val job = async {
+                    viewModel.downloadAndUpdate(file) { url, _, _ ->
+                        triedUrls += url
+                        if (url.startsWith(Constants.GITHUB_PROXY)) {
+                            throw RuntimeException("代理不通")
+                        }
+                        throw CancellationException("直链下载中途取消")
+                    }
+                }
+
+                // 取消信号原样抛出来，不弹“下载更新失败”的假报错
+                try {
+                    job.await()
+                    fail("应抛出取消异常")
+                } catch (ex: CancellationException) {
+                    // 预期
+                }
+                assertEquals(
+                    listOf(
+                        "${Constants.GITHUB_PROXY}https://example.com/app.apk",
+                        "https://example.com/app.apk",
+                    ),
+                    triedUrls,
+                )
+                assertFalse(viewModel.updateDownloaded)
+                assertFalse(viewModel.isUpdating)
+
+                // 提示换场要 300 毫秒，多等一倍再断言：最后一条应仍是
+                // “代理下载失败，正在尝试直连下载”，不是失败提示
+                delay(600)
+                assertTrue(SnackbarUIState.I.currentData.text != "下载更新失败")
+            } finally {
+                file.delete()
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
 }
