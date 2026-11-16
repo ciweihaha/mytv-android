@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -20,7 +21,13 @@ import java.util.Locale
  * 用 SharedFlow（不回放）：只在广播到达那一刻发一次，搜索页重组时不重复填。
  */
 object VoiceSearchBus {
-    private val _voiceText = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    // 缓冲满时新结果顶掉旧的（DROP_OLDEST），而不是直接丢掉：搜索页没打开时
+    // 连按两次语音键，第二次的结果要留下来（877 轮 P3-3）。不回放，搜索页
+    // 重组时不重复填。
+    private val _voiceText = MutableSharedFlow<String>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
     val voiceText: SharedFlow<String> = _voiceText.asSharedFlow()
 
     fun emit(text: String) {
@@ -76,7 +83,8 @@ internal fun pickVoiceText(extras: Map<String, Any?>): String? {
     )
     for (key in listKeys) {
         val list = extras[key] as? List<*> ?: continue
-        val text = list.firstOrNull() as? String
+        // 列表里第一个元素可能是空白：往后找第一个非空串，别直接换下一个键（877 轮 P3-4）。
+        val text = list.filterIsInstance<String>().firstOrNull { it.isNotBlank() }
         if (!text.isNullOrBlank()) return text
     }
     // 厂商服务常用的文本键
