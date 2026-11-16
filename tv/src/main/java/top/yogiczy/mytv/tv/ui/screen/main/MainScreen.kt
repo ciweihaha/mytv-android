@@ -144,6 +144,8 @@ fun MainScreen(
                     // 别只弹一条提示——只弹提示时用户永远找不到下载入口。
                     updateViewModel.isUpdateAvailable ->
                         navController.navigateSingleTop(Screens.Update())
+                    // 另一次检查还在跑：别把“没查完”说成“已是最新”，等它出结果（877 轮 P3-2）。
+                    updateViewModel.isChecking -> Snackbar.show("正在检查更新...")
                     else -> Snackbar.show("当前已是最新版本")
                 }
             }
