@@ -530,4 +530,32 @@ class VideoPlayerStateTest {
         assertEquals(1, readyCount)
         assertEquals(listOf(true), bufferingSeen)
     }
+
+    @Test
+    fun `初始状态是默认值（未开播前界面不乱）`() {
+        // 状态桥刚建好、还没开播那一刻，界面就靠这组默认值画第一帧：
+        // 画面比例 16:9、音量满格、其余全空。默认值改错一个，开播前
+        // 的占位画面就全错。构造时不调 initialize() 也能断——init 块
+        // 只注册监听器，不动状态值
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+
+        assertEquals(VideoPlayerDisplayMode.ORIGINAL, state.displayMode)
+        assertEquals(16f / 9f, state.aspectRatio, 0.001f)
+        assertNull(state.error)
+        assertEquals(false, state.isBuffering)
+        assertEquals(false, state.isPlaying)
+        assertEquals(0L, state.duration)
+        assertEquals(0L, state.currentPosition)
+        assertEquals(1f, state.volume, 0.001f)
+        assertNull(state.metadata.video)
+        assertNull(state.metadata.audio)
+        assertNull(state.metadata.subtitle)
+        assertEquals(emptyList<VideoPlayer.Metadata.Video>(), state.metadata.videoTracks)
+        assertEquals(emptyList<VideoPlayer.Metadata.Audio>(), state.metadata.audioTracks)
+        assertEquals(
+            emptyList<VideoPlayer.Metadata.Subtitle>(),
+            state.metadata.subtitleTracks,
+        )
+    }
 }
