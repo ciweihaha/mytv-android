@@ -138,6 +138,44 @@ class Media3FormatMetadataTest {
     }
 
     @Test
+    fun `音频元数据零值转空`() {
+        // 天光 2159 姊妹检查：0 即“没测到”，不是真的 0 声道/0 采样率/
+        // 0 码率——转换层用 takeIf { it > 0 } 转 null，界面那行直接不
+        // 显示；视频那侧 906 轮已断过零值转空，音频这侧一次也没断过
+        // （Builder 只校验帧率，setChannelCount(0)/setSampleRate(0)
+        // 都能建出来，见 Media3 Format.java：全文件唯一的 checkArgument
+        // 就是 setFrameRate 那行）
+        val format = Format.Builder()
+            .setChannelCount(0)
+            .setSampleRate(0)
+            .setAverageBitrate(0)
+            .setSampleMimeType("audio/mp4a-latm")
+            .setLanguage("zh")
+            .build()
+        val audio = format.toAudioMetadata()
+        assertNull(audio.channels)
+        assertNull(audio.sampleRate)
+        assertNull(audio.bitrate)
+        assertNull(audio.channelsLabel)
+        assertEquals("audio/mp4a-latm", audio.mimeType)
+        assertEquals("zh", audio.language)
+    }
+
+    @Test
+    fun `字幕元数据零码率转空`() {
+        // 同上：字幕码率 0 也转 null；编码与语言原样保留
+        val format = Format.Builder()
+            .setAverageBitrate(0)
+            .setSampleMimeType("text/vtt")
+            .setLanguage("en")
+            .build()
+        val subtitle = format.toSubtitleMetadata()
+        assertNull(subtitle.bitrate)
+        assertEquals("text/vtt", subtitle.mimeType)
+        assertEquals("en", subtitle.language)
+    }
+
+    @Test
     fun `字幕元数据只转码率编码与语言`() {
         val format = Format.Builder()
             .setAverageBitrate(1000)
