@@ -58,12 +58,20 @@ object HttpServer : Loggable("HttpServer") {
             try {
                 val server = AsyncHttpServer()
 
+                // listen() 是异步的：端口被占时 bind 在服务端线程里失败，
+                // 只走 setErrorCallback，不会抛到下面这个 try 里——不设
+                // 回调的话，启动失败静默无声，日志还照打"服务已启动"、
+                // 推送页的地址也照常显示，其实根本连不上。
+                server.setErrorCallback { ex ->
+                    reportStartFailed(ex)
+                }
+
+                server.listen(AsyncServer.getDefault(), SERVER_PORT)
+
                 server.addAction("OPTIONS", ".+") { _, response ->
                     wrapResponse(response)
                     response.send("ok")
                 }
-
-                server.listen(AsyncServer.getDefault(), SERVER_PORT)
 
                 server.get("/") { _, response ->
                     handleRawResource(response, context, "text/html", R.raw.web_push)
@@ -159,11 +167,20 @@ object HttpServer : Loggable("HttpServer") {
 
                 log.i("设置服务已启动: $serverUrl")
             } catch (ex: Exception) {
-                log.e("设置服务启动失败: ${ex.message}", ex)
-                launch(Dispatchers.Main) {
-                    Snackbar.show("设置服务启动失败", type = SnackbarType.ERROR)
-                }
+                reportStartFailed(ex)
             }
+        }
+    }
+
+    /**
+     * 启动失败上报：端口被占等原因导致服务起不来时，记日志、弹提示。
+     * listen() 的绑定失败走 setErrorCallback（异步），其它同步异常走
+     * start() 里的 catch，两处共用这一份处理。
+     */
+    private fun reportStartFailed(ex: Exception) {
+        log.e("设置服务启动失败: ${ex.message}", ex)
+        CoroutineScope(Dispatchers.Main).launch {
+            Snackbar.show("设置服务启动失败", type = SnackbarType.ERROR)
         }
     }
 
