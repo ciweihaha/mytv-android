@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 日志级别与原因记录（天光 1926 轮姊妹检查）：实例方法 i/w/e/wtf
@@ -66,6 +67,19 @@ class LoggerLevelsTest {
 
         val item = Logger.history.first { it.message == message }
         assertNull(item.cause)
+    }
+
+    @Test
+    fun `带耗时时消息后面跟耗时`() {
+        // duration 拼进消息是活代码（EpgRepository、EpgParser、
+        // IptvRepository 取节目单、解析订阅源都带耗时记）：格式
+        // 一旦被改掉，日志页里的耗时就没了、没测试会红
+        val message = "耗时-${System.nanoTime()}"
+        Logger.create("Test").i(message, duration = 2.seconds)
+
+        val item = Logger.history.first { it.message.startsWith(message) }
+        assertEquals("$message \t [2s]", item.message)
+        assertEquals(Logger.LevelType.INFO, item.level)
     }
 
     @Test
