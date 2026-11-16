@@ -310,6 +310,24 @@ class VideoPlayerStateTest {
     }
 
     @Test
+    fun `重复初始化不重复注册，报错只通知一次`() {
+        // initialize() 会先清空播放器的监听器再重注册（init 注释里写了
+        // 这么做的原因：首播准备时同步报的错要有人接，又不能重复接）。
+        // 要是清空那步丢了，初始化两次就会挂两份桥接闭包、一次报错
+        // 通知两次，主界面换线路的逻辑会被触发两次
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        state.initialize()
+        var notifyCount = 0
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
+        assertEquals(1, notifyCount)
+    }
+
+    @Test
     fun `换台重备元数据清空、显示模式回到默认`() {
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
