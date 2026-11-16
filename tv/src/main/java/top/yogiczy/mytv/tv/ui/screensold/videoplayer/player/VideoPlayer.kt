@@ -140,11 +140,16 @@ abstract class VideoPlayer(
         onMetadataListeners.forEach { it(metadata) }
     }
 
-    protected fun triggerCurrentPosition(position: Long) {
+    // 位置一动就重启断流计时：正常播放时位置每 500ms 变一次，旧计时
+    // 必须取消、从新位置重新开始，否则播着播着会在超时后误报一次断流。
+    // 超时做成参数（默认读配置）：天光同款签名，单测能传小超时验计时
+    // 重启；两个生产调用方（Media3/Ijk）都不传参，行为不变。
+    // triggerPrepared 也是同一写法（timeoutMs 默认读配置）。
+    protected fun triggerCurrentPosition(position: Long, timeoutMs: Long = Configs.videoPlayerLoadTimeout) {
         if (currentPosition != position) {
             interruptJob?.cancel()
             interruptJob = coroutineScope.launch {
-                delay(Configs.videoPlayerLoadTimeout)
+                delay(timeoutMs)
                 onInterruptListeners.forEach { it() }
             }
         }

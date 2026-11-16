@@ -40,7 +40,8 @@ class VideoPlayerStateTest {
         fun emitResolution(width: Int, height: Int) = triggerResolution(width, height)
         fun emitIsPlaying(isPlaying: Boolean) = triggerIsPlayingChanged(isPlaying)
         fun emitDuration(duration: Long) = triggerDuration(duration)
-        fun emitPosition(position: Long) = triggerCurrentPosition(position)
+        fun emitPosition(position: Long, timeoutMs: Long = 1000L) =
+            triggerCurrentPosition(position, timeoutMs)
     }
 
     @Test
@@ -211,6 +212,62 @@ class VideoPlayerStateTest {
         assertEquals(12345L, state.currentPosition)
         player.emitIsPlaying(false)
         assertEquals(false, state.isPlaying)
+    }
+
+    @Test
+    fun `位置不动断流计时到期触发一次（天光 2172 轮姊妹检查）`() {
+        // 先钉“计时本身会到”：位置冻住不动，超时后中断只报一次——
+        // 这是重启那档的前提，不然重启测出来 0 次也分不清是取消了
+        // 还是计时根本没跑
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 100L)
+        Thread.sleep(1000)
+        assertEquals(1, interruptCount.get())
+    }
+
+    @Test
+    fun `位置变化重启断流计时旧计时不触发（天光 2172 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        // 位置一动、断流计时挂起时位置又动了：旧计时必须取消、新计时
+        // 从新位置重新开始，否则正常播放中位置每 500ms 都在变、旧计时
+        // 会在超时后误报一次断流（主界面收到中断会直接换线路）
+        player.emitPosition(1000L, timeoutMs = 200L)
+        Thread.sleep(100)
+        player.emitPosition(2000L, timeoutMs = 800L)
+
+        // 此时约 500ms：旧计时（200ms）早该到了、新计时（900ms）还没到；
+        // 若旧计时没取消，这里已经是 1 次
+        Thread.sleep(400)
+        assertEquals(0, interruptCount.get())
+
+        // 新计时到期：只报一次
+        Thread.sleep(500)
+        assertEquals(1, interruptCount.get())
+    }
+
+    @Test
+    fun `重复上报同一位置不重设计时（天光 2172 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        // 位置冻住时轮询每 500ms 都会报同一个位置：重复上报不能重启
+        // 计时，否则超时永远等不到、断流永远报不出来
+        player.emitPosition(1000L, timeoutMs = 300L)
+        repeat(12) {
+            Thread.sleep(50)
+            player.emitPosition(1000L, timeoutMs = 300L)
+        }
+        // 此时约 650ms：正确行为已在 300ms 时报过一次断流；
+        // 若重复上报会重设计时，计时会被推到 900ms 之后、现在应还是 0 次
+        Thread.sleep(50)
+        assertEquals(1, interruptCount.get())
     }
 
     @Test
