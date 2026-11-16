@@ -53,14 +53,14 @@ class LiveChannelsChannelInfoNetSpeedTest {
 
     @Test
     fun `差 1 字节不到 MB 阈值仍走 KB 档`() {
-        // 阈值是 1024*999：差 1 字节仍走 KB 那档，1022.999… 留一位小数进到 1023
-        assertEquals("1023KB/s", formatNetSpeedText(1024 * 999 - 1, DecimalFormat("#.#")))
+        // 阈值是 1024*999＝1022976：差 1 字节仍走 KB 那档，998.999… 留一位小数进到 999
+        assertEquals("999KB/s", formatNetSpeedText(1024 * 999 - 1, DecimalFormat("#.#")))
     }
 
     @Test
     fun `到阈值及以上走 MB 档、零头保留`() {
         val format = DecimalFormat("#.#")
-        // 正好 1024*999 字节/秒：0.999…MB/s，留一位小数显示 1MB/s
+        // 正好 1024*999 字节/秒：0.976MB/s，留一位小数显示 1MB/s
         assertEquals("1MB/s", formatNetSpeedText(1024 * 999, format))
         assertEquals("1.5MB/s", formatNetSpeedText(1572864, format))
         assertEquals("5MB/s", formatNetSpeedText(5242880, format))
