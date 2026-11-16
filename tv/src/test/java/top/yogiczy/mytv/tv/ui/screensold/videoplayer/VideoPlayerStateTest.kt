@@ -289,17 +289,24 @@ class VideoPlayerStateTest {
     @Test
     fun `释放后状态层中断监听器不再收到中断`() {
         // 退出播放页释放 state：之后底层再断流也不应再回调旧监听器，
-        // 否则已退出的界面还会收到已释放播放器的中断、误触换线路
+        // 否则已退出的界面还会收到已释放播放器的中断、误触换线路。
+        // 先证明监听器是活的（断流 1 次），再释放、再断流，仍是 1 次——
+        // 光断释放后 0 次不够：监听器压根没注册上也会是 0。
+        // 天光 2179 轮姊妹检查回镜：这档天光就是这么补的
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
         state.initialize()
         val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
         state.onInterrupt { interruptCount.incrementAndGet() }
 
-        state.release()
         player.emitPosition(1000L, timeoutMs = 100L)
         Thread.sleep(1000)
-        assertEquals(0, interruptCount.get())
+        assertEquals(1, interruptCount.get())
+
+        state.release()
+        player.emitPosition(2000L, timeoutMs = 100L)
+        Thread.sleep(1000)
+        assertEquals(1, interruptCount.get())
     }
 
     @Test
