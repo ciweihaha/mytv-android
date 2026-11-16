@@ -47,16 +47,17 @@ class Media3FormatMetadataTest {
 
     @Test
     fun `视频元数据零值转空`() {
+        // 注意：setFrameRate(0f) 建不出来——Builder 要求帧率是 NO_VALUE
+        // 或 > 0，0 直接抛 IllegalArgumentException；所以 0 帧率这档
+        // 在生产代码里只是防御，Builder 造不出这样的 Format
         val format = Format.Builder()
             .setWidth(0)
             .setHeight(0)
-            .setFrameRate(0f)
             .setAverageBitrate(0)
             .build()
         val video = format.toVideoMetadata()
         assertNull(video.width)
         assertNull(video.height)
-        assertNull(video.frameRate)
         assertNull(video.bitrate)
     }
 
