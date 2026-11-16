@@ -438,4 +438,19 @@ class VideoPlayerStateTest {
         assertNull(state.metadata.video)
         assertEquals(VideoPlayerDisplayMode.ORIGINAL, state.displayMode)
     }
+
+    @Test
+    fun `换台重备显示模式回到设置里的默认值（非原始模式）`() {
+        val player = FakeVideoPlayer()
+        // 设置里的默认是填充模式：构造时传进来的 provider 决定默认值，
+        // 不是写死的原始模式；只用默认构造测的那档分不出来
+        val state = VideoPlayerState(player) { VideoPlayerDisplayMode.FILL }
+        assertEquals(VideoPlayerDisplayMode.FILL, state.displayMode)
+
+        // 用户中途切到裁剪：换台重备回到设置里的默认值（填充），
+        // 而不是写死的原始模式
+        state.displayMode = VideoPlayerDisplayMode.CROP
+        state.prepare(ChannelLine(url = "http://example.com/live.m3u8"))
+        assertEquals(VideoPlayerDisplayMode.FILL, state.displayMode)
+    }
 }
