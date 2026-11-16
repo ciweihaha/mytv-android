@@ -78,6 +78,26 @@ class VideoPlayerStateTest {
     }
 
     @Test
+    fun `缓冲状态与监听器原样转发（天光 2052 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        val seen = mutableListOf<Boolean>()
+        state.onIsBuffering { seen.add(it) }
+
+        // 初始不在缓冲：底层报缓冲中，状态层与监听器都应跟着变
+        assertEquals(false, state.isBuffering)
+        player.emitBuffering(true)
+        assertEquals(true, state.isBuffering)
+        assertEquals(listOf(true), seen)
+
+        // 缓冲结束：状态与监听器都回到 false
+        player.emitBuffering(false)
+        assertEquals(false, state.isBuffering)
+        assertEquals(listOf(true, false), seen)
+    }
+
+    @Test
     fun `就绪清掉错误显示，不通知报错监听器`() {
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
