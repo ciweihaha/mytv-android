@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.tv.voice
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -8,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 
@@ -183,6 +185,39 @@ class AsrModelManagerTest {
             assertTrue(result.isFailure)
             assertEquals(AsrModelState.NOT_INSTALLED, manager.modelState(model))
             assertFalse(File(work, "models/${model.id}").exists())
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun downloadModel_cancelledDuringDownload_cleansUpAndRethrows() = runBlocking {
+        // 877 轮 P3-1：取消时也要先清半成品再抛——原来先 throw 再清，
+        // 取消会留下一个残缺模型目录，下次还被当成 INCOMPLETE。
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("whisper-tiny")!!
+            val targetDir = File(work, "models/${model.id}")
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { _, path, _ ->
+                    // 模拟下载中途被取消：压缩包只写了一半、目标目录里已写了半成品
+                    File(path).writeText("partial")
+                    targetDir.mkdirs()
+                    File(targetDir, "tokens.txt").writeText("half")
+                    throw CancellationException("用户取消")
+                },
+            )
+            try {
+                manager.downloadModel(model)
+                fail("取消应原样抛出来，不能包成 Result.failure")
+            } catch (ex: CancellationException) {
+                // 预期：取消异常原样透传
+            }
+            assertFalse(targetDir.exists())
+            assertFalse(File(work, "models/${model.id}.extracting").exists())
+            assertFalse(File(work, "models/${model.id}.tar.bz2.tmp").exists())
+            assertEquals(AsrModelState.NOT_INSTALLED, manager.modelState(model))
         } finally {
             work.deleteRecursively()
         }
