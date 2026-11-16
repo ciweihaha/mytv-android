@@ -255,4 +255,102 @@ class AsrModelManagerTest {
         }
         assertNull(AsrModels.byId("no-such-model"))
     }
+
+    @Test
+    fun downloadModel_emptyArchive_failsWithoutLeavingModel() = runBlocking {
+        // 下载成功但文件是空的：应报失败、不留模型目录
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("whisper-tiny")!!
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { _, path, _ -> File(path).writeText("") },
+            )
+            val result = manager.downloadModel(model)
+            assertTrue(result.isFailure)
+            assertEquals(AsrModelState.NOT_INSTALLED, manager.modelState(model))
+            assertFalse(File(work, "models/${model.id}").exists())
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun downloadModel_packageWithoutModelFiles_fails() = runBlocking {
+        // 包里只有两个空目录、没有模型文件：解压后找不到内容目录，应报失败
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("whisper-tiny")!!
+            val archive = File(work, "pkg.tar.bz2")
+            BZip2CompressorOutputStream(archive.outputStream()).use { bz2 ->
+                TarArchiveOutputStream(bz2).use { tar ->
+                    tar.putArchiveEntry(TarArchiveEntry("a/"))
+                    tar.closeArchiveEntry()
+                    tar.putArchiveEntry(TarArchiveEntry("b/"))
+                    tar.closeArchiveEntry()
+                }
+            }
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { _, path, _ ->
+                    archive.copyTo(File(path), overwrite = true)
+                },
+            )
+            val result = manager.downloadModel(model)
+            assertTrue(result.isFailure)
+            assertEquals(AsrModelState.NOT_INSTALLED, manager.modelState(model))
+            assertFalse(File(work, "models/${model.id}").exists())
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun downloadModel_incompleteModelFiles_failsWithoutLeavingModel() = runBlocking {
+        // 包里只有无关文件、缺 tokens.txt 与 .onnx：挪过去后校验不过，应清掉
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("whisper-tiny")!!
+            val archive = File(work, "pkg.tar.bz2")
+            BZip2CompressorOutputStream(archive.outputStream()).use { bz2 ->
+                TarArchiveOutputStream(bz2).use { tar ->
+                    val bytes = "readme".toByteArray()
+                    val entry = TarArchiveEntry("sherpa-onnx-whisper-tiny/README.txt")
+                    entry.size = bytes.size.toLong()
+                    tar.putArchiveEntry(entry)
+                    tar.write(bytes)
+                    tar.closeArchiveEntry()
+                }
+            }
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { _, path, _ ->
+                    archive.copyTo(File(path), overwrite = true)
+                },
+            )
+            val result = manager.downloadModel(model)
+            assertTrue(result.isFailure)
+            assertEquals(AsrModelState.NOT_INSTALLED, manager.modelState(model))
+            assertFalse(File(work, "models/${model.id}").exists())
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun modelState_partialFiles_isIncomplete() {
+        // 目录在但文件不全（只有 tokens.txt）：状态是 INCOMPLETE，不是已安装
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("whisper-tiny")!!
+            val manager = AsrModelManager(modelsDir = File(work, "models"))
+            File(work, "models/${model.id}").mkdirs()
+            File(work, "models/${model.id}/tokens.txt").writeText("a b")
+            assertEquals(AsrModelState.INCOMPLETE, manager.modelState(model))
+            assertTrue(manager.installedModels().isEmpty())
+            assertEquals(3L, manager.installedSizeBytes())
+        } finally {
+            work.deleteRecursively()
+        }
+    }
 }
