@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
@@ -20,16 +21,50 @@ class VideoPlayerStateTest {
 
     /** 只为测试搭的空播放器：把基类的触发口子公开出来，不碰 Android 框架。 */
     private class FakeVideoPlayer : VideoPlayer(CoroutineScope(Dispatchers.Unconfined)) {
-        override fun prepare(line: ChannelLine) {}
-        override fun play() {}
-        override fun pause() {}
-        override fun seekTo(position: Long) {}
-        override fun seekBy(deltaMs: Long) {}
-        override fun setVolume(volume: Float) {}
+        // 状态层控制方法是不是真转到播放器上，靠这些计数/记录断：
+        // 原先全是空实现，调了也看不出来（天光 2181 轮姊妹检查）
+        var playCalls = 0
+        var pauseCalls = 0
+        var stopCalls = 0
+        val prepareLines = mutableListOf<ChannelLine>()
+        val seekToPositions = mutableListOf<Long>()
+        val seekByDeltas = mutableListOf<Long>()
+        val selectedVideoTracks = mutableListOf<Metadata.Video?>()
+        val selectedAudioTracks = mutableListOf<Metadata.Audio?>()
+        val selectedSubtitleTracks = mutableListOf<Metadata.Subtitle?>()
+        val setVolumes = mutableListOf<Float>()
+
+        override fun prepare(line: ChannelLine) {
+            prepareLines.add(line)
+        }
+        override fun play() {
+            playCalls++
+        }
+        override fun pause() {
+            pauseCalls++
+        }
+        override fun stop() {
+            stopCalls++
+        }
+        override fun seekTo(position: Long) {
+            seekToPositions.add(position)
+        }
+        override fun seekBy(deltaMs: Long) {
+            seekByDeltas.add(deltaMs)
+        }
+        override fun setVolume(volume: Float) {
+            setVolumes.add(volume)
+        }
         override fun getVolume(): Float = 1f
-        override fun selectVideoTrack(track: Metadata.Video?) {}
-        override fun selectAudioTrack(track: Metadata.Audio?) {}
-        override fun selectSubtitleTrack(track: Metadata.Subtitle?) {}
+        override fun selectVideoTrack(track: Metadata.Video?) {
+            selectedVideoTracks.add(track)
+        }
+        override fun selectAudioTrack(track: Metadata.Audio?) {
+            selectedAudioTracks.add(track)
+        }
+        override fun selectSubtitleTrack(track: Metadata.Subtitle?) {
+            selectedSubtitleTracks.add(track)
+        }
         override fun setVideoSurfaceView(surfaceView: SurfaceView) {}
         override fun setVideoTextureView(textureView: TextureView) {}
 
@@ -325,6 +360,62 @@ class VideoPlayerStateTest {
         player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
         assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
         assertEquals(1, notifyCount)
+    }
+
+    @Test
+    fun `播放暂停停止与准备转发给播放器（天光 2181 轮姊妹检查）`() {
+        // 状态层这几个方法就是纯转发：主界面点播放/暂停/停止、切台准备，
+        // 都要原样落到播放器上；Fake 原先是空实现，调了也看不出来
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        state.play()
+        state.pause()
+        state.stop()
+        assertEquals(1, player.playCalls)
+        assertEquals(1, player.pauseCalls)
+        assertEquals(1, player.stopCalls)
+
+        val line = ChannelLine(url = "http://example.com/live.m3u8")
+        state.prepare(line)
+        assertEquals(1, player.prepareLines.size)
+        assertSame(line, player.prepareLines[0])
+    }
+
+    @Test
+    fun `快进快退转发给播放器并原样传参`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        state.seekTo(12345L)
+        state.seekBy(-10000L)
+        assertEquals(listOf(12345L), player.seekToPositions)
+        assertEquals(listOf(-10000L), player.seekByDeltas)
+    }
+
+    @Test
+    fun `选轨与音量转发给播放器`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        val video = VideoPlayer.Metadata.Video(width = 1920, height = 1080)
+        val audio = VideoPlayer.Metadata.Audio(channels = 6)
+        val subtitle = VideoPlayer.Metadata.Subtitle(language = "en")
+        state.selectVideoTrack(video)
+        state.selectAudioTrack(audio)
+        state.selectSubtitleTrack(subtitle)
+        assertSame(video, player.selectedVideoTracks.single())
+        assertSame(audio, player.selectedAudioTracks.single())
+        assertSame(subtitle, player.selectedSubtitleTracks.single())
+
+        // 音量 setter 既存 state 的值、又调 instance.setVolume；
+        // 只断 state.volume 是断 backing 字段，得断 Fake 真收到了
+        state.volume = 0.5f
+        assertEquals(0.5f, state.volume, 0.001f)
+        assertEquals(listOf(0.5f), player.setVolumes)
     }
 
     @Test
