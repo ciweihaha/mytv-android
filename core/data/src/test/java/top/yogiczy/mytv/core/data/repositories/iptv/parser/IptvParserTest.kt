@@ -432,6 +432,19 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_urlLineWithSurroundingWhitespace_isTrimmed() = runBlocking {
+        // 地址行首尾带空白：手改文件常在地址后留空格；parse() 里每行先 trim，
+        // 不去掉的话地址带空格播不了——这档一次也没断言过（天光 2152 轮同款）
+        val data = "#EXTM3U\n" +
+            "#EXTINF:-1 tvg-name=\"CCTV-1\" group-title=\"央视\",CCTV-1\n" +
+            "  http://example.com/cctv1.m3u8  \n"
+        val channels = m3uParser.parse(data)
+        assertEquals(1, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("http://example.com/cctv1.m3u8", channels[0].url)
+    }
+
+    @Test
     fun m3u_extinfBlankName_fallsBackToTvgName() = runBlocking {
         // 逗号后显示名空白时同样退到 tvg-name
         val data = """
