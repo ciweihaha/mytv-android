@@ -34,6 +34,8 @@ class VideoPlayerLoadTimeoutTest {
         override fun setVideoTextureView(textureView: TextureView) {}
 
         fun emitPrepared(timeoutMs: Long) = triggerPrepared(timeoutMs)
+        fun emitPosition(position: Long, timeoutMs: Long) =
+            triggerCurrentPosition(position, timeoutMs)
         fun emitError(error: PlaybackException?) = triggerError(error)
     }
 
@@ -69,5 +71,39 @@ class VideoPlayerLoadTimeoutTest {
             listOf(VideoPlayer.PlaybackException.LOAD_TIMEOUT),
             errors,
         )
+    }
+
+    @Test
+    fun `换台重备取消挂起的断流计时，旧流的卡住不报中断`() {
+        // triggerPrepared 里 interruptJob?.cancel() 那行：上一路流卡住、
+        // 断流计时挂起时用户换了台，重备必须把旧计时停掉，否则旧流的
+        // 卡住会在超时后往新流里报一次中断、主界面无故换一次线路。
+        // 加载超时那半（旧 LOAD_TIMEOUT 取消）上面两个用例已盖，
+        // 这里只断中断计时这半
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 200L)
+        player.emitPrepared(timeoutMs = 10_000L)
+
+        Thread.sleep(1000)
+        assertEquals(0, interruptCount.get())
+    }
+
+    @Test
+    fun `重备后新位置照常重设断流计时`() {
+        // 取消旧计时不等于关掉中断：新流位置一动，计时照常重新开始，
+        // 新流卡住还是要报
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 200L)
+        player.emitPrepared(timeoutMs = 10_000L)
+        player.emitPosition(2000L, timeoutMs = 100L)
+
+        Thread.sleep(1000)
+        assertEquals(1, interruptCount.get())
     }
 }
