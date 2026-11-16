@@ -37,6 +37,10 @@ class VideoPlayerStateTest {
         fun emitReady() = triggerReady()
         fun emitBuffering(buffering: Boolean) = triggerBuffering(buffering)
         fun emitMetadata(metadata: Metadata) = triggerMetadata(metadata)
+        fun emitResolution(width: Int, height: Int) = triggerResolution(width, height)
+        fun emitIsPlaying(isPlaying: Boolean) = triggerIsPlayingChanged(isPlaying)
+        fun emitDuration(duration: Long) = triggerDuration(duration)
+        fun emitPosition(position: Long) = triggerCurrentPosition(position)
     }
 
     @Test
@@ -152,5 +156,61 @@ class VideoPlayerStateTest {
         )
         assertEquals(1920, state.metadata.video?.width)
         assertEquals(1080, state.metadata.video?.height)
+    }
+
+    @Test
+    fun `分辨率改画面比例，零宽高不改`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        assertEquals(16f / 9f, state.aspectRatio, 0.001f)
+
+        // 4:3 的流：比例跟着变，控制条与画面按新比例排
+        player.emitResolution(640, 480)
+        assertEquals(4f / 3f, state.aspectRatio, 0.001f)
+
+        // 宽或高为 0 是无效分辨率：别把比例打成 0 或无限大
+        player.emitResolution(0, 1080)
+        assertEquals(4f / 3f, state.aspectRatio, 0.001f)
+        player.emitResolution(0, 0)
+        assertEquals(4f / 3f, state.aspectRatio, 0.001f)
+    }
+
+    @Test
+    fun `播放状态时长位置原样转发`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        // 进度条、总时长、播放/暂停图标都靠这三路状态驱动
+        player.emitIsPlaying(true)
+        assertEquals(true, state.isPlaying)
+        player.emitDuration(3600000L)
+        assertEquals(3600000L, state.duration)
+        player.emitPosition(12345L)
+        assertEquals(12345L, state.currentPosition)
+        player.emitIsPlaying(false)
+        assertEquals(false, state.isPlaying)
+    }
+
+    @Test
+    fun `换台重备元数据清空、显示模式回到默认`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        player.emitMetadata(
+            VideoPlayer.Metadata(
+                video = VideoPlayer.Metadata.Video(width = 1920, height = 1080),
+            ),
+        )
+        state.displayMode = VideoPlayerDisplayMode.FILL
+        assertEquals(1920, state.metadata.video?.width)
+
+        // 切台重备：上一路的分辨率/编解码器信息不能留着，用户中途调好
+        // 的显示模式也回到设置里的默认值
+        state.prepare(ChannelLine(url = "http://example.com/live.m3u8"))
+        assertNull(state.metadata.video)
+        assertEquals(VideoPlayerDisplayMode.ORIGINAL, state.displayMode)
     }
 }
