@@ -2,6 +2,7 @@ package top.yogiczy.mytv.core.data.repositories.iptv
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -111,6 +112,66 @@ class IptvRepositoryTest {
         assertEquals(listOf("CCTV-1", "CCTV-2"), result[0].channelList.map { it.name })
         assertEquals("卫视", result[1].name)
         assertEquals(listOf("湖南卫视"), result[1].channelList.map { it.name })
+    }
+
+    @Test
+    fun getEpgUrl_localM3u_returnsXtvgUrl() = runBlocking {
+        // 仓库层 getEpgUrl 一次也没断言过：读本地源原文 → 挑 M3U
+        // 解析器 → 取 x-tvg-url，全程不走网络
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U x-tvg-url="http://example.com/epg.xml"
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(name = "test", url = m3uFile.path, isLocal = true)
+
+        assertEquals("http://example.com/epg.xml", IptvRepository(source).getEpgUrl())
+    }
+
+    @Test
+    fun getEpgUrl_localM3u_blankXtvgUrl_fallsBackToUrlTvg() = runBlocking {
+        // x-tvg-url 写了空串时不能直接回空（会生成空地址的 EPG 源、
+        // 节目单全空），要回落到 url-tvg 那档
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U x-tvg-url="" url-tvg="http://example.com/epg2.xml"
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(name = "test", url = m3uFile.path, isLocal = true)
+
+        assertEquals("http://example.com/epg2.xml", IptvRepository(source).getEpgUrl())
+    }
+
+    @Test
+    fun getEpgUrl_localM3u_withoutEpgUrl_returnsNull() = runBlocking {
+        // 源里没写节目单地址：不抛错、回 null，主界面据此不加载节目单
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(name = "test", url = m3uFile.path, isLocal = true)
+
+        assertNull(IptvRepository(source).getEpgUrl())
+    }
+
+    @Test
+    fun getEpgUrl_localFileMissing_returnsNull() = runBlocking {
+        // 本地源文件不存在：读源那步抛错要被接住回 null，不能把
+        // IllegalArgumentException（无 scheme 的地址）抛到主界面
+        val missing = File(tempFolder.root, "missing.m3u")
+        val source = IptvSource(name = "test", url = missing.path, isLocal = true)
+
+        assertNull(IptvRepository(source).getEpgUrl())
     }
 
     @Test
