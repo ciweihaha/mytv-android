@@ -455,12 +455,14 @@ class VideoPlayerStateTest {
     }
 
     @Test
-    fun `换台重备播放状态归零（播放中、位置、时长、缓冲、错误全清）`() {
-        // prepare() 只钉死了元数据与显示模式的重置，播放状态那五行
-        // （isPlaying、位置、时长、缓冲、错误）一次也没断言过：上一路
-        // 播到一半切台，新路没开播前进度条、总时长、缓冲圈、错误横幅
-        // 全不能留着上一路的。先报一次错放最后——进缓冲会清错误，
-        // 顺序反了就测不到错误那档
+    fun `换台重备只清错误，播放状态等新流自己报`() {
+        // prepare() 只清错误（元数据与显示模式的重置 422/443 轮已钉死），
+        // 播放中、位置、时长、缓冲这四项它一概不动——真机上切台前主界面
+        // 先调 stop()，新流开播后播放器自己再报状态；状态层在这里多清
+        // 一项都会和播放器的回调打架。首推错在两处：① state.error 是
+        // “名字(错误码)”字串（"ERROR_UNSUPPORTED_TYPE(10002)"），不是
+        // 枚举；② 误以为 prepare() 会归零播放状态，生产代码原文没有
+        // 这四行。进缓冲会清错误，报错放最后才测得到错误那档
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
         state.initialize()
@@ -474,17 +476,14 @@ class VideoPlayerStateTest {
         assertEquals(60000L, state.duration)
         assertEquals(30000L, state.currentPosition)
         assertEquals(true, state.isBuffering)
-        assertEquals(
-            VideoPlayer.PlaybackException.UNSUPPORTED_TYPE,
-            state.error,
-        )
+        assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
 
         state.prepare(ChannelLine(url = "http://example.com/live.m3u8"))
-        assertEquals(false, state.isPlaying)
-        assertEquals(0L, state.currentPosition)
-        assertEquals(0L, state.duration)
-        assertEquals(false, state.isBuffering)
         assertNull(state.error)
+        assertEquals(true, state.isPlaying)
+        assertEquals(30000L, state.currentPosition)
+        assertEquals(60000L, state.duration)
+        assertEquals(true, state.isBuffering)
     }
 
     @Test
