@@ -88,6 +88,57 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `已有更新时再次检查直接返回不重复拉取`() = runBlocking {
+        // checkUpdate 开头的第二行守卫：已经查出有更新了，用户再点
+        // 一次"检测更新"应直接返回、一次也不重复拉取——没这行守卫时
+        // 第二次拉取会把 _latestRelease 覆盖掉，用户看到的版本号会闪
+        // 一下。这档之前没有任何单测："检查进行中"那档断的是 _isChecking
+        // 守卫，不是这一行
+        val viewModel = UpdateViewModel()
+        var fetchCalls = 0
+        viewModel.checkUpdate("1.0.0", "stable") {
+            fetchCalls++
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        assertTrue(viewModel.isUpdateAvailable)
+
+        viewModel.checkUpdate("1.0.0", "stable") {
+            fetchCalls++
+            GitRelease(version = "9.9.8", downloadUrl = "https://example.com/old.apk")
+        }
+        assertEquals(1, fetchCalls)
+        assertTrue(viewModel.isUpdateAvailable)
+        assertEquals("9.9.9", viewModel.latestRelease.version)
+    }
+
+    @Test
+    fun `检查进行中 isChecking 为 true，查完复位`() = runBlocking {
+        // isChecking 是界面依赖的公开状态：MainScreen 靠它弹"正在检查
+        // 更新..."。检查进行中应为 true、查完（成功或失败）应复位为
+        // false。之前的用例只间接证明了守卫（第二次调用直接返回）与
+        // 复位（失败后还能再查），isChecking 本身的值一次也没直接断过
+        val viewModel = UpdateViewModel()
+        val started = CompletableDeferred<Unit>()
+        val releaseGate = CompletableDeferred<GitRelease>()
+
+        val first = async {
+            viewModel.checkUpdate("1.0.0", "stable") {
+                started.complete(Unit)
+                releaseGate.await()
+            }
+        }
+        started.await()
+
+        // 第一轮卡在拉取上：_isChecking 已置 true
+        assertTrue(viewModel.isChecking)
+
+        releaseGate.complete(GitRelease(version = "9.9.9"))
+        first.await()
+        assertFalse(viewModel.isChecking)
+        assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
     fun `没更新可下时直接跳过下载`() = runBlocking {
         // 没查过更新（isUpdateAvailable 为 false）：第一行守卫直接返回，
         // 一次也不下载、也不删文件。这档之前没有任何单测——没这行守卫时
