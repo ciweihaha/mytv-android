@@ -392,6 +392,27 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_extinfUnbalancedQuote_skipped() = runBlocking {
+        // 引号没闭合的残缺行：逗号落在没闭合的引号里，显示名取不到；
+        // tvg-name 正则也要闭合引号才匹配得到，两边都没有就整条跳过；
+        // 后面那行地址也不能误填到上一条好频道上
+        val data = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+            http://example.com/cctv1.m3u8
+            #EXTINF:-1 tvg-name="CCTV-9,CCTV-10
+            http://example.com/garbage.m3u8
+            #EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2
+            http://example.com/cctv2.m3u8
+        """.trimIndent()
+        val channels = m3uParser.parse(data)
+        assertEquals(2, channels.size)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("CCTV-2", channels[1].name)
+        assertTrue(channels.none { it.url == "http://example.com/garbage.m3u8" })
+    }
+
+    @Test
     fun m3u_indentedLines_parsed() = runBlocking {
         // 行首带空格：#EXTINF 行带缩进时，旧实现认不出标记、把整行当 URL
         // 处理，频道直接丢掉；#KODIPROP 行带缩进时还会多出一路垃圾地址
