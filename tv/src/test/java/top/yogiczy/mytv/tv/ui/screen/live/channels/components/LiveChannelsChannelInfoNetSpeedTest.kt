@@ -2,6 +2,7 @@ package top.yogiczy.mytv.tv.ui.screen.live.channels.components
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.text.DecimalFormat
 
 /**
  * 网速折算（天光 1834 轮姊妹检查）：算式是“差值 × 1000 ÷ 耗时”，
@@ -39,5 +40,29 @@ class LiveChannelsChannelInfoNetSpeedTest {
     @Test
     fun `流量没变时网速为 0`() {
         assertEquals(0L, nextNetSpeed(0, 1000, 1000, 1000))
+    }
+
+    @Test
+    fun `KB 档用浮点除、留一位小数，不到 1KB 不截回 0`() {
+        val format = DecimalFormat("#.#")
+        // 不到 1KB/s 不能截回 0：512 字节/秒应显示 0.5KB/s
+        assertEquals("0KB/s", formatNetSpeedText(0, format))
+        assertEquals("0.5KB/s", formatNetSpeedText(512, format))
+        assertEquals("1.5KB/s", formatNetSpeedText(1536, format))
+    }
+
+    @Test
+    fun `差 1 字节不到 MB 阈值仍走 KB 档`() {
+        // 阈值是 1024*999：差 1 字节仍走 KB 那档，1022.999… 留一位小数进到 1023
+        assertEquals("1023KB/s", formatNetSpeedText(1024 * 999 - 1, DecimalFormat("#.#")))
+    }
+
+    @Test
+    fun `到阈值及以上走 MB 档、零头保留`() {
+        val format = DecimalFormat("#.#")
+        // 正好 1024*999 字节/秒：0.999…MB/s，留一位小数显示 1MB/s
+        assertEquals("1MB/s", formatNetSpeedText(1024 * 999, format))
+        assertEquals("1.5MB/s", formatNetSpeedText(1572864, format))
+        assertEquals("5MB/s", formatNetSpeedText(5242880, format))
     }
 }
