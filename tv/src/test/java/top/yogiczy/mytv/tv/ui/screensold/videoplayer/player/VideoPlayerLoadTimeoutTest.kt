@@ -37,6 +37,7 @@ class VideoPlayerLoadTimeoutTest {
         fun emitPosition(position: Long, timeoutMs: Long) =
             triggerCurrentPosition(position, timeoutMs)
         fun emitError(error: PlaybackException?) = triggerError(error)
+        fun emitReady() = triggerReady()
     }
 
     @Test
@@ -138,5 +139,57 @@ class VideoPlayerLoadTimeoutTest {
 
         Thread.sleep(1000)
         assertEquals(0, interruptCount.get())
+    }
+
+    @Test
+    fun `空错误不取消加载超时，超时照常报`() {
+        // 天光 1833 轮姊妹检查：进缓冲时底层报一次空错误清显示——
+        // 空错误只是“开始缓冲”的信号，不能取消加载超时，否则卡在
+        // 缓冲的流永远等不到超时、永远不自动换线路
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.emitError(null)
+
+        Thread.sleep(1000)
+        assertEquals(
+            listOf(VideoPlayer.PlaybackException.LOAD_TIMEOUT),
+            errors,
+        )
+    }
+
+    @Test
+    fun `真报错取消加载超时，不再报 LOAD_TIMEOUT`() {
+        // 天光 1833 轮姊妹检查：真报错来了，挂起的加载超时必须停，
+        // 否则报错后面还会再跟一次多余的 LOAD_TIMEOUT
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+
+        Thread.sleep(1000)
+        assertEquals(
+            listOf(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE),
+            errors,
+        )
+    }
+
+    @Test
+    fun `就绪取消加载超时，不再报 LOAD_TIMEOUT`() {
+        // 天光 1833 轮姊妹检查：流播稳了（onReady），挂起的加载超时
+        // 必须停，否则播着播着会在超时后误报一次 LOAD_TIMEOUT
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.emitReady()
+
+        Thread.sleep(1000)
+        assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
     }
 }
