@@ -14,6 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.git.GitRelease
+import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.tv.ui.material.SnackbarType
 import top.yogiczy.mytv.tv.ui.material.SnackbarUIState
 import java.io.File
@@ -201,6 +202,42 @@ class UpdateViewModelTest {
             // _isUpdating 在 finally 里复位，之后还能再下
             assertFalse(viewModel.updateDownloaded)
             assertFalse(viewModel.isUpdating)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `代理下载失败回退直链再试一次`() = runBlocking {
+        // 877 轮 P2-1：gh-proxy 挂了要回退 GitHub 直链再试一次。
+        // 73069d7f 做过，845 轮修编译红时整段删掉了，这里用单测锁住。
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            GitRelease(
+                version = "9.9.9",
+                downloadUrl = "${Constants.GITHUB_PROXY}https://example.com/app.apk",
+            )
+        }
+        val file = File.createTempFile("update-test", ".apk")
+        try {
+            val triedUrls = mutableListOf<String>()
+            viewModel.downloadAndUpdate(file) { url, path, _ ->
+                triedUrls += url
+                if (url.startsWith(Constants.GITHUB_PROXY)) {
+                    throw RuntimeException("代理不通")
+                }
+                File(path).writeText("apk")
+            }
+
+            assertEquals(
+                listOf(
+                    "${Constants.GITHUB_PROXY}https://example.com/app.apk",
+                    "https://example.com/app.apk",
+                ),
+                triedUrls,
+            )
+            assertTrue(viewModel.updateDownloaded)
+            assertTrue(file.exists())
         } finally {
             file.delete()
         }
