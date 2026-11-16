@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import top.yogiczy.mytv.core.data.utils.Constants
 
 /**
  * 无声重试的错误码分类：2004/2001/2002 是瞬时网络错，同一条线路
@@ -76,5 +77,22 @@ class Media3SilentRetryTest {
             retries++
         }
         assertFalse(shouldSilentRetry(errorCode, retries))
+    }
+
+    @Test
+    fun `加载超时默认 5 秒`() {
+        // 分支修法把加载超时默认从 15 秒改成 5 秒：改回去会让
+        // LOAD_TIMEOUT 的触发点悄悄变了，重试节奏跟着变
+        assertEquals(5000L, Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
+    }
+
+    @Test
+    fun `单次退避最长 3 秒、短于 5 秒加载超时`() {
+        // 退避期间旧的 watchdog 还在跑（重试只在 prepare() 后才调
+        // triggerPrepared 重启它）：单次退避必须短于加载超时，
+        // 否则第 3 次退避还没等完就先报 LOAD_TIMEOUT、重试链断掉
+        assertTrue(silentRetryDelayMs(1) < Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
+        assertTrue(silentRetryDelayMs(2) < Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
+        assertTrue(silentRetryDelayMs(3) < Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
     }
 }
