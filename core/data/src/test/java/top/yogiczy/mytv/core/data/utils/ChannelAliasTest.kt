@@ -149,4 +149,22 @@ class ChannelAliasTest {
         val lookup = ChannelAlias.buildAliasLookup(customMap, defaultMap)
         assertNull(lookup["不存在的台"])
     }
+
+    @Test
+    fun standardChannelName_资源读不到时兜底空表不抛错() {
+        // 单测里 Globals.resources 未初始化：默认映射表读不到应兜底空表、
+        // 只丢别名/后缀处理、不丢节目——名字原样回来、不抛错（809ec371）
+        assertEquals("CCTV-1-4K-HD", ChannelAlias.standardChannelName("CCTV-1-4K-HD"))
+        assertEquals("CCTV-1 综合", ChannelAlias.standardChannelName("CCTV-1 综合"))
+        assertEquals("卫视", ChannelAlias.standardChannelName("卫视"))
+    }
+
+    @Test
+    fun standardChannelName_重复调用走缓存结果一致() {
+        // 同一个名字调两次：第二次走 nameCache，结果与第一次一致
+        val first = ChannelAlias.standardChannelName("CCTV-2-4K")
+        val second = ChannelAlias.standardChannelName("CCTV-2-4K")
+        assertEquals(first, second)
+        assertEquals("CCTV-2-4K", second)
+    }
 }
