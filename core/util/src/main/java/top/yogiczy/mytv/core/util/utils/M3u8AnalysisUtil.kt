@@ -12,6 +12,21 @@ import java.net.URL
 import java.util.concurrent.TimeUnit
 
 
+/**
+ * 从 m3u8 文本里找第一条 ts 地址：纯字符串逻辑、不联网，单测可直接钉。
+ * # 开头的行跳过（含 .ts 的 #EXT-X-KEY 行也不算）；相对地址按 m3u8 地址解析，
+ * 绝对地址原样返回；没有 ts 行回 null。
+ */
+internal fun resolveFirstTsUrl(m3u8Url: String, m3u8Content: String): String? {
+    for (line in m3u8Content.lines()) {
+        if (!line.startsWith("#") && line.contains(".ts", ignoreCase = true)) {
+            return if (line.startsWith("http")) line
+            else URL(URL(m3u8Url), line).toString()
+        }
+    }
+    return null
+}
+
 object M3u8AnalysisUtil {
     // 预览取 m3u8 文本：原先 URL.readText() 无任何超时，服务端假死时会
     // 无限挂住；5 个信号量许可被占满后所有频道预览都停摆。改用带超时的 OkHttp。
@@ -31,15 +46,7 @@ object M3u8AnalysisUtil {
                 if (!response.isSuccessful) return@withContext null
                 response.body?.string() ?: return@withContext null
             }
-            val lines = m3u8Content.lines()
-            for (line in lines) {
-                if (!line.startsWith("#") && line.contains(".ts", ignoreCase = true)) {
-                    return@withContext if (line.startsWith("http")) line
-                    else URL(URL(m3u8Url), line).toString()
-                }
-            }
-
-            return@withContext null
+            return@withContext resolveFirstTsUrl(m3u8Url, m3u8Content)
         } catch (_: Exception) {
             return@withContext null
         }
