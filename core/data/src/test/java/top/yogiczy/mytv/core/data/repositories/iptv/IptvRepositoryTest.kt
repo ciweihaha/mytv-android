@@ -14,6 +14,7 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
+import top.yogiczy.mytv.core.data.network.HttpException
 import top.yogiczy.mytv.core.data.utils.Globals
 import java.io.File
 
@@ -112,6 +113,50 @@ class IptvRepositoryTest {
         assertEquals(listOf("CCTV-1", "CCTV-2"), result[0].channelList.map { it.name })
         assertEquals("卫视", result[1].name)
         assertEquals(listOf("湖南卫视"), result[1].channelList.map { it.name })
+    }
+
+    @Test
+    fun getChannelGroupList_remoteUnreachable_throwsHttpException() = runBlocking {
+        // 远程源没缓存、连不上：拉取失败要包成中文 HttpException 抛出来，
+        // 不能把连接被拒的 IOException 原样抛到主界面；127.0.0.1:9
+        // 拒绝连接是立刻失败、没有重试，不会拖慢测试
+        val source = IptvSource(name = "test", url = "http://127.0.0.1:9/iptv.m3u")
+        val result = runCatching { IptvRepository(source).getChannelGroupList(60_000) }
+        val ex = result.exceptionOrNull()
+        assertTrue(ex is HttpException)
+        assertTrue(ex?.message?.contains("获取订阅源失败") == true)
+    }
+
+    @Test
+    fun getChannelGroupList_localM3u_rawChangedAfterCache_refreshesAndReparses() = runBlocking {
+        // 本地源原文改过后缓存要重刷：json 缓存是旧内容（央视），m3u
+        // 原文已改成体育组；若 isExpired 的 rawChanged 那半丢了，
+        // 直接回旧缓存、体育组永远出不来
+        val m3uFile = tempFolder.newFile("iptv.m3u")
+        m3uFile.writeText(
+            """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="CCTV-5" group-title="体育",CCTV-5
+            http://example.com/cctv5.m3u8
+            """.trimIndent()
+        )
+        val source = IptvSource(
+            name = "test", url = m3uFile.path, isLocal = true, transformJs = null
+        )
+        val seeded = ChannelGroupList(
+            listOf(ChannelGroup("央视", ChannelList(listOf(Channel(name = "CCTV-1"))))),
+        )
+        val cacheFile = File(Globals.cacheDir, source.cacheFileName("json"))
+        cacheFile.parentFile?.mkdirs()
+        cacheFile.writeText(Globals.json.encodeToString(seeded))
+        cacheFile.setLastModified(System.currentTimeMillis() - 60_000)
+        m3uFile.setLastModified(System.currentTimeMillis())
+
+        val result = IptvRepository(source).getChannelGroupList(60_000)
+
+        assertEquals(1, result.size)
+        assertEquals("体育", result[0].name)
+        assertEquals(listOf("CCTV-5"), result[0].channelList.map { it.name })
     }
 
     @Test
