@@ -416,6 +416,11 @@ class Media3VideoPlayer(
                             delay(silentRetryDelayMs(silentRetryCount))
                             videoPlayer.seekToDefaultPosition()
                             videoPlayer.prepare()
+                            // 重试也要重启加载超时 watchdog：triggerPrepared() 只在
+                            // prepare() 里调，重试直接调 ExoPlayer 的 prepare() 会绕过
+                            // 它，watchdog 仍锚定最初那次 prepare()——新安装 5 秒超时
+                            // 会在第 3 次重试（约 8 秒）前先报 LOAD_TIMEOUT（877 轮 P2-2）。
+                            triggerPrepared()
                         }
                     } else {
                         silentRetryCount = 0
