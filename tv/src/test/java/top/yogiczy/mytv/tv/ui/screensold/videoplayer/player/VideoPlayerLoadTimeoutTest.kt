@@ -106,4 +106,37 @@ class VideoPlayerLoadTimeoutTest {
         Thread.sleep(1000)
         assertEquals(1, interruptCount.get())
     }
+
+    @Test
+    fun `停止取消挂起的加载超时，不再报 LOAD_TIMEOUT`() {
+        // stop() 里 loadTimeoutJob?.cancel() 那行：用户手动停掉播放时，
+        // 挂起的加载超时必须一起停，否则旧超时会在 100ms 后往已停的流
+        // 里报一次多余的 LOAD_TIMEOUT。重复 prepare 取消那档上面已盖，
+        // 这里只断停止这条取消路径；计时本身会到由上面第一个用例证活
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.stop()
+
+        Thread.sleep(1000)
+        assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
+    }
+
+    @Test
+    fun `停止取消挂起的断流计时，不再报中断`() {
+        // stop() 里 interruptJob?.cancel() 那行：同上，断流计时那半。
+        // 计时本身会到由 VideoPlayerStateTest 里“位置不动断流计时到期
+        // 触发一次”证活
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 200L)
+        player.stop()
+
+        Thread.sleep(1000)
+        assertEquals(0, interruptCount.get())
+    }
 }
