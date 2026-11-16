@@ -2,6 +2,7 @@ package top.yogiczy.mytv.core.data.entities.channel
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.channelFirstOrNull
@@ -288,5 +289,25 @@ class ChannelGroupListTest {
 
         assertEquals(-1, groupList.channelIdx(Channel(name = "不存在")))
         assertEquals(-1, ChannelGroupList().channelIdx(Channel(name = "不存在")))
+    }
+
+    @Test
+    fun channelList_isBuiltOnceAndReusedOnRepeatedAccess() {
+        // 天光 2193 轮姊妹检查：全量频道列表第一次访问时拼好记下来、
+        // 之后直接拿同一份。壳这边生产代码早就是 by lazy，但“重复访问
+        // 是同一份”这档只断内容对不对是测不出来的——原来是扩展属性时
+        // 每访问一次就 flatMap 重拼一次
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    name = "央视",
+                    channelList = ChannelList(listOf(Channel(name = "CCTV-1"))),
+                ),
+            )
+        )
+
+        assertSame(groupList.channelList, groupList.channelList)
+        assertEquals(1, groupList.channelList.size)
+        assertEquals("CCTV-1", groupList.channelList[0].name)
     }
 }
