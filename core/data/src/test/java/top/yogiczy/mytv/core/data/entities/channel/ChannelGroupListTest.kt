@@ -247,6 +247,36 @@ class ChannelGroupListTest {
     }
 
     @Test
+    fun channelIdx_skipsEmptyGroupWhenAccumulatingOffset() {
+        // 天光 2156 姊妹检查：扁平下标跨分组连着数，中间夹一个空分组
+        // 时偏移不能算错——channelList 是 flatMap 拼出来的，空组本就不
+        // 占位，但这档一次也没直接断言过；按全局下标取频道那边壳没有
+        // 同名函数（调用方直接拿 channelList.getOrNull(idx)），只钉下标
+        val target = Channel(name = "目标")
+        val groupList = ChannelGroupList(
+            listOf(
+                ChannelGroup(
+                    name = "分组1",
+                    channelList = ChannelList(listOf(Channel(name = "A"), Channel(name = "B"))),
+                ),
+                ChannelGroup(name = "空分组", channelList = ChannelList()),
+                ChannelGroup(
+                    name = "分组3",
+                    channelList = ChannelList(listOf(target, Channel(name = "C"))),
+                ),
+            )
+        )
+
+        assertEquals(listOf("A", "B", "目标", "C"), groupList.channelList.map { it.name })
+        assertEquals(0, groupList.channelIdx(Channel(name = "A")))
+        assertEquals(1, groupList.channelIdx(Channel(name = "B")))
+        assertEquals(2, groupList.channelIdx(target))
+        assertEquals(3, groupList.channelIdx(Channel(name = "C")))
+        assertEquals(-1, groupList.channelIdx(Channel(name = "不存在")))
+        assertEquals(-1, ChannelGroupList().channelIdx(Channel(name = "A")))
+    }
+
+    @Test
     fun channelIdx_returnsMinusOneWhenChannelMissing() {
         // 找不到回 -1：切台那边 `currentIdx <= 0` 当“第一条”处理（上翻到
         // 末尾或留在 0），-1 走同一条路，不会拿 -1 去取下标
