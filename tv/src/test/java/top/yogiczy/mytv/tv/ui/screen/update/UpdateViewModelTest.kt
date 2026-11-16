@@ -461,10 +461,17 @@ class UpdateViewModelTest {
                 assertFalse(viewModel.updateDownloaded)
                 assertFalse(viewModel.isUpdating)
 
-                // 提示换场要 300 毫秒，多等一倍再断言：最后一条应仍是
-                // “代理下载失败，正在尝试直连下载”，不是失败提示
+                // 提示换场要 300 毫秒，多等一倍再断言。只断“不是失败提示”
+                // 不够：外层 catch 若先弹失败提示再原样抛取消，旧断言能抓到，
+                // 但提示序列本身丢了哪一句它抓不到——这里把最后一句钉死：
+                // 取消时最后一条应仍是“代理下载失败，正在尝试直连下载”
+                // （天光 2092 轮同款：他们那边最后一句是“开始下载更新”）。
                 delay(600)
-                assertTrue(SnackbarUIState.I.currentData.text != "下载更新失败")
+                assertTrue(SnackbarUIState.I.visible)
+                assertEquals(
+                    "代理下载失败，正在尝试直连下载",
+                    SnackbarUIState.I.currentData.text,
+                )
             } finally {
                 file.delete()
             }
