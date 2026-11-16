@@ -37,7 +37,7 @@ class VideoPlayerSubtitleStyleTest {
         val restored = json.decodeFromString<VideoPlayerSubtitleStyle>(
             json.encodeToString(original),
         )
-        assertEquals(original, restored)
+        assertStyleEquals(original, restored)
     }
 
     @Test
@@ -46,7 +46,27 @@ class VideoPlayerSubtitleStyleTest {
         val restored = json.decodeFromString<VideoPlayerSubtitleStyle>(
             json.encodeToString(original),
         )
-        assertEquals(original, restored)
+        assertStyleEquals(original, restored)
+    }
+
+    /**
+     * 不能直接 assertEquals 整个对象：CaptionStyleCompat 是 Media3 的
+     * 类、没有重写 equals，data class 的 equals 比到 style 字段时是
+     * 引用比较，读回来的新对象永远不等——这是 Media3 的类本身的行为，
+     * 不是序列化丢了东西；逐字段比才是真凭据。
+     */
+    private fun assertStyleEquals(
+        expected: VideoPlayerSubtitleStyle,
+        actual: VideoPlayerSubtitleStyle,
+    ) {
+        assertEquals(expected.useSystemDefault, actual.useSystemDefault)
+        assertEquals(expected.isApplyEmbeddedStyles, actual.isApplyEmbeddedStyles)
+        assertEquals(expected.textSize, actual.textSize, 0.001f)
+        assertEquals(expected.style.foregroundColor, actual.style.foregroundColor)
+        assertEquals(expected.style.backgroundColor, actual.style.backgroundColor)
+        assertEquals(expected.style.windowColor, actual.style.windowColor)
+        assertEquals(expected.style.edgeType, actual.style.edgeType)
+        assertEquals(expected.style.edgeColor, actual.style.edgeColor)
     }
 
     @Test
