@@ -453,4 +453,32 @@ class VideoPlayerStateTest {
         state.prepare(ChannelLine(url = "http://example.com/live.m3u8"))
         assertEquals(VideoPlayerDisplayMode.FILL, state.displayMode)
     }
+
+    @Test
+    fun `释放后就绪与缓冲监听器不再收到通知`() {
+        // release() 要清掉全部四份监听器：报错与中断那两份 929/930 轮
+        // 已钉死，就绪与缓冲这两份一次也没断言过。先证活（各收到一次），
+        // 再释放、再触发，次数不变——光断释放后 0 次不够，监听器压根
+        // 没注册上也会是 0（930 轮教训）
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var readyCount = 0
+        val bufferingSeen = mutableListOf<Boolean>()
+        state.onReady { readyCount++ }
+        state.onIsBuffering { bufferingSeen.add(it) }
+
+        player.emitReady()
+        assertEquals(1, readyCount)
+        player.emitBuffering(true)
+        assertEquals(listOf(true), bufferingSeen)
+
+        // 退出播放页释放 state：之后底层再就绪/再进出缓冲也不应再回调
+        // 旧监听器，否则已退出的界面还会收到已释放播放器的状态变化
+        state.release()
+        player.emitReady()
+        player.emitBuffering(false)
+        assertEquals(1, readyCount)
+        assertEquals(listOf(true), bufferingSeen)
+    }
 }
