@@ -87,7 +87,7 @@ fun MultiViewLayout(
     }
 }
 
-private data class GridLayoutCalc(
+internal data class GridLayoutCalc(
     val count: Int,
     val maxWidth: Int,
     val maxHeight: Int,
@@ -165,7 +165,7 @@ private fun MeasureScope.handleGridLayout(
     }
 }
 
-private data class GridLayoutWithZoomIn(
+internal data class GridLayoutWithZoomIn(
     val count: Int,
     val maxWidth: Int,
     val maxHeight: Int,
