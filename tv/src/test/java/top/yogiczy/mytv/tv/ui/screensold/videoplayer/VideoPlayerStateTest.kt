@@ -271,6 +271,38 @@ class VideoPlayerStateTest {
     }
 
     @Test
+    fun `中断原样转给状态层中断监听器（断流计时 927–928 轮的下一层）`() {
+        // 播放器层断流计时到期调 onInterrupt，状态桥要原样转给自己的
+        // 中断监听器——主界面靠它自动换线路；播放器层三档（927–928）
+        // 都钉死了，桥这一层一次也没断言过
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        state.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 100L)
+        Thread.sleep(1000)
+        assertEquals(1, interruptCount.get())
+    }
+
+    @Test
+    fun `释放后状态层中断监听器不再收到中断`() {
+        // 退出播放页释放 state：之后底层再断流也不应再回调旧监听器，
+        // 否则已退出的界面还会收到已释放播放器的中断、误触换线路
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        state.onInterrupt { interruptCount.incrementAndGet() }
+
+        state.release()
+        player.emitPosition(1000L, timeoutMs = 100L)
+        Thread.sleep(1000)
+        assertEquals(0, interruptCount.get())
+    }
+
+    @Test
     fun `换台重备元数据清空、显示模式回到默认`() {
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
