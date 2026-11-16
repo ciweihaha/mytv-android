@@ -24,6 +24,8 @@ class UpdateViewModel(
     private val log = Logger.create("UpdateViewModel")
 
     private var _isChecking = false
+    /** 正在检查更新：手动点“检测更新”时另一次检查还在跑，别把“没查完”说成“已是最新”（877 轮 P3-2）。 */
+    val isChecking get() = _isChecking
 
     private var _isUpdating by mutableStateOf(false)
     val isUpdating get() = _isUpdating
@@ -110,13 +112,34 @@ class UpdateViewModel(
             _isUpdating = true
             _updateDownloaded = false
 
-            download(_latestRelease.downloadUrl, latestFile.path) {
+            // 先走代理地址；代理失败（超时/不通，电视上 mirror.ghproxy.com
+            // 就超时过）时回退 GitHub 直链再试一次。downloadUrl 就是代理前缀
+            // + 直链拼出来的，去掉前缀即直链，不用改解析器。
+            // 877 轮恢复：这段在 73069d7f 里有，845 轮修编译红时被整段删掉了。
+            suspend fun tryDownload(url: String) {
+                download(url, latestFile.path) {
+                    Snackbar.show(
+                        "正在下载更新: $it%",
+                        leadingLoading = true,
+                        duration = 10_000,
+                        id = "downloadProcess"
+                    )
+                }
+            }
+            try {
+                tryDownload(_latestRelease.downloadUrl)
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                val directUrl = _latestRelease.downloadUrl.removePrefix(Constants.GITHUB_PROXY)
+                if (directUrl == _latestRelease.downloadUrl) throw ex
+                log.i("代理下载失败，改走 GitHub 直链重试")
                 Snackbar.show(
-                    "正在下载更新: $it%",
+                    "代理下载失败，正在尝试直连下载",
                     leadingLoading = true,
                     duration = 10_000,
                     id = "downloadProcess"
                 )
+                tryDownload(directUrl)
             }
 
             _updateDownloaded = true
