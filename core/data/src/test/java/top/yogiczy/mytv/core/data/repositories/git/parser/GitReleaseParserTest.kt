@@ -105,6 +105,23 @@ class GitReleaseParserTest {
     }
 
     @Test
+    fun github_anyApkBeatsEarlierNonApkAttachment() = runBlocking {
+        // 有 APK 但排在非 APK 附件后面、关键词都不匹配：第三级退路
+        // （任意 APK）优先于第四级（第一个附件），不能取到排在前面的
+        // release-notes.txt；现有 fallsBackToAnyApk 两个附件都是 APK，
+        // 证明不了“非 APK 不会抢先”，第三、四级顺序写反了也测不出来
+        val data = githubPayload(
+            "V2.2.0.219",
+            listOf(
+                asset("release-notes.txt", "https://example.com/notes.txt"),
+                asset("mytv-android-tv-2.2.0.219-arm64-v8a-sdk23.apk", "https://example.com/arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/arm64.apk", release.downloadUrl)
+    }
+
+    @Test
     fun github_fallsBackToFirstAttachmentWhenNoApk() = runBlocking {
         // 一个 APK 都没有：前三级退路都落空，退到第一个带下载地址的附件
         //（598 轮纠正的四级退路之第四级，此前无单测覆盖）
