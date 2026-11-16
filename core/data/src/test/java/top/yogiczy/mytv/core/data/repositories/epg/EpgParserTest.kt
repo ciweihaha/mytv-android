@@ -1,8 +1,10 @@
 package top.yogiczy.mytv.core.data.repositories.epg
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -73,5 +75,82 @@ class EpgParserTest {
         assertEquals(0, parse("20260230010000 +0800"))
         assertEquals(0, parse("20261301010000 +0800"))
         assertEquals(0, parse("20261112240000 +0800"))
+    }
+
+    private fun parseXml(xml: String) = runBlocking {
+        EpgParser.fromXml(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8)))
+    }
+
+    private fun channelXml(id: String, name: String) =
+        "<channel id=\"$id\"><display-name>$name</display-name></channel>"
+
+    private fun programmeXml(
+        channel: String,
+        start: String,
+        stop: String,
+        inner: String,
+    ) = "<programme channel=\"$channel\" start=\"$start\" stop=\"$stop\">$inner</programme>"
+
+    @Test
+    fun fromXml_programmeForUnknownChannel_skipped() {
+        // 没声明过的频道 id 的节目直接丢掉：不然它挂不到任何台上、
+        // 只会在按名匹配时凭空多出节目
+        val xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv>" +
+            channelXml("cctv1", "CCTV-1") +
+            programmeXml("cctv1", "20261112010000 +0800", "20261112020000 +0800", "<title>本台节目</title>") +
+            programmeXml("unknown", "20261112010000 +0800", "20261112020000 +0800", "<title>野节目</title>") +
+            "</tv>"
+
+        val result = parseXml(xml)
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].programmeList.size)
+        assertEquals("本台节目", result[0].programmeList[0].title)
+    }
+
+    @Test
+    fun fromXml_titleAfterDesc_stillFound() {
+        // 子元素顺序不是 title 在前时（desc 在前），按标签名取 title
+        // 仍能找到；旧实现取第一个子元素会把简介错当标题
+        val xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv>" +
+            channelXml("cctv1", "CCTV-1") +
+            programmeXml(
+                "cctv1", "20261112010000 +0800", "20261112020000 +0800",
+                "<desc>简介在前</desc><title>正标题</title>",
+            ) +
+            "</tv>"
+
+        val result = parseXml(xml)
+        assertEquals(1, result[0].programmeList.size)
+        assertEquals("正标题", result[0].programmeList[0].title)
+    }
+
+    @Test
+    fun fromXml_channelWithoutDisplayName_dropped() {
+        // 没 display-name 的频道不进列表：进去了也是个没名字的空台、
+        // 按名匹配永远匹配不上
+        val xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv>" +
+            channelXml("cctv1", "CCTV-1") +
+            "<channel id=\"noname\"></channel>" +
+            programmeXml("cctv1", "20261112010000 +0800", "20261112020000 +0800", "<title>本台节目</title>") +
+            "</tv>"
+
+        val result = parseXml(xml)
+        assertEquals(1, result.size)
+        assertEquals("cctv1", result[0].id)
+    }
+
+    @Test
+    fun fromXml_programmeEndBeforeStart_dropped() {
+        // 结束早于开始的节目直接丢掉：开始/结束都有效的零时长或倒挂节目，
+        // recentProgramme 只比时间不验有效性，会把它当成正在播
+        val xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv>" +
+            channelXml("cctv1", "CCTV-1") +
+            programmeXml("cctv1", "20261112010000 +0800", "20261112020000 +0800", "<title>正常节目</title>") +
+            programmeXml("cctv1", "20261112030000 +0800", "20261112020000 +0800", "<title>倒挂节目</title>") +
+            "</tv>"
+
+        val result = parseXml(xml)
+        assertEquals(1, result[0].programmeList.size)
+        assertEquals("正常节目", result[0].programmeList[0].title)
     }
 }
