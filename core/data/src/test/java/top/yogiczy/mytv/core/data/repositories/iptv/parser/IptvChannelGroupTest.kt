@@ -3,6 +3,7 @@ package top.yogiczy.mytv.core.data.repositories.iptv.parser
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 import top.yogiczy.mytv.core.data.repositories.iptv.parser.IptvParser.ChannelItem.Companion.toChannelGroupList
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
 
@@ -64,6 +65,35 @@ class IptvChannelGroupTest {
         assertEquals("id-2", cctv1OtherGroup.tvgId)
         assertEquals(1, cctv1OtherGroup.lineList.size)
         assertEquals("http://b.com/1", cctv1OtherGroup.lineList[0].url)
+    }
+
+    @Test
+    fun toChannelGroupList_hybridTypeWebView_survivesGrouping() {
+        // 映射里 WebView -> WebView、None -> None 各走一支：WebView 线路
+        // 映射错了会悄悄走直链播放器、网页打不开；回放类型也要原样带过去
+        val items = listOf(
+            IptvParser.ChannelItem(
+                groupName = "央视", name = "CCTV-1", url = "http://a.com/1",
+                hybridType = IptvParser.ChannelItem.HybridType.WebView,
+                playbackType = 1,
+                playbackFormat = "?stime=\${(b)yyyyMMddHHmmss}",
+            ),
+            IptvParser.ChannelItem(
+                groupName = "央视", name = "CCTV-1", url = "http://a.com/2",
+                hybridType = IptvParser.ChannelItem.HybridType.None,
+            ),
+        )
+
+        val result = items.toChannelGroupList()
+        val cctv1 = result[0].channelList.single()
+        assertEquals(2, cctv1.lineList.size)
+        assertEquals(ChannelLine.HybridType.WebView, cctv1.lineList[0].hybridType)
+        assertEquals(1, cctv1.lineList[0].playbackType)
+        assertEquals(
+            "?stime=\${(b)yyyyMMddHHmmss}",
+            cctv1.lineList[0].playbackFormat,
+        )
+        assertEquals(ChannelLine.HybridType.None, cctv1.lineList[1].hybridType)
     }
 
     @Test
