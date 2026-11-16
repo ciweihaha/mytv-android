@@ -51,4 +51,15 @@ class ChannelNumberSelectStateTest {
         assertEquals("", state.channelNumber)
         job.cancel()
     }
+
+    @Test
+    fun `满 4 位后再输入被忽略`() {
+        // 第 5 位不追加：不封顶时防抖超时 (4 - 5) * 1000 变负数、
+        // 攒到 10 位以上确认处 toInt() 也会抛异常闪退；这里不用
+        // observe()，只断守卫本身——第 5 位按下去台号仍是 4 位
+        val state = ChannelNumberSelectState()
+        repeat(4) { state.input(3) }
+        state.input(5)
+        assertEquals("3333", state.channelNumber)
+    }
 }
