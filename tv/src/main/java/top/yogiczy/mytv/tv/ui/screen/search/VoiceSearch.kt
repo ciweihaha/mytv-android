@@ -21,9 +21,11 @@ import java.util.Locale
  * 用 SharedFlow（不回放）：只在广播到达那一刻发一次，搜索页重组时不重复填。
  */
 object VoiceSearchBus {
-    // 缓冲满时新结果顶掉旧的（DROP_OLDEST），而不是直接丢掉：搜索页没打开时
-    // 连按两次语音键，第二次的结果要留下来（877 轮 P3-3）。不回放，搜索页
-    // 重组时不重复填。
+    // 缓冲满时新结果顶掉旧的（DROP_OLDEST），而不是直接丢掉最新那个：
+    // 只对已订阅但处理慢的订阅者起作用。注意 replay=0 时没人订阅发出的
+    // 值直接丢掉，不会留给后打开的搜索页——“搜索页没打开时连按两次、
+    // 第二次留下来”是不成立的（896 轮修法：旧注释写错了，单测已钉死
+    // 无订阅者时值蒸发）。不回放，搜索页重组时不重复填。
     private val _voiceText = MutableSharedFlow<String>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,

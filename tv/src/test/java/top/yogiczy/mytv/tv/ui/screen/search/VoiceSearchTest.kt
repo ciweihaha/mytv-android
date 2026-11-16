@@ -3,7 +3,7 @@ package top.yogiczy.mytv.tv.ui.screen.search
 import android.speech.RecognizerIntent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -70,12 +70,14 @@ class VoiceSearchTest {
     }
 
     @Test
-    fun voiceSearchBus_secondResultReplacesFirstWhenPageNotOpen() = runBlocking {
-        // 搜索页没打开时连按两次语音键：第二次的结果要留下来（DROP_OLDEST），
-        // 而不是第一次占着缓冲、第二次被丢掉
+    fun voiceSearchBus_valueEmittedWithNoCollectorIsLost() = runBlocking {
+        // replay=0、无订阅者时发出的值直接丢掉，不会留给后打开的搜索页
+        // （SharedFlow 的语义：extraBufferCapacity 只给已订阅但处理慢的
+        // 订阅者用，没人订阅时值立刻蒸发、DROP_OLDEST 也留不住）。
+        // 之前一版断言“连按两次、第二次留下来”是错的——两场构建都红在
+        // 这里（first() 等 2 秒收不到值），以这版为准。
         VoiceSearchBus.emit("第一次")
-        VoiceSearchBus.emit("第二次")
-        val received = withTimeout(2000) { VoiceSearchBus.voiceText.first() }
-        assertEquals("第二次", received)
+        val received = withTimeoutOrNull(500) { VoiceSearchBus.voiceText.first() }
+        assertNull(received)
     }
 }
