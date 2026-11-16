@@ -157,15 +157,17 @@ class GitRepositoryTest {
 
     @Test
     fun latestRelease_custom_success_returnsParsedReleaseWithAllAbiApk() = runBlocking {
-        // 仓库层自定义路之前一次也没走通过，而且分发本身有个真 bug：分发
-        // 是 instances.first { it.isSupport(url) }，GitHub 解析器认
-        // "github.com" 子串，"raw.githubusercontent.com" 也含这个子串，
-        // GitHub 在前会把自定义源抢走——自定义解析器只在解析器层直接测
-        // 过 parse，仓库层永远走不到。修法把 Custom 提到 GitHub 前面
-        // （api.github.com 不含 raw.githubusercontent.com，GitHub 路
-        // 不受影响）。断三点和 GitHub 那档正好反过来：挑全架构原版
+        // 仓库层自定义路之前一次也没走通过：解析器层 Custom 用例只测了
+        // parse，分发挑 Custom 解析器、挑全架构原版、说明 body 原样
+        // 这三档在仓库层都没断言过。地址里带 "raw.githubusercontent.com"
+        // 是为了让 Custom 解析器接手——isSupport 只看子串，主机仍是
+        // 127.0.0.1，不走外网。更正 956 轮的错话：分发本身没有 bug，
+        // "raw.githubusercontent.com" 不含 "github.com" 子串（github
+        // 后面是 usercontent，不是 .com），GitHub 解析器抢不走自定义
+        // 源，Custom 本来就能走到——这用例钉的是"自定义路走通"，不是
+        // "修了分发 bug"。断三点和 GitHub 那档正好反过来：挑全架构原版
         // （original + all）、下载地址带代理前缀、说明是 body 原样、
-        // 不带"伪装版本"前缀——修法前这用例会红在 arm64 与伪装前缀上
+        // 不带"伪装版本"前缀
         val server = TestHttpServer().apply { start() }
         try {
             val release = GitRepository().latestRelease(
