@@ -87,4 +87,37 @@ class VideoPlayerStateTest {
         assertNull(state.error)
         assertEquals(1, notifyCount)
     }
+
+    @Test
+    fun `换台重备清掉上一次的错误显示（天光 2051 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
+
+        // 切台重备：旧错不能留着，否则新流还没播、错误横幅先挂在那
+        state.prepare(ChannelLine(url = "http://example.com/live.m3u8"))
+        assertNull(state.error)
+    }
+
+    @Test
+    fun `释放后旧监听器不再收到报错（天光 2051 轮姊妹检查）`() {
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var notifyCount = 0
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals(1, notifyCount)
+
+        // 退出播放页释放 state：之后底层再报错也不应再回调旧监听器，
+        // 否则已退出的界面还会收到已释放播放器的错误
+        state.release()
+        player.emitError(VideoPlayer.PlaybackException.LOAD_TIMEOUT)
+        assertEquals(1, notifyCount)
+        assertEquals("ERROR_UNSUPPORTED_TYPE(10002)", state.error)
+    }
 }
