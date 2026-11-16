@@ -47,6 +47,19 @@ class VoiceSearchTest {
     }
 
     @Test
+    fun pickVoiceText_skipsBlankFirstElementInList() {
+        // 877 轮 P3-4：识别结果列表第一个是空白串时，取后面第一个非空的，
+        // 别直接换下一个键。
+        assertEquals(
+            "央视",
+            pickVoiceText(mapOf(RecognizerIntent.EXTRA_RESULTS to arrayListOf("", "  ", "央视")))
+        )
+        assertNull(
+            pickVoiceText(mapOf(RecognizerIntent.EXTRA_RESULTS to arrayListOf("", "  ")))
+        )
+    }
+
+    @Test
     fun pickVoiceText_ignoresNonStringValues() {
         // 非字符串的值不算识别文本
         assertNull(pickVoiceText(mapOf("text" to 123)))
