@@ -51,7 +51,7 @@ fun VideoPlayerError(
     }
 }
 
-private fun getErrorCodeDesc(error: String): String? {
+internal fun getErrorCodeDesc(error: String): String? {
     return when (error.substringBefore("(")) {
         "ERROR_UNSUPPORTED_TYPE" -> "不支持的视频类型，请检查视频源。"
         "ERROR_LOAD_TIMEOUT" -> "加载超时，请检查网络连接或视频源。"
