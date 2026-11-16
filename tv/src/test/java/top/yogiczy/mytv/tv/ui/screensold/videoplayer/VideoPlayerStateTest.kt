@@ -98,6 +98,23 @@ class VideoPlayerStateTest {
     }
 
     @Test
+    fun `加载超时报错写名字加错误码并通知一次`() {
+        // 播放错误只有两个身份：类型不支持那档第 83 行已钉死，加载超时
+        // 这档一次也没断言过——名字或错误码手滑改错一个字母，界面上
+        // 的错误横幅就对不上号。LOAD_TIMEOUT 照常走报错桥（基类里不取
+        // 消 watchdog 的是它自己，不是不报）
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var notifyCount = 0
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.LOAD_TIMEOUT)
+        assertEquals("ERROR_LOAD_TIMEOUT(10003)", state.error)
+        assertEquals(1, notifyCount)
+    }
+
+    @Test
     fun `进缓冲清掉错误显示，不通知报错监听器`() {
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
