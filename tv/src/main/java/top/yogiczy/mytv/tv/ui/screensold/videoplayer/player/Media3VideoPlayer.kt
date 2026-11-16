@@ -87,6 +87,46 @@ internal fun silentRetryDelayMs(retryNumber: Int): Long = 1000L * retryNumber
 internal fun shouldSilentRetry(errorCode: Int, retriesSoFar: Int): Boolean =
     isSilentRetryError(errorCode) && retriesSoFar < Media3VideoPlayer.MAX_SILENT_RETRY
 
+/**
+ * Media3 Format 转界面元数据：三个纯转换，之前是 Media3VideoPlayer 的
+ * 私有成员函数、单测够不着；抽到顶层方便单元测试直接调用，行为逐字不变。
+ * Format 里未知值是 NO_VALUE(-1)，不转 null 界面会显示“-1x-1”；
+ * 现有元数据传进来时只覆盖转出来的字段，序号/是否选中/解码器原样保留
+ * （copy）；颜色是例外——没 colorInfo 时会被写成 null，因为 copy
+ * 里 color 字段是无条件覆盖的。
+ */
+internal fun Format.toVideoMetadata(video: VideoPlayer.Metadata.Video? = null): VideoPlayer.Metadata.Video {
+    return (video ?: VideoPlayer.Metadata.Video()).copy(
+        // Format 里未知值是 NO_VALUE(-1)，不转 null 界面会显示“-1x-1”
+        width = width.takeIf { it > 0 },
+        height = height.takeIf { it > 0 },
+        color = colorInfo?.toLogString(),
+        frameRate = frameRate.takeIf { it > 0 },
+        // TODO 帧率、比特率目前是从tag中获取，有的返回空，后续需要实时计算
+        bitrate = bitrate.takeIf { it > 0 },
+        mimeType = sampleMimeType,
+    )
+}
+
+internal fun Format.toAudioMetadata(audio: VideoPlayer.Metadata.Audio? = null): VideoPlayer.Metadata.Audio {
+    return (audio ?: VideoPlayer.Metadata.Audio()).copy(
+        channels = channelCount.takeIf { it > 0 },
+        channelsLabel = if (sampleMimeType == "audio/av3a") "菁彩声" else null,
+        sampleRate = sampleRate.takeIf { it > 0 },
+        bitrate = bitrate.takeIf { it > 0 },
+        mimeType = sampleMimeType,
+        language = language,
+    )
+}
+
+internal fun Format.toSubtitleMetadata(subtitle: VideoPlayer.Metadata.Subtitle? = null): VideoPlayer.Metadata.Subtitle {
+    return (subtitle ?: VideoPlayer.Metadata.Subtitle()).copy(
+        bitrate = bitrate.takeIf { it > 0 },
+        mimeType = sampleMimeType,
+        language = language,
+    )
+}
+
 @OptIn(UnstableApi::class)
 class Media3VideoPlayer(
     private val context: Context,
@@ -606,38 +646,6 @@ class Media3VideoPlayer(
         val trackIndex = this - (trackCount - group.length)
 
         return Pair(group, trackIndex)
-    }
-
-    private fun Format.toVideoMetadata(video: Metadata.Video? = null): Metadata.Video {
-        return (video ?: Metadata.Video()).copy(
-            // Format 里未知值是 NO_VALUE(-1)，不转 null 界面会显示“-1x-1”
-            width = width.takeIf { it > 0 },
-            height = height.takeIf { it > 0 },
-            color = colorInfo?.toLogString(),
-            frameRate = frameRate.takeIf { it > 0 },
-            // TODO 帧率、比特率目前是从tag中获取，有的返回空，后续需要实时计算
-            bitrate = bitrate.takeIf { it > 0 },
-            mimeType = sampleMimeType,
-        )
-    }
-
-    private fun Format.toAudioMetadata(audio: Metadata.Audio? = null): Metadata.Audio {
-        return (audio ?: Metadata.Audio()).copy(
-            channels = channelCount.takeIf { it > 0 },
-            channelsLabel = if (sampleMimeType == "audio/av3a") "菁彩声" else null,
-            sampleRate = sampleRate.takeIf { it > 0 },
-            bitrate = bitrate.takeIf { it > 0 },
-            mimeType = sampleMimeType,
-            language = language,
-        )
-    }
-
-    private fun Format.toSubtitleMetadata(subtitle: Metadata.Subtitle? = null): Metadata.Subtitle {
-        return (subtitle ?: Metadata.Subtitle()).copy(
-            bitrate = bitrate.takeIf { it > 0 },
-            mimeType = sampleMimeType,
-            language = language,
-        )
     }
 
     private val metadataListener = object : AnalyticsListener {
