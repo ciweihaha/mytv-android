@@ -60,4 +60,21 @@ class DoubleBackPressedExitStateTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun `复位秒数为 0 时按完立即复位`() = runBlocking {
+        // 防抖超时是 0、按完就复位：若 0 被当成默认值处理，
+        // 200 毫秒后 allowExit 还会是 true
+        val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+        val state = DoubleBackPressedExitState(0)
+        val observeJob = scope.launch { state.observe() }
+        try {
+            state.backPress()
+            delay(200)
+            assertFalse(state.allowExit)
+        } finally {
+            observeJob.cancel()
+            scope.cancel()
+        }
+    }
 }
