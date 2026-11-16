@@ -455,6 +455,39 @@ class VideoPlayerStateTest {
     }
 
     @Test
+    fun `换台重备播放状态归零（播放中、位置、时长、缓冲、错误全清）`() {
+        // prepare() 只钉死了元数据与显示模式的重置，播放状态那五行
+        // （isPlaying、位置、时长、缓冲、错误）一次也没断言过：上一路
+        // 播到一半切台，新路没开播前进度条、总时长、缓冲圈、错误横幅
+        // 全不能留着上一路的。先报一次错放最后——进缓冲会清错误，
+        // 顺序反了就测不到错误那档
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+
+        player.emitIsPlaying(true)
+        player.emitDuration(60000L)
+        player.emitPosition(30000L, timeoutMs = 60_000L)
+        player.emitBuffering(true)
+        player.emitError(VideoPlayer.PlaybackException.UNSUPPORTED_TYPE)
+        assertEquals(true, state.isPlaying)
+        assertEquals(60000L, state.duration)
+        assertEquals(30000L, state.currentPosition)
+        assertEquals(true, state.isBuffering)
+        assertEquals(
+            VideoPlayer.PlaybackException.UNSUPPORTED_TYPE,
+            state.error,
+        )
+
+        state.prepare(ChannelLine(url = "http://example.com/live.m3u8"))
+        assertEquals(false, state.isPlaying)
+        assertEquals(0L, state.currentPosition)
+        assertEquals(0L, state.duration)
+        assertEquals(false, state.isBuffering)
+        assertNull(state.error)
+    }
+
+    @Test
     fun `释放后就绪与缓冲监听器不再收到通知`() {
         // release() 要清掉全部四份监听器：报错与中断那两份 929/930 轮
         // 已钉死，就绪与缓冲这两份一次也没断言过。先证活（各收到一次），
