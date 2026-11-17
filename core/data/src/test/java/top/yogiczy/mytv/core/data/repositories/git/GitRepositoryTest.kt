@@ -258,7 +258,7 @@ class GitRepositoryTest {
     fun latestRelease_notFound_throwsHttpStatusException() {
         // 404 那档：只断码值不够——500 用例断了文案，404 的文案本身一次
         // 也没断过；将来谁把分支改成按码值分两条文案，404 这边不会红。
-        // 补两行，与 500 用例措辞一致（天光 2351 轮同款）
+        // 文案收紧成全句：与节目单 1012 轮同款写法（天光 2353 轮同款）
         val server = TestHttpServer().apply { start() }
         try {
             val ex = assertThrows(HttpStatusException::class.java) {
@@ -269,8 +269,7 @@ class GitRepositoryTest {
                 }
             }
             assertEquals(404, ex.code)
-            assertTrue(ex.message?.contains("404") == true)
-            assertTrue(ex.message?.contains("请检查网络连接") == false)
+            assertEquals("404: Not Found", ex.message)
         } finally {
             server.stop()
         }
@@ -282,8 +281,8 @@ class GitRepositoryTest {
         // HTTP 状态错误（如 404/500）”，但测试只钉了 404。404 与 500
         // 走同一条 !isSuccessful 分支，码值不同——将来有人把分支收窄成
         // 只认 404，500 会悄悄掉进网络错那档误导用户；码值断一次、文案
-        // 断一次（壳这边文案是 "500: Internal Server Error"，不是天光
-        // 的“服务器返回 500”，按本边生产代码原文断）
+        // 收紧成全句（壳这边文案是 "500: Internal Server Error"，不是天光
+        // 的“服务器返回 500”，按本边生产代码原文断；天光 2353 轮同款）
         val server = TestHttpServer().apply { start() }
         try {
             val ex = assertThrows(HttpStatusException::class.java) {
@@ -294,8 +293,7 @@ class GitRepositoryTest {
                 }
             }
             assertEquals(500, ex.code)
-            assertTrue(ex.message?.contains("500") == true)
-            assertTrue(ex.message?.contains("请检查网络连接") == false)
+            assertEquals("500: Internal Server Error", ex.message)
         } finally {
             server.stop()
         }
