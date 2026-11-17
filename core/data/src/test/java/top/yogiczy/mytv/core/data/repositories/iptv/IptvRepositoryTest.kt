@@ -196,8 +196,8 @@ class IptvRepositoryTest {
                 }
             }
             assertEquals(404, ex.code)
-            assertTrue(ex.message?.contains("404") == true)
-            assertTrue(ex.message?.contains("请检查网络连接") == false)
+            // 状态错文案收紧成全句：与节目单 1012 轮同款写法（天光 2353 轮同款）
+            assertEquals("404: Not Found", ex.message)
         } finally {
             server.stop()
         }
@@ -222,8 +222,8 @@ class IptvRepositoryTest {
                 }
             }
             assertEquals(500, ex.code)
-            assertTrue(ex.message?.contains("500") == true)
-            assertTrue(ex.message?.contains("请检查网络连接") == false)
+            // 状态错文案收紧成全句：与节目单 1012 轮同款写法（天光 2353 轮同款）
+            assertEquals("500: Internal Server Error", ex.message)
         } finally {
             server.stop()
         }
