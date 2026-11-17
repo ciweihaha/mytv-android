@@ -89,6 +89,22 @@ internal fun shouldSilentRetry(errorCode: Int, retriesSoFar: Int): Boolean =
     isSilentRetryError(errorCode) && retriesSoFar < Media3VideoPlayer.MAX_SILENT_RETRY
 
 /**
+ * 容器不支持时下一个没试过的容器类型：HLS → DASH → RTSP → OTHER → SS，
+ * 全试过回 null。顺序是契约——先试最常见的 HLS，再试其他；顺序写反了，
+ * 兜底的先后就变了。顶层函数方便单元测试直接调用（监听器里的接线本身
+ * JVM 单测够不着，判定抽出来才能钉死）。
+ */
+internal fun nextUntriedContentType(attempts: Map<Int, Boolean>): Int? =
+    when {
+        attempts[C.CONTENT_TYPE_HLS] != true -> C.CONTENT_TYPE_HLS
+        attempts[C.CONTENT_TYPE_DASH] != true -> C.CONTENT_TYPE_DASH
+        attempts[C.CONTENT_TYPE_RTSP] != true -> C.CONTENT_TYPE_RTSP
+        attempts[C.CONTENT_TYPE_OTHER] != true -> C.CONTENT_TYPE_OTHER
+        attempts[C.CONTENT_TYPE_SS] != true -> C.CONTENT_TYPE_SS
+        else -> null
+    }
+
+/**
  * Media3 Format 转界面元数据：三个纯转换，之前是 Media3VideoPlayer 的
  * 私有成员函数、单测够不着；抽到顶层方便单元测试直接调用，行为逐字不变。
  * Format 里未知值是 NO_VALUE(-1)，不转 null 界面会显示“-1x-1”；
@@ -496,19 +512,9 @@ class Media3VideoPlayer(
                 // 当解析容器不支持时，尝试使用其他解析容器
                 ex.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED -> {
                     videoPlayer.currentMediaItem?.localConfiguration?.uri?.let {
-                        if (contentTypeAttempts[C.CONTENT_TYPE_HLS] != true) {
-                            prepare(C.CONTENT_TYPE_HLS)
-                        } else if (contentTypeAttempts[C.CONTENT_TYPE_DASH] != true) {
-                            prepare(C.CONTENT_TYPE_DASH)
-                        } else if (contentTypeAttempts[C.CONTENT_TYPE_RTSP] != true) {
-                            prepare(C.CONTENT_TYPE_RTSP)
-                        } else if (contentTypeAttempts[C.CONTENT_TYPE_OTHER] != true) {
-                            prepare(C.CONTENT_TYPE_OTHER)
-                        } else if(contentTypeAttempts[C.CONTENT_TYPE_SS] != true){
-                            prepare(C.CONTENT_TYPE_SS)
-                        }else {
-                            triggerError(PlaybackException.UNSUPPORTED_TYPE)
-                        }
+                        nextUntriedContentType(contentTypeAttempts)?.let { nextType ->
+                            prepare(nextType)
+                        } ?: triggerError(PlaybackException.UNSUPPORTED_TYPE)
                     }
                 }
 
