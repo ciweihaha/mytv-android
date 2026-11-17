@@ -252,6 +252,41 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `取消的重查也清掉旧的失败标记`() = runBlocking {
+        // 天光 2244 轮姊妹检查：先查一次失败，再开第二轮检查卡在拉取上、
+        // 随后取消。开始时就把旧失败标记清掉了，取消不是失败、不会再置
+        // 回去——只断查完成功那档（964 轮）测不出来，只断全新状态取消
+        // 那档也测不出来（取消时 checkFailed 本来就是 false）
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            throw RuntimeException("网络断了")
+        }
+        assertTrue(viewModel.checkFailed)
+
+        val started = CompletableDeferred<Unit>()
+        val releaseGate = CompletableDeferred<GitRelease>()
+        val second = async {
+            viewModel.checkUpdate("1.0.0", "stable") {
+                started.complete(Unit)
+                releaseGate.await()
+            }
+        }
+        started.await()
+        assertFalse(viewModel.checkFailed)
+        second.cancel()
+        try {
+            second.await()
+            fail("取消时应原样抛 CancellationException")
+        } catch (ex: CancellationException) {
+            // 预期：取消原样抛出来。文案不断——外面调 cancel() 触发的，
+            // 框架给的文案是 "Job was cancelled"，断文案等于断框架措辞
+            // （天光 2244 轮修法教训）
+        }
+        assertFalse(viewModel.checkFailed)
+        assertFalse(viewModel.isUpdateAvailable)
+    }
+
+    @Test
     fun `检查中途取消不记失败`() = runBlocking {
         val viewModel = UpdateViewModel()
         val gate = CompletableDeferred<GitRelease>()
