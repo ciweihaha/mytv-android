@@ -84,6 +84,21 @@ class IptvParserTest {
     }
 
     @Test
+    fun txt_withBomBeforeFirstChannel_channelNameCleanAndGroupFallsBackToOther() = runBlocking {
+        // BOM 在首个频道行上（分组行在后面）：入口统一去 BOM，频道名干净、
+        // 分组仍是“其他”；天光 2267 轮同款（Tvbox 解析器入口去首行 BOM）
+        val txtData = "\uFEFFCCTV-1,http://example.com/cctv1.m3u8\n央视,#genre#\nCCTV-5,http://example.com/cctv5.m3u8"
+        assertTrue(txtParser.isSupport("", txtData))
+        val channels = txtParser.parse(txtData)
+        assertEquals(2, channels.size)
+        assertEquals("其他", channels[0].groupName)
+        assertEquals("CCTV-1", channels[0].name)
+        assertEquals("http://example.com/cctv1.m3u8", channels[0].url)
+        assertEquals("央视", channels[1].groupName)
+        assertEquals("CCTV-5", channels[1].name)
+    }
+
+    @Test
     fun m3u_channelNameWithComma() = runBlocking {
         // 频道名本身含逗号：旧代码 split(",").last() 只剩尾段
         val data = """
