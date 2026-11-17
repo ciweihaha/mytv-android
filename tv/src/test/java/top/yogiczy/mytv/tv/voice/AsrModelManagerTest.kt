@@ -68,6 +68,21 @@ class AsrModelManagerTest {
     }
 
     @Test
+    fun resolveModelContentDir_subdirAndFile_returnsExtractDir() {
+        // 又有子目录、顶层又有文件时回解压目录本身，不是那个子目录：
+        // 两条 if 的顺序是契约——先判“唯一子目录且无文件”，再判“有文件”，
+        // 顺序反了会把顶层文件丢在外面、校验时找不到模型文件。
+        val extractDir = tempDir()
+        try {
+            File(extractDir, "sherpa-onnx-whisper-tiny").apply { mkdirs() }
+            File(extractDir, "tokens.txt").writeText("a")
+            assertEquals(extractDir, resolveModelContentDir(extractDir))
+        } finally {
+            extractDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun extractTarBz2_roundTrip() {
         // 用 commons-compress 现打一个 .tar.bz2，再用 extractTarBz2 解开
         val work = tempDir()
