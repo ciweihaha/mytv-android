@@ -226,9 +226,8 @@ class DownloaderTest {
                 )
             }
         }
-        // 文案是用户看得到的：四处“请检查网络连接”包装点里，节目单与
-        // 发行版两处已钉死全句，下载器这处只断半句——“下载文件失败”这
-        // 半句丢了也不会红；收紧成全句相等（天光 2337 轮同款）
+        // 文案是用户看得到的：下载器这处 1013 轮已收紧成全句相等
+        // （天光 2337 轮同款）
         assertEquals("下载文件失败，请检查网络连接", ex.message)
         assertFalse(target.exists())
         assertFalse(File(dir, "latest.apk.tmp").exists())
