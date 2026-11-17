@@ -1,6 +1,8 @@
 package top.yogiczy.mytv.tv.ui.screen.search
 
 import android.speech.RecognizerIntent
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -98,5 +100,17 @@ class VoiceSearchTest {
         VoiceSearchBus.emit("第一次")
         val received = withTimeoutOrNull(500) { VoiceSearchBus.voiceText.first() }
         assertNull(received)
+    }
+
+    @Test
+    fun voiceSearchBus_valueReceivedByCollector() = runBlocking {
+        // 先证活：有订阅者时发出的值能收到。只断“无订阅者时丢了”有假过
+        // 洞——emit 本身坏了，丢值测试照样通过。
+        // 订阅者先挂上再发：replay=0，订阅前发出的值直接蒸发；等 200ms
+        // 是给订阅留余量，不是卡截止点（CI 一慢就误报的写法别用）。
+        val deferred = async { VoiceSearchBus.voiceText.first() }
+        delay(200)
+        VoiceSearchBus.emit("央视")
+        assertEquals("央视", withTimeoutOrNull(2000) { deferred.await() })
     }
 }
