@@ -63,6 +63,25 @@ class VoiceSearchTest {
     }
 
     @Test
+    fun pickVoiceText_fallsBackToResultsKey() {
+        // 第二个结果列表键 "results"：系统键没给时也认；
+        // 系统键的列表全是空白时，换下一个键继续找，别直接回空。
+        assertEquals(
+            "央视",
+            pickVoiceText(mapOf("results" to arrayListOf("央视")))
+        )
+        assertEquals(
+            "卫视",
+            pickVoiceText(
+                mapOf(
+                    RecognizerIntent.EXTRA_RESULTS to arrayListOf("", "  "),
+                    "results" to arrayListOf("卫视"),
+                )
+            )
+        )
+    }
+
+    @Test
     fun pickVoiceText_ignoresNonStringValues() {
         // 非字符串的值不算识别文本
         assertNull(pickVoiceText(mapOf("text" to 123)))
