@@ -15,8 +15,13 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.utils.Globals
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
+import java.net.InetAddress
+import java.net.ServerSocket
 
 class IptvRepositoryTest {
     @get:Rule
@@ -125,6 +130,100 @@ class IptvRepositoryTest {
         val ex = result.exceptionOrNull()
         assertTrue(ex is HttpException)
         assertTrue(ex?.message?.contains("获取订阅源失败") == true)
+    }
+
+    /**
+     * 本地假服务器：只回状态码（GitRepositoryTest 同款写法，JDK 自带
+     * ServerSocket，Android 单测的编译 classpath 里没有 MockWebServer）。
+     * /servererror.m3u 回 500，其余一律 404。
+     */
+    private class TestHttpServer {
+        private val serverSocket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
+        val port: Int get() = serverSocket.localPort
+
+        private val thread = Thread({
+            try {
+                while (!serverSocket.isClosed) {
+                    serverSocket.accept().use { socket ->
+                        val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+                        val requestLine = reader.readLine() ?: return@use
+                        var line: String?
+                        do {
+                            line = reader.readLine()
+                        } while (line != null && line.isNotEmpty())
+                        val out = socket.getOutputStream()
+                        val statusLine = if (requestLine.startsWith("GET /servererror.m3u ")) {
+                            "HTTP/1.1 500 Internal Server Error"
+                        } else {
+                            "HTTP/1.1 404 Not Found"
+                        }
+                        out.write(
+                            "$statusLine\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                                .toByteArray()
+                        )
+                        out.flush()
+                    }
+                }
+            } catch (_: Exception) {
+                // 服务关闭
+            }
+        }, "test-http-server").apply { isDaemon = true }
+
+        fun start() = thread.start()
+
+        fun stop() = runCatching { serverSocket.close() }
+    }
+
+    @Test
+    fun getChannelGroupList_serverNotFound_throwsHttpStatusException() {
+        // 服务器回了明确状态码就原样抛：不是网络问题，别包成"请检查网络
+        // 连接"误导用户去查网络。连不上那档已有用例（包成中文错），
+        // 404 原样抛那档一次也没断言过——getRaw 的 catch 里那行
+        // `if (ex is HttpStatusException) throw ex` 删了也不会红
+        val server = TestHttpServer().apply { start() }
+        try {
+            val ex = assertThrows(HttpStatusException::class.java) {
+                runBlocking {
+                    IptvRepository(
+                        IptvSource(
+                            name = "test",
+                            url = "http://127.0.0.1:${server.port}/notfound.m3u",
+                        )
+                    ).getChannelGroupList(60_000)
+                }
+            }
+            assertEquals(404, ex.code)
+            assertTrue(ex.message?.contains("404") == true)
+            assertTrue(ex.message?.contains("请检查网络连接") == false)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun getChannelGroupList_serverError_throwsHttpStatusException() {
+        // 500 那档：404 与 500 走同一条 !isSuccessful 分支，码值不同——
+        // 将来有人把分支收窄成只认 404，500 会悄悄掉进网络错那档误导
+        // 用户；码值断一次、文案断一次（壳这边文案是 "500: Internal
+        // Server Error"，不是天光的"服务器返回 500"，按本边生产代码原文断）
+        val server = TestHttpServer().apply { start() }
+        try {
+            val ex = assertThrows(HttpStatusException::class.java) {
+                runBlocking {
+                    IptvRepository(
+                        IptvSource(
+                            name = "test",
+                            url = "http://127.0.0.1:${server.port}/servererror.m3u",
+                        )
+                    ).getChannelGroupList(60_000)
+                }
+            }
+            assertEquals(500, ex.code)
+            assertTrue(ex.message?.contains("500") == true)
+            assertTrue(ex.message?.contains("请检查网络连接") == false)
+        } finally {
+            server.stop()
+        }
     }
 
     @Test
