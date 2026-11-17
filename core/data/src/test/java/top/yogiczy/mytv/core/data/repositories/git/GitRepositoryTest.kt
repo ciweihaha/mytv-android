@@ -30,6 +30,7 @@ class GitRepositoryTest {
      * 不在 Android 单测的编译 classpath 里）。
      * /github.com/releases 回合法发行版 JSON，
      * /github.com/empty 回空数组（解析器报“没有找到任何发行版”），
+     * /github.com/servererror 回 500，
      * 其余一律 404。
      */
     private class TestHttpServer {
@@ -78,6 +79,14 @@ class GitRepositoryTest {
                                         .toByteArray()
                                 )
                                 out.write(content)
+                                out.flush()
+                            }
+
+                            requestLine.startsWith("GET /github.com/servererror ") -> {
+                                out.write(
+                                    "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
                                 out.flush()
                             }
 
@@ -230,6 +239,31 @@ class GitRepositoryTest {
                 }
             }
             assertEquals(404, ex.code)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun latestRelease_serverError_throwsHttpStatusException() {
+        // 500 那档：HttpStatusException 的类注释写明了“服务端明确返回的
+        // HTTP 状态错误（如 404/500）”，但测试只钉了 404。404 与 500
+        // 走同一条 !isSuccessful 分支，码值不同——将来有人把分支收窄成
+        // 只认 404，500 会悄悄掉进网络错那档误导用户；码值断一次、文案
+        // 断一次（壳这边文案是 "500: Internal Server Error"，不是天光
+        // 的“服务器返回 500”，按本边生产代码原文断）
+        val server = TestHttpServer().apply { start() }
+        try {
+            val ex = assertThrows(HttpStatusException::class.java) {
+                runBlocking {
+                    GitRepository().latestRelease(
+                        "http://127.0.0.1:${server.port}/github.com/servererror"
+                    )
+                }
+            }
+            assertEquals(500, ex.code)
+            assertTrue(ex.message?.contains("500") == true)
+            assertTrue(ex.message?.contains("请检查网络连接") == false)
         } finally {
             server.stop()
         }
