@@ -300,7 +300,9 @@ class DownloaderTest {
                     )
                 }
             }
-            assertTrue(ex.message?.contains("无法写入目标文件") == true)
+            // 文案收紧成全句：生产代码原文就是固定模板“下载文件失败：
+            // 无法写入目标文件”，contains 只断了后半句（天光 2357 轮同款）
+            assertEquals("下载文件失败：无法写入目标文件", ex.message)
             assertFalse(target.exists())
             assertFalse(File(File(dir, "no-such-dir"), "latest.apk.tmp").exists())
         } finally {
