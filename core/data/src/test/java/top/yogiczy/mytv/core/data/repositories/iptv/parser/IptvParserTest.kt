@@ -55,6 +55,13 @@ class IptvParserTest {
     }
 
     @Test
+    fun m3u_doubleBom_getEpgUrl() = runBlocking {
+        // 两个 BOM 时节目单地址也要取得到：一个 BOM 那档只断了 getEpgUrl，
+        // 两个 BOM 那档只断了 isSupport 与 parse，getEpgUrl 这条路没断过
+        assertEquals("http://example.com/epg.xml", m3uParser.getEpgUrl("\uFEFF\uFEFF$m3uData"))
+    }
+
+    @Test
     fun m3u_bomAfterBlankLines_isSupported() {
         // BOM 在空行后面：先去空行再去 BOM，顺序混排也要认出来
         assertTrue(m3uParser.isSupport("", "\n\uFEFF$m3uData"))
