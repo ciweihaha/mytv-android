@@ -287,6 +287,25 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `未知频道直接返回不拉取`() = runBlocking {
+        // checkUpdate 里 releaseUrl 取不到时直接 return：频道只认
+        // stable/beta/dev 三档，SP 里残留的旧频道名（如 nightly）走到这里。
+        // 生产行为就是静默返回，不断言“应报错”；断四点：一次也不拉取、
+        // isChecking 复位、已知状态原样不动。注意复位那行在 return 之前，
+        // finally 里 _isChecking 照样复位
+        val viewModel = UpdateViewModel()
+        var fetchCalls = 0
+        viewModel.checkUpdate("1.0.0", "nightly") {
+            fetchCalls++
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        assertEquals(0, fetchCalls)
+        assertFalse(viewModel.isChecking)
+        assertFalse(viewModel.isUpdateAvailable)
+        assertFalse(viewModel.checkFailed)
+    }
+
+    @Test
     fun `检查中途取消不记失败`() = runBlocking {
         val viewModel = UpdateViewModel()
         val gate = CompletableDeferred<GitRelease>()
