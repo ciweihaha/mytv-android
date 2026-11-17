@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Base64
 import android.view.SurfaceView
 import android.view.TextureView
+import java.util.concurrent.atomic.AtomicInteger
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -102,11 +103,23 @@ internal fun Format.toVideoMetadata(video: VideoPlayer.Metadata.Video? = null): 
         height = height.takeIf { it > 0 },
         color = colorInfo?.toLogString(),
         frameRate = frameRate.takeIf { it > 0 },
-        // TODO 帧率、比特率目前是从tag中获取，有的返回空，后续需要实时计算
+        // TODO 比特率目前是从 tag 中获取，有的返回空，后续需要实时计算
+        // （无干净接口，990 轮记）；帧率 tag 缺失时已在位置轮询里用
+        // 实测渲染帧数补，见 supplementFrameRate
         bitrate = bitrate.takeIf { it > 0 },
         mimeType = sampleMimeType,
     )
 }
+
+/**
+ * tag 没给帧率时用实测渲染帧数补：1 秒采样窗口内渲染的帧数就是帧率
+ * 的近似值（天光 2289 轮姊妹检查的反向回镜：天光那边的帧率就是这么
+ * 补的，壳这边原来只从 tag 取、缺了就一直显示空）。
+ * 壳这边帧率是可空（null 即未知），与天光的 0f 同义；卡顿一帧没渲
+ * 时留着旧值，别把帧率清成未知。顶层函数方便单元测试直接调用。
+ */
+internal fun supplementFrameRate(currentFrameRate: Float?, framesInWindow: Int): Float? =
+    if (currentFrameRate == null && framesInWindow > 0) framesInWindow.toFloat() else currentFrameRate
 
 internal fun Format.toAudioMetadata(audio: VideoPlayer.Metadata.Audio? = null): VideoPlayer.Metadata.Audio {
     return (audio ?: VideoPlayer.Metadata.Audio()).copy(
@@ -143,6 +156,10 @@ class Media3VideoPlayer(
     private var currentChannelLine = ChannelLine()
     private val contentTypeAttempts = mutableMapOf<Int, Boolean>()
     private var updatePositionJob: Job? = null
+
+    // 1 秒内渲染的帧数：setVideoFrameMetadataListener 每渲染一帧加一，
+    // 位置轮询里每秒取一次、拿去补 tag 没给的帧率（见 supplementFrameRate）
+    private val renderedFrameCount = AtomicInteger(0)
 
     // 无声重试计数：BEHIND_LIVE_WINDOW / DECODING_FAILED / IO_UNSPECIFIED
     // + 瞬时网络错 IO_BAD_HTTP_STATUS(2004) / IO_NETWORK_CONNECTION_FAILED
@@ -232,6 +249,9 @@ class Media3VideoPlayer(
         videoPlayer.addListener(playerListener)
         videoPlayer.addAnalyticsListener(metadataListener)
         videoPlayer.addAnalyticsListener(eventLogger)
+        videoPlayer.setVideoFrameMetadataListener { _, _, _, _ ->
+            renderedFrameCount.incrementAndGet()
+        }
 
         surfaceView?.let { setVideoSurfaceView(it) }
         textureView?.let { setVideoTextureView(it) }
@@ -533,11 +553,29 @@ class Media3VideoPlayer(
 
                 updatePositionJob?.cancel()
                 updatePositionJob = coroutineScope.launch {
+                    var lastFrameRateSampleAtMs = System.currentTimeMillis()
                     while (true) {
                         val livePosition =
                             System.currentTimeMillis() - videoPlayer.currentLiveOffset
 
                         triggerCurrentPosition(if (livePosition > 0) livePosition else videoPlayer.currentPosition)
+                        // tag 没给帧率时用实测渲染帧数补：每 1 秒取一次
+                        // 计数（500ms 轮询里约每两拍一次）；卡顿一帧没渲
+                        // 时留着旧值。窗口是近似值，调试信息够用
+                        val nowMs = System.currentTimeMillis()
+                        if (nowMs - lastFrameRateSampleAtMs >= 1000) {
+                            lastFrameRateSampleAtMs = nowMs
+                            val frames = renderedFrameCount.getAndSet(0)
+                            val supplemented =
+                                supplementFrameRate(metadata.video?.frameRate, frames)
+                            if (supplemented != metadata.video?.frameRate) {
+                                metadata = metadata.copy(
+                                    video = (metadata.video ?: Metadata.Video())
+                                        .copy(frameRate = supplemented)
+                                )
+                                triggerMetadata(metadata)
+                            }
+                        }
                         delay(500)
                     }
                 }
@@ -701,6 +739,12 @@ class Media3VideoPlayer(
         videoPlayer.addListener(playerListener)
         videoPlayer.addAnalyticsListener(metadataListener)
         videoPlayer.addAnalyticsListener(eventLogger)
+        // 不用清监听器：setVideoFrameMetadataListener 只接受非空，
+        // 且 release() 里 videoPlayer.release() 后它再也不会回调；
+        // 软解重建（reInitPlayer）换了新播放器，那边也要再注册一次
+        videoPlayer.setVideoFrameMetadataListener { _, _, _, _ ->
+            renderedFrameCount.incrementAndGet()
+        }
     }
 
     override fun release() {

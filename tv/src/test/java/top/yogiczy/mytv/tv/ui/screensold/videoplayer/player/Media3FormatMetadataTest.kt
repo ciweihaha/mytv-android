@@ -95,6 +95,23 @@ class Media3FormatMetadataTest {
     }
 
     @Test
+    fun `帧率缺失时用实测渲染帧数补`() {
+        // 天光 2289 轮姊妹检查的反向回镜：tag 没给帧率时，1 秒内渲染
+        // 的帧数就是帧率的近似值；壳这边帧率是可空，null 与天光的 0f 同义
+        assertEquals(24f, supplementFrameRate(null, 24))
+    }
+
+    @Test
+    fun `卡顿一帧没渲时帧率保持未知`() {
+        assertNull(supplementFrameRate(null, 0))
+    }
+
+    @Test
+    fun `tag 给了帧率时实测值不覆盖`() {
+        assertEquals(25f, supplementFrameRate(25f, 24))
+    }
+
+    @Test
     fun `音频元数据完整值与菁彩声标签`() {
         val format = Format.Builder()
             .setChannelCount(6)
