@@ -1,6 +1,9 @@
 package top.yogiczy.mytv.tv.ui.screen.main
 
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelFavorite
@@ -10,6 +13,8 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLineList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
+import top.yogiczy.mytv.core.data.network.HttpException
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.tv.ui.utils.Configs
 
 class MainViewModelTest {
@@ -318,5 +323,63 @@ class MainViewModelTest {
         assertEquals(listOf("http://a.com/1"), iptvFirst[0].channelList[0].lineList.map { it.url })
         val hybridFirst = hybridChannels(input, Configs.IptvHybridMode.HYBRID_FIRST)
         assertEquals(listOf("http://a.com/1"), hybridFirst[0].channelList[0].lineList.map { it.url })
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_networkError_beforeLimit_retries() {
+        // 网络故障、第 1 次失败（attempt 从 0 数）：重试
+        assertTrue(
+            shouldRetryLoadFailure(HttpException("获取订阅源失败，请检查网络连接", null), 0, 3)
+        )
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_networkError_lastAllowedAttempt_retries() {
+        // 上限 3 次、第 3 次失败（attempt 2）：还差一次，重试
+        assertTrue(
+            shouldRetryLoadFailure(HttpException("获取订阅源失败，请检查网络连接", null), 2, 3)
+        )
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_networkError_atLimit_noRetry() {
+        // 上限 3 次、第 4 次失败（attempt 3）：到上限了，不重试
+        assertFalse(
+            shouldRetryLoadFailure(HttpException("获取订阅源失败，请检查网络连接", null), 3, 3)
+        )
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_zeroRetryCount_noRetry() {
+        // 重试次数设成 0：一次也不重试
+        assertFalse(
+            shouldRetryLoadFailure(HttpException("获取订阅源失败，请检查网络连接", null), 0, 0)
+        )
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_httpStatus404_noRetry() {
+        // 404 是状态错（HttpStatusException 不是 HttpException 的子类）：不重试
+        assertFalse(shouldRetryLoadFailure(HttpStatusException(404, "Not Found"), 0, 3))
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_httpStatus500_noRetry() {
+        // 500 同样不重试：壳这边按异常类型分档、所有状态错都不重试；
+        // 天光 2254 轮按状态码分档、500/503 会重试，两边只在 5xx 这一档
+        // 不同——本轮只钉死壳现有约定，不改语义
+        assertFalse(shouldRetryLoadFailure(HttpStatusException(500, "Server Error"), 0, 3))
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_nonHttpError_noRetry() {
+        // 解析错这类非网络错：不重试
+        assertFalse(shouldRetryLoadFailure(IllegalStateException("解析失败"), 0, 3))
+    }
+
+    @Test
+    fun shouldRetryLoadFailure_cancelled_noRetry() {
+        // 取消不是失败：不重试（catch 里原样抛出去那档）
+        assertFalse(shouldRetryLoadFailure(CancellationException("Job was cancelled"), 0, 3))
     }
 }

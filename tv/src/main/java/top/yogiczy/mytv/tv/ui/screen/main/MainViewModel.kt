@@ -94,8 +94,9 @@ class MainViewModel : ViewModel() {
             )
         }
             .retryWhen { e, attempt ->
-                if (attempt >= Configs.networkRetryCount) return@retryWhen false
-                if (e !is HttpException) return@retryWhen false
+                if (!shouldRetryLoadFailure(e, attempt, Configs.networkRetryCount)) {
+                    return@retryWhen false
+                }
 
                 _uiState.value =
                     MainUiState.Loading("加载订阅源(${attempt + 1}/${Configs.networkRetryCount})...")
@@ -174,8 +175,9 @@ class MainViewModel : ViewModel() {
                 emit(EpgRepository(epgSource).getEpgList())
             }
                 .retryWhen { e, attempt ->
-                    if (attempt >= Configs.networkRetryCount) return@retryWhen false
-                    if (e !is HttpException) return@retryWhen false
+                    if (!shouldRetryLoadFailure(e, attempt, Configs.networkRetryCount)) {
+                        return@retryWhen false
+                    }
 
                     delay(Configs.networkRetryInterval)
                     true
@@ -253,6 +255,19 @@ class MainViewModel : ViewModel() {
         var instance: MainViewModel? = null
     }
 }
+
+/**
+ * 加载失败要不要重试（纯函数，方便单元测试直接调用）：只重试网络故障、
+ * 且还没到设置的重试次数。`HttpException` 是仓库层把拉取失败包出来的
+ * 网络错（连接失败、超时、DNS）；`HttpStatusException`（404/500 等状
+ * 态错）不是它的子类、从来不重试——地址或服务端本身有问题，重试也
+ * 是白等。`attempt` 从 0 数：第一次失败是 0，等于次数上限那次就不重试。
+ * 天光 2254 轮的同款函数按状态码分档（500/503/408/429 重试）；壳这边
+ * 按异常类型分档，500 同样不重试——两边结论只在 5xx 这一档不同，改不
+ * 改是行为取舍，本轮只抽函数钉死现有约定、不改语义。
+ */
+internal fun shouldRetryLoadFailure(e: Throwable, attempt: Long, retryCount: Long): Boolean =
+    attempt < retryCount && e is HttpException
 
 /**
  * 刷新收藏列表里的频道（纯函数，方便单元测试直接调用）：只刷新属于这个源的
