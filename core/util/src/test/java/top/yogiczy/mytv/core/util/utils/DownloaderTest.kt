@@ -175,7 +175,10 @@ class DownloaderTest {
                     )
                 }
             }
-            assertTrue(ex.message?.contains("下载文件失败: 404") == true)
+            // 状态错文案收紧成全句：生产代码原文就是 "下载文件失败: <码值>"
+            // 整句，contains 的串已是全句内容，换成全句相等与直播源/节目单/
+            // 发行版三处写法统一（天光 2356 轮同款）
+            assertEquals("下载文件失败: 404", ex.message)
             assertFalse(target.exists())
             assertFalse(File(dir, "latest.apk.tmp").exists())
         } finally {
@@ -200,7 +203,8 @@ class DownloaderTest {
                     )
                 }
             }
-            assertTrue(ex.message?.contains("下载文件失败: 500") == true)
+            // 同款收紧成全句（天光 2356 轮同款）
+            assertEquals("下载文件失败: 500", ex.message)
             assertFalse(target.exists())
             assertFalse(File(dir, "latest.apk.tmp").exists())
         } finally {
