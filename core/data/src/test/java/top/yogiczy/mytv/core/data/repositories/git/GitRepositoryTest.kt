@@ -18,8 +18,9 @@ import java.net.ServerSocket
  * 断四档里能稳定复现的三档。
  * 地址里带 "github.com" 是为了让 GitHub 解析器接手——isSupport 只看
  * 子串，主机仍是 127.0.0.1，不走外网。
- * 空体那档（发行版接口返回空数据）测不到：parse 的返回类型是非空
- * GitRelease，?: 后面那行是死代码。
+ * 空体那档（发行版接口返回空数据）走 204：?: 守的是 requestStrict
+ * 回空（响应没 body 时 response.body 为空），不是 parse 回空——parse
+ * 的返回类型是非空 GitRelease，空体根本到不了 parse。
  * 取消那档也不在这里测：UpdateViewModelTest 已覆盖“检查中途取消不记失败”。
  */
 class GitRepositoryTest {
@@ -53,6 +54,17 @@ class GitRepositoryTest {
                                         .toByteArray()
                                 )
                                 out.write(content)
+                                out.flush()
+                            }
+
+                            requestLine.startsWith("GET /github.com/nocontent ") -> {
+                                // 204 无响应体：OkHttp 的 response.body 为空，
+                                // requestStrict 回空，仓库层走 ?: 那行抛
+                                // “发行版接口返回空数据”
+                                out.write(
+                                    "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
                                 out.flush()
                             }
 
@@ -215,6 +227,29 @@ class GitRepositoryTest {
                 }
             }
             assertEquals(404, ex.code)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun latestRelease_noContent_throwsEmptyDataMessage() = runBlocking {
+        // 204 无响应体那档：?: 守的是 requestStrict 回空（响应没 body），
+        // 不是 parse 回空——parse 的返回类型是非空 GitRelease，空体根本
+        // 到不了 parse。204 是成功响应，不走 404 那档；body 为空时仓库
+        // 层抛“发行版接口返回空数据”，IllegalStateException 原样透传、
+        // 不包成“请检查网络连接”
+        val server = TestHttpServer().apply { start() }
+        try {
+            val result = runCatching {
+                GitRepository().latestRelease(
+                    "http://127.0.0.1:${server.port}/github.com/nocontent"
+                )
+            }
+            assertEquals(
+                "发行版接口返回空数据",
+                result.exceptionOrNull()?.message,
+            )
         } finally {
             server.stop()
         }
