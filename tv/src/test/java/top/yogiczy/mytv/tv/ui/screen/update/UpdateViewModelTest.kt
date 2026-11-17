@@ -217,6 +217,41 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `新一轮检查开始就清掉旧的失败标记`() = runBlocking {
+        // 天光 2242 轮姊妹检查：checkFailed 的复位有两档——① 新一轮检查
+        // 开始时清掉（try 开头、拉取之前）；② 查成功后是 false。现有
+        // 用例只断了②和失败后变 true：若复位那行漏了（或挪到拉取成功
+        // 之后），失败后重查、查的过程中设置页“应用更新”行还会显示
+        // “检查更新失败”，而查完成功的用例照样全过。所以这档要在查
+        // 的过程中断：第二轮卡在拉取上时，checkFailed 已是 false、
+        // isChecking 为 true；放行查成功后仍是 false
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            throw RuntimeException("网络断了")
+        }
+        assertTrue(viewModel.checkFailed)
+
+        val started = CompletableDeferred<Unit>()
+        val releaseGate = CompletableDeferred<GitRelease>()
+        val second = async {
+            viewModel.checkUpdate("1.0.0", "stable") {
+                started.complete(Unit)
+                releaseGate.await()
+            }
+        }
+        started.await()
+        assertFalse(viewModel.checkFailed)
+        assertTrue(viewModel.isChecking)
+
+        releaseGate.complete(
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        )
+        second.await()
+        assertFalse(viewModel.checkFailed)
+        assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
     fun `检查中途取消不记失败`() = runBlocking {
         val viewModel = UpdateViewModel()
         val gate = CompletableDeferred<GitRelease>()
