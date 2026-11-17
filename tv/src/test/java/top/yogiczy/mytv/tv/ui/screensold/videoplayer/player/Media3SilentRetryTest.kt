@@ -89,8 +89,10 @@ class Media3SilentRetryTest {
     @Test
     fun `单次退避最长 3 秒、短于 5 秒加载超时`() {
         // 退避期间旧的 watchdog 还在跑（重试只在 prepare() 后才调
-        // triggerPrepared 重启它）：单次退避必须短于加载超时，
-        // 否则第 3 次退避还没等完就先报 LOAD_TIMEOUT、重试链断掉
+        // triggerPrepared 重启它）：单次退避必须短于加载超时，否则报错
+        // 一来就撞上旧 watchdog、连第 1 次退避都等不完。注意这只保“报错
+        // 刚发生时”那档——报错来得晚、旧 watchdog 剩下的时间比本次退避
+        // 短，照样先报假 LOAD_TIMEOUT（1036 轮）。
         assertTrue(silentRetryDelayMs(1) < Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
         assertTrue(silentRetryDelayMs(2) < Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
         assertTrue(silentRetryDelayMs(3) < Constants.VIDEO_PLAYER_LOAD_TIMEOUT)
