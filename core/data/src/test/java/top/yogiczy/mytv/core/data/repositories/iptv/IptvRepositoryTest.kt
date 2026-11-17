@@ -129,7 +129,10 @@ class IptvRepositoryTest {
         val result = runCatching { IptvRepository(source).getChannelGroupList(60_000) }
         val ex = result.exceptionOrNull()
         assertTrue(ex is HttpException)
-        assertTrue(ex?.message?.contains("获取订阅源失败") == true)
+        // 文案是用户看得到的：四处“请检查网络连接”包装点里，节目单与
+        // 发行版两处已钉死全句，直播源这处只断半句——“，请检查网络连接”
+        // 这半句丢了也不会红；收紧成全句相等（天光 2337 轮同款）
+        assertEquals("获取订阅源失败，请检查网络连接", ex?.message)
     }
 
     /**
