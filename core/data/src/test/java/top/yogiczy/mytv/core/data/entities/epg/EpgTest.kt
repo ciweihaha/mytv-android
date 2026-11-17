@@ -2,9 +2,15 @@ package top.yogiczy.mytv.core.data.entities.epg
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import top.yogiczy.mytv.core.data.entities.channel.Channel
+import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.empty
 import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.recentProgramme
 import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.sortedProgrammes
+import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.EMPTY
+import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme.Companion.isValid
+import java.util.Calendar
 
 /**
  * 节目单排序测试：源文件不保证节目按时间顺序，而 recentProgramme
@@ -285,6 +291,46 @@ class EpgTest {
         ).sortedProgrammes()
         val recent = epg.recentProgramme()
         assertNull(recent.now)
+        assertNull(recent.next)
+    }
+
+    @Test
+    fun empty_returnsSingleAllDayPlaceholder() {
+        // 频道查不到节目单时主界面用 Epg.empty() 兜底：节目列表里只有一条
+        // 占位节目，标题与整天跨度都要钉死——改了标题或跨度，选台页与节目
+        // 单面板上那条"精彩节目"会悄悄变样
+        val epg = Epg.empty(Channel(epgName = "CCTV-1"))
+        assertEquals(listOf("CCTV-1"), epg.channelList)
+        assertEquals(1, epg.programmeList.size)
+        assertEquals(EMPTY, epg.programmeList[0])
+        assertEquals("精彩节目", EMPTY.title)
+        // 整天跨度：今天 00:00 到 23:59:59（86400 秒减 1 秒）
+        assertEquals((24 * 3600 - 1) * 1000L, EMPTY.endAt - EMPTY.startAt)
+        // 开始时间是今天 00:00 整：只断字段本身，不与另外算的午夜比——
+        // 跨午夜跑的那一毫秒里两边日子会错开
+        val startCal = Calendar.getInstance().apply { timeInMillis = EMPTY.startAt }
+        assertEquals(0, startCal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, startCal.get(Calendar.MINUTE))
+        assertEquals(0, startCal.get(Calendar.SECOND))
+        assertEquals(0, startCal.get(Calendar.MILLISECOND))
+    }
+
+    @Test
+    fun empty_placeholderPassesValidityFilter() {
+        // 占位节目要能过 isValid() 那道过滤：节目单面板只显示有效节目，
+        // 开始/结束一旦写成 0 或倒挂，占位会被解析时那道过滤与显示层
+        // 过滤一起丢掉，没节目单的台面板上就什么都不剩
+        assertTrue(EMPTY.isValid())
+    }
+
+    @Test
+    fun empty_placeholderIsLiveAllDay() {
+        // 占位节目覆盖整天：一天里任何时刻问 recentProgramme，正在播
+        // 都是它、下一个是空；时间传参钉死，不用 wall clock（23:59:59
+        // 后半秒它已不算正在播，默认时间测法会闪）
+        val epg = Epg.empty(Channel(epgName = "CCTV-1"))
+        val recent = epg.recentProgramme(EMPTY.startAt + 3600_000)
+        assertEquals(EMPTY, recent.now)
         assertNull(recent.next)
     }
 }
