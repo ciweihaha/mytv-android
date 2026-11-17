@@ -345,4 +345,28 @@ class GitReleaseParserTest {
             )
         }
     }
+
+    @Test
+    fun dispatch_picksGiteeCustomAndDefaultParsersInOrder() {
+        // 分发点只断了 GitHub 一档：Gitee、Custom、Default 三路只在仓库层
+        // 端到端走过，没在分发点上断过。顺序本身是契约的一部分（956 轮
+        // 教训）：Default 恒 true 必须放最后，挪到前面时这三档立刻红。
+        // Custom 认 "raw.githubusercontent.com"、不含 "github.com"，GitHub
+        // 解析器抢不走它（957 轮已证实），这档也顺带钉死这一点
+        assertTrue(
+            GitReleaseParser.instances.first {
+                it.isSupport("https://gitee.com/api/v5/repos/ciweihaha/mytv-android/releases/latest")
+            } is GiteeGitReleaseParser
+        )
+        assertTrue(
+            GitReleaseParser.instances.first {
+                it.isSupport("https://raw.githubusercontent.com/ciweihaha/mytv-android/main/release.json")
+            } is CustomGitReleaseParser
+        )
+        assertTrue(
+            GitReleaseParser.instances.first {
+                it.isSupport("https://example.com/releases/latest")
+            } is DefaultGitReleaseParser
+        )
+    }
 }
