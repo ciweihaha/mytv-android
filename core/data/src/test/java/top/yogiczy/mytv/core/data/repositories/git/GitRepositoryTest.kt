@@ -18,9 +18,10 @@ import java.net.ServerSocket
  * 断四档里能稳定复现的三档。
  * 地址里带 "github.com" 是为了让 GitHub 解析器接手——isSupport 只看
  * 子串，主机仍是 127.0.0.1，不走外网。
- * 空体那档（发行版接口返回空数据）走 204：?: 守的是 requestStrict
- * 回空（响应没 body 时 response.body 为空），不是 parse 回空——parse
- * 的返回类型是非空 GitRelease，空体根本到不了 parse。
+ * 空体那档（204 无响应体）走 parse("") 抛错、包成网络错：?: 后面
+ * “发行版接口返回空数据”那行是死代码——OkHttp 5.5.1 的
+ * Exchange.openResponseBody 返回类型就是非空 ResponseBody（对
+ * parent-5.5.1 源码核实），204 也给空体，requestStrict 回不来空。
  * 取消那档也不在这里测：UpdateViewModelTest 已覆盖“检查中途取消不记失败”。
  */
 class GitRepositoryTest {
@@ -58,9 +59,11 @@ class GitRepositoryTest {
                             }
 
                             requestLine.startsWith("GET /github.com/nocontent ") -> {
-                                // 204 无响应体：OkHttp 的 response.body 为空，
-                                // requestStrict 回空，仓库层走 ?: 那行抛
-                                // “发行版接口返回空数据”
+                                // 204 无响应体：OkHttp 5.5.1 的
+                                // Exchange.openResponseBody 返回非空
+                                // ResponseBody（对 parent-5.5.1 源码核实），
+                                // 204 也给空体，不走 ?: 那行；空体进
+                                // parse("") 抛错，仓库层包成网络错
                                 out.write(
                                     "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
                                         .toByteArray()
@@ -233,12 +236,17 @@ class GitRepositoryTest {
     }
 
     @Test
-    fun latestRelease_noContent_throwsEmptyDataMessage() = runBlocking {
-        // 204 无响应体那档：?: 守的是 requestStrict 回空（响应没 body），
-        // 不是 parse 回空——parse 的返回类型是非空 GitRelease，空体根本
-        // 到不了 parse。204 是成功响应，不走 404 那档；body 为空时仓库
-        // 层抛“发行版接口返回空数据”，IllegalStateException 原样透传、
-        // 不包成“请检查网络连接”
+    fun latestRelease_noContent_throwsNetworkMessage() = runBlocking {
+        // 204 无响应体那档：首推曾断“发行版接口返回空数据”，红了——
+        // 错在我把 ?: 理解错了：?: 守的是 requestStrict 回空（响应没
+        // body），但 OkHttp 5.5.1 的 Exchange.openResponseBody 返回
+        // 类型就是非空 ResponseBody（对 parent-5.5.1 源码核实），204
+        // 也给一个空体，?: 那行走不到；空体进 parse("") 抛
+        // JsonDecodingException（不是 IllegalStateException），仓库
+        // 层包成“请检查网络连接”。204 是成功响应，不走 404 那档；这
+        // 用例钉的是仓库层“解析抛非 IllegalStateException 时包成
+        // 网络错”这一档，空数组那档走的是 IllegalStateException
+        // 透传，两档不一样
         val server = TestHttpServer().apply { start() }
         try {
             val result = runCatching {
@@ -247,7 +255,7 @@ class GitRepositoryTest {
                 )
             }
             assertEquals(
-                "发行版接口返回空数据",
+                "获取最新发行版失败，请检查网络连接",
                 result.exceptionOrNull()?.message,
             )
         } finally {
