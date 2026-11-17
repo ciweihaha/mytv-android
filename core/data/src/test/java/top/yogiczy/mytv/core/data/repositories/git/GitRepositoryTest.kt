@@ -256,6 +256,9 @@ class GitRepositoryTest {
 
     @Test
     fun latestRelease_notFound_throwsHttpStatusException() {
+        // 404 那档：只断码值不够——500 用例断了文案，404 的文案本身一次
+        // 也没断过；将来谁把分支改成按码值分两条文案，404 这边不会红。
+        // 补两行，与 500 用例措辞一致（天光 2351 轮同款）
         val server = TestHttpServer().apply { start() }
         try {
             val ex = assertThrows(HttpStatusException::class.java) {
@@ -266,6 +269,8 @@ class GitRepositoryTest {
                 }
             }
             assertEquals(404, ex.code)
+            assertTrue(ex.message?.contains("404") == true)
+            assertTrue(ex.message?.contains("请检查网络连接") == false)
         } finally {
             server.stop()
         }
