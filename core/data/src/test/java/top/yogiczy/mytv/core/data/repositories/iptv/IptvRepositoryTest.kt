@@ -325,10 +325,12 @@ class IptvRepositoryTest {
     fun `empty group list throws`() {
         // 空源报错的文案直接显示在错误页上（MainViewModel 把 ex.message
         // 放进 MainUiState.Error），只断言类型不够：文案被改掉也没人发现
+        // ——收紧成全句：生产代码原文就是固定模板“直播源里没有频道，请检查
+        // 直播源链接”，contains“没有频道”只断了中间那半句（天光 2357 轮同款）
         val ex = assertThrows(IllegalStateException::class.java) {
             checkChannelGroupListNotEmpty(ChannelGroupList())
         }
-        assertTrue(ex.message?.contains("没有频道") == true)
+        assertEquals("直播源里没有频道，请检查直播源链接", ex.message)
     }
 
     @Test
