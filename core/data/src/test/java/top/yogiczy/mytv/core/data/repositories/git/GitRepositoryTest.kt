@@ -159,6 +159,33 @@ class GitRepositoryTest {
     }
 
     @Test
+    fun latestRelease_urlWithSurroundingWhitespace_stillWorks() = runBlocking {
+        // 天光 2259 轮姊妹检查：地址首尾带空白（手输粘贴时常带上）——壳
+        // 这边同样不做 trim、不校验，直接交给 OkHttp；OkHttp 5.5.1 的
+        // HttpUrl 解析先跳过首尾的空格、制表符、换行再解析，请求按去空
+        // 白后的地址发。中间带空格（如 http://exa mple.com）仍是格式
+        // 错，不在这档测
+        val server = TestHttpServer().apply { start() }
+        try {
+            val release = GitRepository().latestRelease(
+                "  http://127.0.0.1:${server.port}/github.com/releases  "
+            )
+            assertEquals("2.2.0.219", release.version)
+            assertEquals(
+                "${Constants.GITHUB_PROXY}https://example.com/arm64.apk",
+                release.downloadUrl,
+            )
+
+            val tabbed = GitRepository().latestRelease(
+                "\thttp://127.0.0.1:${server.port}/github.com/releases\n"
+            )
+            assertEquals("2.2.0.219", tabbed.version)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun latestRelease_gitee_success_returnsParsedReleaseWithoutProxy() = runBlocking {
         // 仓库层 Gitee 整条路之前一次也没走通过：解析器层 Gitee 用例
         // 只测了 parse，分发挑 Gitee 解析器、下载地址不加代理前缀这
