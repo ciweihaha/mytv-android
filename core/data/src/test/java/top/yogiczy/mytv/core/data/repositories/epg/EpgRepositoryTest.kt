@@ -15,6 +15,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeList
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
+import top.yogiczy.mytv.core.data.network.HttpStatusException
 import top.yogiczy.mytv.core.data.utils.Globals
 import java.io.BufferedReader
 import java.io.File
@@ -69,6 +70,19 @@ class EpgRepositoryTest {
                                 // 无内容响应：不带 body，测 response.body 为空那档
                                 out.write(
                                     "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.flush()
+                            } else if (statusCode != 200) {
+                                // 错误状态：只回状态行、不带 body，测服务端状态错
+                                // 原样抛 HttpStatusException 那档
+                                val reason = when (statusCode) {
+                                    404 -> "Not Found"
+                                    500 -> "Internal Server Error"
+                                    else -> "Error"
+                                }
+                                out.write(
+                                    "HTTP/1.1 $statusCode $reason\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                                         .toByteArray()
                                 )
                                 out.flush()
@@ -409,5 +423,37 @@ class EpgRepositoryTest {
             runBlocking { repo.getEpgList() }
         }
         assertEquals("获取节目单xml失败，请检查网络连接", ex.message)
+    }
+
+    @Test
+    fun getEpgList_epgServer404_throwsHttpStatusException() {
+        // 天光 2332 轮姊妹检查：节目单拉取 404 原样抛 HttpStatusException、
+        // 别包成“请检查网络连接”——地址本身有问题，重试、换网都救不回来，
+        // 包成网络错会误导用户去查网络。404 与 500 码值不同就是两档，各断一次。
+        server = TestHttpServer("", statusCode = 404).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val ex = assertThrows(HttpStatusException::class.java) {
+            runBlocking { repo.getEpgList() }
+        }
+        assertEquals(404, ex.code)
+        assertEquals("404: Not Found", ex.message)
+        assertEquals("状态错不重试、只请求一次", 1, server.hits.get())
+    }
+
+    @Test
+    fun getEpgList_epgServer500_throwsHttpStatusException() {
+        // 同上，500 那档：服务端一时的问题也原样抛，不包成网络错
+        server = TestHttpServer("", statusCode = 500).apply { start() }
+        source = EpgSource(name = "test", url = "http://127.0.0.1:${server.port}/epg.xml")
+        val repo = EpgRepository(source)
+
+        val ex = assertThrows(HttpStatusException::class.java) {
+            runBlocking { repo.getEpgList() }
+        }
+        assertEquals(500, ex.code)
+        assertEquals("500: Internal Server Error", ex.message)
+        assertEquals("状态错不重试、只请求一次", 1, server.hits.get())
     }
 }
