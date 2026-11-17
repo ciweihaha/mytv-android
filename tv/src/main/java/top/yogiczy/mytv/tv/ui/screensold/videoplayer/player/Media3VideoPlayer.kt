@@ -492,10 +492,12 @@ class Media3VideoPlayer(
                             delay(silentRetryDelayMs(silentRetryCount))
                             videoPlayer.seekToDefaultPosition()
                             videoPlayer.prepare()
-                            // 重试也要重启加载超时 watchdog：triggerPrepared() 只在
+                            // 重试后也要重启加载超时 watchdog：triggerPrepared() 只在
                             // prepare() 里调，重试直接调 ExoPlayer 的 prepare() 会绕过
-                            // 它，watchdog 仍锚定最初那次 prepare()——新安装 5 秒超时
-                            // 会在第 3 次重试（约 8 秒）前先报 LOAD_TIMEOUT（877 轮 P2-2）。
+                            // 它，所以下面显式再调一次。但重启发生在退避等完之后——等
+                            // 待期间旧 watchdog 还在跑，若它剩下的时间比本次退避短，就
+                            // 先报一个假 LOAD_TIMEOUT（超时 1 秒时第 1 次退避几乎必撞；
+                            // 默认 5 秒时报错晚于 4 秒才撞上；877 轮 P2-2 是旧机理）。
                             triggerPrepared()
                         }
                     } else {
