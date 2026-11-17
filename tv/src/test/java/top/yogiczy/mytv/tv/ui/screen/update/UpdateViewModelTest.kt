@@ -329,6 +329,35 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `消费已下载标记后不再自动弹安装器`() = runBlocking {
+        // consumeUpdateDownloaded 的唯一作用：下载完、安装器弹过一次后
+        // 把标记清掉，否则下次打开更新页、陈旧的 latest.apk 又会自动
+        // 弹出安装器（UpdateScreen 里两处调用都在 installApk 之后）。
+        // 这方法是纯转发的一行赋值（932 轮教训：不记数就等于没测），
+        // 之前全仓没有一个用例调过它；第二遍消费仍是 false——消费是
+        // 清标记不是开关，调两次不能又弹回来
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.0.0", "stable") {
+            GitRelease(version = "9.9.9", downloadUrl = "https://example.com/app.apk")
+        }
+        val file = File.createTempFile("update-test", ".apk")
+        try {
+            viewModel.downloadAndUpdate(file) { _, path, _ ->
+                File(path).writeText("apk")
+            }
+            assertTrue(viewModel.updateDownloaded)
+
+            viewModel.consumeUpdateDownloaded()
+            assertFalse(viewModel.updateDownloaded)
+
+            viewModel.consumeUpdateDownloaded()
+            assertFalse(viewModel.updateDownloaded)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
     fun `代理下载失败回退直链再试一次`() = runBlocking {
         // 877 轮 P2-1：gh-proxy 挂了要回退 GitHub 直链再试一次。
         // 73069d7f 做过，845 轮修编译红时整段删掉了，这里用单测锁住。
