@@ -26,7 +26,7 @@ class DownloaderTest {
     /**
      * 最小 HTTP 服务（纯 java.net：com.sun.net.httpserver 不在 Android
      * 单测的编译 classpath 里）。/ok 正常返回，/partial 宣称 100 字节、
-     * 实际只发 7 字节就断开，模拟中途失败。
+     * 实际只发 7 字节就断开，模拟中途失败；/servererror 回 500。
      */
     private class TestHttpServer {
         private val serverSocket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
@@ -92,6 +92,14 @@ class DownloaderTest {
                                 out.write("${content.size.toString(16)}\r\n".toByteArray())
                                 out.write(content)
                                 out.write("\r\n0\r\n\r\n".toByteArray())
+                                out.flush()
+                            }
+
+                            requestLine.startsWith("GET /servererror ") -> {
+                                out.write(
+                                    "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
                                 out.flush()
                             }
 
@@ -168,6 +176,31 @@ class DownloaderTest {
                 }
             }
             assertTrue(ex.message?.contains("下载文件失败: 404") == true)
+            assertFalse(target.exists())
+            assertFalse(File(dir, "latest.apk.tmp").exists())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadTo_serverError_throwsWithCodeAndLeavesNoFile() {
+        // 500 那档：壳这边下载器不走 HttpStatusException（天光那档是他们
+        // 自己的实现），非 2xx 一律包成“下载文件失败: <码值>”再抛。404
+        // 已钉死，500 零覆盖——将来有人把分支收窄成只认 404，500 会
+        // 悄悄掉进网络错那档误导用户；断文案含 500、目标与临时文件都不留
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "latest.apk")
+            val ex = assertThrows(Exception::class.java) {
+                runBlocking {
+                    Downloader.downloadTo(
+                        "http://127.0.0.1:${server.port}/servererror", target.path, null
+                    )
+                }
+            }
+            assertTrue(ex.message?.contains("下载文件失败: 500") == true)
             assertFalse(target.exists())
             assertFalse(File(dir, "latest.apk.tmp").exists())
         } finally {
