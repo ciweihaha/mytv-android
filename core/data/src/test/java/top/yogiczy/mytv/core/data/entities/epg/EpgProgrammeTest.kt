@@ -61,6 +61,8 @@ class EpgProgrammeTest {
         assertEquals(false, EpgProgramme(startAt = 0, endAt = 0).isValid())
         // 开始为 0、结束正常：仍是 1970 年的垃圾时间
         assertEquals(false, EpgProgramme(startAt = 0, endAt = 3600000).isValid())
+        // 开始在将来、结束为 0（假节目：结束时间解析失败记 0）：仍无效
+        assertEquals(false, EpgProgramme(startAt = 2000, endAt = 0).isValid())
         // 结束 <= 开始
         assertEquals(false, EpgProgramme(startAt = 2000, endAt = 1000).isValid())
         assertEquals(false, EpgProgramme(startAt = 1000, endAt = 1000).isValid())
