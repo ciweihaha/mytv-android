@@ -234,6 +234,7 @@ fun MainScreen(
                         navController.navigateSingleTop(settingsViewModel.appStartupScreen)
                         checkUpdate()
                     },
+                    onBackPressed = onBackPressed,
                 )
             }
 

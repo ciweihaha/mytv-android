@@ -1,5 +1,6 @@
 package top.yogiczy.mytv.tv.ui.screen.loading
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -16,7 +17,13 @@ fun LoadingScreen(
     modifier: Modifier = Modifier,
     onShowDialog: () -> Unit = {},
     toDashboardScreen: () -> Unit = {},
+    onBackPressed: () -> Unit = {},
 ) {
+    // 加载屏也没有返回消费：启动加载时按一次返回会一路漏到 Activity
+    // 分发、默认 finish() 直接退出，跳过全应用统一的双按确认；和其
+    // 他屏一样接双按确认（AppScreen 的 BackHandler 同款）
+    BackHandler { onBackPressed() }
+
     // 导航/弹窗属于副作用，不能在组合期间直接执行（组合重跑会重复导航）；
     // LaunchedEffect(Unit) 只在进入该目的地时跑一次，行为与原来一致
     LaunchedEffect(Unit) {
