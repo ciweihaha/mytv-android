@@ -694,6 +694,12 @@ class Media3VideoPlayer(
                 if (shouldReplayOnEnded(videoPlayer.duration)) {
                     videoPlayer.seekToDefaultPosition()
                     videoPlayer.prepare()
+                    // 重备后也要重启加载超时 watchdog：triggerPrepared()
+                    // 只在 prepare() 里调，重备直接调 ExoPlayer 的
+                    // prepare() 会绕过它，所以下面显式再调一次
+                    // （无声重试／过早播完重拉同款写法）。不重启的话，
+                    // 重备后卡在缓冲就永远等不到超时、一直转圈。
+                    triggerPrepared()
                 } else if (readyAsLive) {
                     // 直播流播完：源站断了流（如凤凰 FLV 每条连接几秒就关），
                     // 不是正常播完——直播流没有“播完”这一说，播多久断了都
