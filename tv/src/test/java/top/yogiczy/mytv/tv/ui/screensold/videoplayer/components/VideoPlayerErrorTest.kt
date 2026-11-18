@@ -6,7 +6,7 @@ import org.junit.Test
 
 /**
  * 播放失败提示的错误码文案：getErrorCodeDesc 是界面第三行的中文说明，
- * 之前一次也没测过——39 个码全靠手写 when 分支，写错一个码、漏一个
+ * 之前一次也没测过——40 个码全靠手写 when 分支，写错一个码、漏一个
  * 分支，构建全过、只有播失败时才看得出来。
  * 注意：未知码回 null 是有意的——界面第二行已经显示过原文了，
  * 未知码再补第三行会把同一串连着显示两遍。
@@ -43,10 +43,11 @@ class VideoPlayerErrorTest {
     }
 
     @Test
-    fun `全部39个已知错误码都返回对应的中文说明`() {
+    fun `全部40个已知错误码都返回对应的中文说明`() {
         val expected = mapOf(
             "ERROR_UNSUPPORTED_TYPE" to "不支持的视频类型，请检查视频源。",
             "ERROR_LOAD_TIMEOUT" to "加载超时，请检查网络连接或视频源。",
+            "ERROR_LIVE_STREAM_ENDED" to "直播流已结束，请检查视频源。",
             "MEDIA3_ERROR_UNSPECIFIED" to "未知错误，请稍后再试。",
             "MEDIA3_ERROR_REMOTE_ERROR" to "远程错误，请稍后再试。",
             "MEDIA3_ERROR_BEHIND_LIVE_WINDOW" to "实时窗口错误，请稍后再试。",
@@ -85,7 +86,7 @@ class VideoPlayerErrorTest {
             "MEDIA3_ERROR_DRM_DEVICE_REVOKED" to "DRM设备被吊销，请检查视频源。",
             "MEDIA3_ERROR_DRM_LICENSE_EXPIRED" to "DRM授权已过期，请检查视频源。",
         )
-        assertEquals(39, expected.size)
+        assertEquals(40, expected.size)
         for ((code, desc) in expected) {
             assertEquals(code, desc, getErrorCodeDesc(code))
         }

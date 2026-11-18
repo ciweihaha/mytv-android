@@ -89,6 +89,16 @@ internal fun shouldSilentRetry(errorCode: Int, retriesSoFar: Int): Boolean =
     isSilentRetryError(errorCode) && retriesSoFar < Media3VideoPlayer.MAX_SILENT_RETRY
 
 /**
+ * 播完（STATE_ENDED）后该不该重备同一条流：只认点播——
+ * 直播流时长未知（C.TIME_UNSET），播完说明源站关了连接，重备同一条
+ * 死线会无限循环（凤凰 FLV 源站每条连接 2–5 秒就断，天光 v2.2.25
+ * 同款：就绪 10 秒内播完立即报断流走换线，2719 轮）；点播播完是
+ * 正常播完，从头重备是现有行为、保持。时长判定与天光 `readyAsLive`
+ *（就绪时时长未知）同一口径。顶层函数方便单元测试直接调用。
+ */
+internal fun shouldReplayOnEnded(durationMs: Long): Boolean = durationMs != C.TIME_UNSET
+
+/**
  * 容器不支持时下一个没试过的容器类型：HLS → DASH → RTSP → OTHER → SS，
  * 全试过回 null。顺序是契约——先试最常见的 HLS，再试其他；顺序写反了，
  * 兜底的先后就变了。顶层函数方便单元测试直接调用（监听器里的接线本身
@@ -594,8 +604,15 @@ class Media3VideoPlayer(
             }
 
             if (playbackState == Player.STATE_ENDED) {
-                videoPlayer.seekToDefaultPosition()
-                videoPlayer.prepare()
+                if (shouldReplayOnEnded(videoPlayer.duration)) {
+                    videoPlayer.seekToDefaultPosition()
+                    videoPlayer.prepare()
+                } else {
+                    // 直播流播完：源站关了连接，重备同一条死线会无限循环；
+                    // 报断流，上层把这条线从可播列表里拿掉、换下一条线
+                    // （天光 v2.2.25 同款：过早播完报 CUTOFF 走换线，2719 轮）
+                    triggerError(PlaybackException.LIVE_STREAM_ENDED)
+                }
             }
         }
 
