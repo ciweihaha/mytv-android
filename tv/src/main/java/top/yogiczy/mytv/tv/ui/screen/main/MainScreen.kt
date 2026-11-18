@@ -86,8 +86,8 @@ fun MainScreen(
     // 挂在 NavHost 根 modifier 上，预览阶段先于子树的所有返回处理（直播页
     // Modifier.backHandler、各屏 BackHandler）与 Activity 层分发：按下只记
     // 周期开始、不消费；无新鲜按下的抬起直接消费掉、不漏下去；有新鲜按下的
-    // 抬起才放行。注意 MainScreen 的 modifier 参数本身没被用上，守卫必须挂
-    // 在这里、不能挂在调用处传进来的 modifier 上。
+    // 抬起才放行。调用处传进来的 modifier 参数贴在链头（3017 轮核过它之
+    // 前是死参数、没贴到任何节点上），fillMaxSize 与守卫接在后面。
     val backKeyPressCycleTracker = remember { BackKeyPressCycleTracker() }
 
     var isLoading by remember { mutableStateOf(false) }
@@ -187,7 +187,7 @@ fun MainScreen(
         navController.navigateSingleTop(Screens.Loading())
     }
     NavHost(
-        modifier = Modifier.fillMaxSize().onPreviewKeyEvent {
+        modifier = modifier.fillMaxSize().onPreviewKeyEvent {
             when {
                 it.key == Key.Back && it.type == KeyEventType.KeyDown -> {
                     // 只记周期开始，不消费按下事件：按下本身不触发任何动作，
