@@ -10,6 +10,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.navigation.NavType
@@ -29,6 +32,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.PopupContent
+import top.yogiczy.mytv.tv.ui.BackKeyPressCycleTracker
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
 import top.yogiczy.mytv.tv.ui.screen.Screens
 import top.yogiczy.mytv.tv.ui.screen.about.AboutScreen
@@ -75,6 +79,14 @@ fun MainScreen(
     }
 
     val navController = rememberNavController()
+
+    // 返回键按压周期守卫：一次物理按键只算一次返回（天光 v2.2.32 回镜）。
+    // 挂在 NavHost 根 modifier 上，预览阶段先于子树的所有返回处理（直播页
+    // Modifier.backHandler、各屏 BackHandler）与 Activity 层分发：按下只记
+    // 周期开始、不消费；无新鲜按下的抬起直接消费掉、不漏下去；有新鲜按下的
+    // 抬起才放行。注意 MainScreen 的 modifier 参数本身没被用上，守卫必须挂
+    // 在这里、不能挂在调用处传进来的 modifier 上。
+    val backKeyPressCycleTracker = remember { BackKeyPressCycleTracker() }
 
     var isLoading by remember { mutableStateOf(false) }
 
@@ -173,7 +185,28 @@ fun MainScreen(
         navController.navigateSingleTop(Screens.Loading())
     }
     NavHost(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().onPreviewKeyEvent {
+            when {
+                it.key == Key.Back && it.type == KeyEventType.KeyDown -> {
+                    // 只记周期开始，不消费按下事件：按下本身不触发任何动作，
+                    // 抬起时才看有没有跟在新鲜按下后面
+                    backKeyPressCycleTracker.onKeyDown(it.nativeKeyEvent.repeatCount)
+                    false
+                }
+
+                it.key == Key.Back && it.type == KeyEventType.KeyUp -> {
+                    // 没有新鲜按下就来的抬起是重复投递或杂散事件：消费掉
+                    // 不漏下去，也不算一次返回——一次物理按键拆出两起
+                    // 间隔 ≥300ms 的抬起也不能再直接退出（天光 2.2.31 自退）
+                    if (!backKeyPressCycleTracker.onKeyUp()) return@onPreviewKeyEvent true
+                    false
+                }
+
+                else -> {
+                    false
+                }
+            }
+        },
         navController = navController,
         startDestination = if (settingsViewModel.appAgreementAgreed) Screens.Loading() else Screens.Agreement(),
         builder = {
