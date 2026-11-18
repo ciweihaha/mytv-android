@@ -128,6 +128,15 @@ abstract class VideoPlayer(
         metadata = Metadata()
     }
 
+    // 暂停时取消挂起的断流计时：暂停后位置不再前进，不取消的话位置
+    // 冻住满一个加载超时就会触发中断、重备同一条流（按 Home 退后台后
+    // 每隔一个超时重复准备一次）；天光同款（基类 pause() 里取消）。
+    // 恢复后位置一动，triggerCurrentPosition 会照常重新挂计时。
+    protected fun cancelInterruptTimeout() {
+        interruptJob?.cancel()
+        interruptJob = null
+    }
+
     protected fun triggerIsPlayingChanged(isPlaying: Boolean) {
         onIsPlayingChanged.forEach { it(isPlaying) }
     }

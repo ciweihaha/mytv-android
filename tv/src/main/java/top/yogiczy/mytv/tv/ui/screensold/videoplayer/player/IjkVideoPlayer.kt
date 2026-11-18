@@ -120,6 +120,9 @@ class IjkVideoPlayer(
     }
 
     override fun pause() {
+        // 暂停时位置不再前进：先把挂起的断流计时停掉，否则冻住的
+        // 位置满一个加载超时就会误报中断、重备同一条流（天光同款）
+        cancelInterruptTimeout()
         player.pause()
     }
 

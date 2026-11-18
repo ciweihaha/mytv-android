@@ -38,6 +38,7 @@ class VideoPlayerLoadTimeoutTest {
             triggerCurrentPosition(position, timeoutMs)
         fun emitError(error: PlaybackException?) = triggerError(error)
         fun emitReady() = triggerReady()
+        fun emitPauseCancel() = cancelInterruptTimeout()
     }
 
     @Test
@@ -207,6 +208,40 @@ class VideoPlayerLoadTimeoutTest {
         player.emitPosition(1000L, timeoutMs = 100L)
         player.stop()
         player.emitPosition(1000L, timeoutMs = 100L)
+
+        Thread.sleep(1000)
+        assertEquals(1, interruptCount.get())
+    }
+
+    @Test
+    fun `暂停取消挂起的断流计时，冻住的位置不再报中断`() {
+        // cancelInterruptTimeout() 那行（pause() 里调）：暂停后位置
+        // 不再前进，挂起的断流计时必须停掉，否则冻住的位置满一个
+        // 加载超时就会误报中断、主界面重备同一条流（按 Home 退后台
+        // 后每隔一个超时重复准备一次；天光同款）。计时本身会到由
+        // VideoPlayerStateTest 里“位置不动断流计时到期触发一次”证活
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 200L)
+        player.emitPauseCancel()
+
+        Thread.sleep(1000)
+        assertEquals(0, interruptCount.get())
+    }
+
+    @Test
+    fun `暂停后位置再动照常重设断流计时`() {
+        // 取消旧计时不等于关掉中断：恢复播放、位置一动，计时照常
+        // 重新开始，新流卡住还是要报
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        player.emitPosition(1000L, timeoutMs = 200L)
+        player.emitPauseCancel()
+        player.emitPosition(2000L, timeoutMs = 100L)
 
         Thread.sleep(1000)
         assertEquals(1, interruptCount.get())
