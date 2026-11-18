@@ -203,6 +203,12 @@ abstract class VideoPlayer(
             val UNSUPPORTED_TYPE = PlaybackException("ERROR_UNSUPPORTED_TYPE", 10002)
             val LOAD_TIMEOUT = PlaybackException("ERROR_LOAD_TIMEOUT", 10003)
             val LIVE_STREAM_ENDED = PlaybackException("ERROR_LIVE_STREAM_ENDED", 10004)
+
+            /**
+             * 断流：位置一直不前进。主界面同一条线路短时间内反复断流时
+             * 用它报错误，不再无上限重备（天光 v2.2.30 同款）
+             */
+            val CUTOFF = PlaybackException("ERROR_CUTOFF", 10005)
         }
     }
 

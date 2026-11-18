@@ -43,11 +43,12 @@ class VideoPlayerErrorTest {
     }
 
     @Test
-    fun `全部40个已知错误码都返回对应的中文说明`() {
+    fun `全部41个已知错误码都返回对应的中文说明`() {
         val expected = mapOf(
             "ERROR_UNSUPPORTED_TYPE" to "不支持的视频类型，请检查视频源。",
             "ERROR_LOAD_TIMEOUT" to "加载超时，请检查网络连接或视频源。",
             "ERROR_LIVE_STREAM_ENDED" to "直播流已结束，请检查视频源。",
+            "ERROR_CUTOFF" to "直播断流，请检查网络连接或视频源。",
             "MEDIA3_ERROR_UNSPECIFIED" to "未知错误，请稍后再试。",
             "MEDIA3_ERROR_REMOTE_ERROR" to "远程错误，请稍后再试。",
             "MEDIA3_ERROR_BEHIND_LIVE_WINDOW" to "实时窗口错误，请稍后再试。",
@@ -86,7 +87,7 @@ class VideoPlayerErrorTest {
             "MEDIA3_ERROR_DRM_DEVICE_REVOKED" to "DRM设备被吊销，请检查视频源。",
             "MEDIA3_ERROR_DRM_LICENSE_EXPIRED" to "DRM授权已过期，请检查视频源。",
         )
-        assertEquals(40, expected.size)
+        assertEquals(41, expected.size)
         for ((code, desc) in expected) {
             assertEquals(code, desc, getErrorCodeDesc(code))
         }

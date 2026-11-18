@@ -56,6 +56,7 @@ internal fun getErrorCodeDesc(error: String): String? {
         "ERROR_UNSUPPORTED_TYPE" -> "不支持的视频类型，请检查视频源。"
         "ERROR_LOAD_TIMEOUT" -> "加载超时，请检查网络连接或视频源。"
         "ERROR_LIVE_STREAM_ENDED" -> "直播流已结束，请检查视频源。"
+        "ERROR_CUTOFF" -> "直播断流，请检查网络连接或视频源。"
         "MEDIA3_ERROR_UNSPECIFIED" -> "未知错误，请稍后再试。"
         "MEDIA3_ERROR_REMOTE_ERROR" -> "远程错误，请稍后再试。"
         "MEDIA3_ERROR_BEHIND_LIVE_WINDOW" -> "实时窗口错误，请稍后再试。"

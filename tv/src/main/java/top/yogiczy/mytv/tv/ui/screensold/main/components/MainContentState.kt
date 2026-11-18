@@ -45,6 +45,25 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * 断流计数：同一条线路短时间内反复断流就放弃重备、走换线/报错。
+ * 窗口按加载超时的 6 倍算（壳默认 5 秒，窗口 30 秒）：每个断流间隔
+ * 约一个加载超时、至多不到两倍（再长加载超时先报了错，走的不是
+ * 断流这条路），窗口外的旧断流先清掉——播稳一阵子后偶尔一次源抖
+ * 不该和几小时前的记录叠加计数。顶层函数方便单元测试直接调用。
+ * （天光 v2.2.30 同款机制：天光默认 15 秒、窗口 90 秒，壳侧一直
+ * 没有——断流等于没处理，见 onInterrupt。）
+ */
+internal fun nextCutoffStreak(
+    previous: List<Long>,
+    now: Long,
+    windowMs: Long,
+    maxCutoffs: Int,
+): Pair<List<Long>, Boolean> {
+    val kept = previous.filter { now - it <= windowMs } + now
+    return kept to (kept.size > maxCutoffs)
+}
+
 @Stable
 class MainContentState(
     private val coroutineScope: CoroutineScope,
@@ -76,6 +95,11 @@ class MainContentState(
     private val playseekTimeFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
 
     private var _tempChannelScreenHideJob: Job? = null
+
+    // 断流计数：同一条线路（频道＋线路下标）短时间内反复断流的时间戳；
+    // 切到别的台/线就清零重算（见 onInterrupt），别把旧台的记录带到新台上
+    private var cutoffTimestamps = emptyList<Long>()
+    private var cutoffTarget: Pair<Channel, Int>? = null
 
     private var _isTempChannelScreenVisible by mutableStateOf(false)
     var isTempChannelScreenVisible
@@ -182,11 +206,47 @@ class MainContentState(
         }
 
         videoPlayerState.onInterrupt {
-            changeCurrentChannel(
-                _currentChannel,
-                _currentChannelLineIdx,
-                _currentPlaybackEpgProgramme
+            // 断流（位置一直不前进）先重备同一条线路；同一条线路短时间
+            // 内反复断流（见 nextCutoffStreak），就当这条线路死了，走和
+            // 报错一样的换线；末条线路时报 CUTOFF 错误、不再重备——否则
+            // 播起来又冻住的源会每隔一个加载超时就闪一下、永远不换线。
+            // 原先这里直接调 changeCurrentChannel（同台同线同节目）被
+            // 换台守卫原样挡回，断流等于没处理、画面一直冻住，只能手动
+            // 换台；天光 v2.2.30 同款机制，壳侧一直没有，这轮补上。
+            val now = System.currentTimeMillis()
+            val target = _currentChannel to _currentChannelLineIdx
+            if (cutoffTarget != target) {
+                cutoffTarget = target
+                cutoffTimestamps = emptyList()
+            }
+            val (streak, giveUp) = nextCutoffStreak(
+                cutoffTimestamps,
+                now,
+                6 * Configs.videoPlayerLoadTimeout,
+                MAX_CUTOFFS_BEFORE_GIVE_UP,
             )
+            cutoffTimestamps = streak
+            if (giveUp) {
+                cutoffTarget = null
+                cutoffTimestamps = emptyList()
+                settingsViewModel.iptvChannelLinePlayableUrlList -= currentChannelLine.url
+                settingsViewModel.iptvChannelLinePlayableHostList -= currentChannelLine.url.urlHost()
+                if (_currentPlaybackEpgProgramme == null &&
+                    _currentChannelLineIdx < _currentChannel.lineList.size - 1
+                ) {
+                    changeCurrentChannel(_currentChannel, _currentChannelLineIdx + 1)
+                } else {
+                    val cutoff = VideoPlayer.PlaybackException.CUTOFF
+                    videoPlayerState.error = "${cutoff.errorCodeName}(${cutoff.errorCode})"
+                }
+            } else {
+                changeCurrentChannel(
+                    _currentChannel,
+                    _currentChannelLineIdx,
+                    _currentPlaybackEpgProgramme,
+                    force = true,
+                )
+            }
         }
 
         videoPlayerState.onIsBuffering { isBuffering ->
@@ -355,8 +415,11 @@ class MainContentState(
 
     fun changeCurrentChannel(
         channel: Channel,
-        lineIdx: Int? = null, 
+        lineIdx: Int? = null,
         playbackEpgProgramme: EpgProgramme? = null,
+        // 断流重备用：同台同线同节目再准备一次，跳过下面的换台守卫；
+        // 平时切台不传，守卫照常拦着、避免无意义的重复准备
+        force: Boolean = false,
     ) {
         // 无线路的频道（如空列表兜底的 Channel.EMPTY）无法播放：直接忽略，
         // 避免 currentChannelLine 下标越界，也不把它记为上次播放
@@ -370,8 +433,8 @@ class MainContentState(
         settingsViewModel.iptvChannelLastPlay = channel
         val realLineIdx = getLineIdx(channel.lineList, lineIdx)
 
-        if (channel == _currentChannel && realLineIdx == _currentChannelLineIdx && playbackEpgProgramme == _currentPlaybackEpgProgramme) return
-        
+        if (!force && channel == _currentChannel && realLineIdx == _currentChannelLineIdx && playbackEpgProgramme == _currentPlaybackEpgProgramme) return
+
         if (channel == _currentChannel && realLineIdx != _currentChannelLineIdx) {
             settingsViewModel.iptvChannelLinePlayableUrlList -= currentChannelLine.url
             settingsViewModel.iptvChannelLinePlayableHostList -= currentChannelLine.url.urlHost()
@@ -510,6 +573,21 @@ class MainContentState(
         val currentLineIdx = getLineIdx(channel.lineList, lineIdx)
         return channel.lineList[currentLineIdx].playbackType != null ||
         ChannelUtil.urlSupportPlayback(channel.lineList[currentLineIdx].url)
+    }
+
+    companion object {
+        /**
+         * 断流多少次后放弃重备：和播放器里直播位置落后重试上限不同，
+         * 断流是位置不动的独立判断，第 21 次断流时放弃（见 nextCutoffStreak）；
+         * 断流放弃后不自动重调，只报 CUTOFF 或换线。
+         * 20 次不是拍脑袋：凤凰那种每条连接几秒就断、位置几秒不动就
+         * 判一次断流的源，30 秒窗口里稳态就有几次；20 次是稳态的几倍
+         * 余量，正常抖动永远碰不到，只防几秒内连断这种真死源。真正死
+         * 掉的源不用怕上限太高：播不起来根本到不了就绪、位置不动，
+         * 加载超时那路会先报；上限只管“播几秒又断流”这种半死不活的线。
+         * （天光 v2.2.30 同款：3 次改 20 次，壳侧一直没有这档机制。）
+         */
+        const val MAX_CUTOFFS_BEFORE_GIVE_UP = 20
     }
 }
 
