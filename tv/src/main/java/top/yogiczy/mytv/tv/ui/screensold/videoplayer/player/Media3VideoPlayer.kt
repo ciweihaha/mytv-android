@@ -100,32 +100,26 @@ internal fun shouldSilentRetry(errorCode: Int, retriesSoFar: Int): Boolean =
 internal fun shouldReplayOnEnded(durationMs: Long): Boolean = durationMs != C.TIME_UNSET
 
 /**
- * 直播流过早播完（STATE_ENDED）该不该按断流报：只认直播流（就绪时
- * 时长未知）、且就绪后还没播满 MAX_PREMATURE_LIVE_END_MS 就播完。
- * 播完时刻早于就绪时刻（时间戳倒挂）不报——“就绪后”这个前提本身
- * 就不成立，落回原有断流计时（天光 2719 轮同款守卫）。
- * 凤凰 FLV 源站每条连接 2–5 秒就断：就绪 10 秒内播完一定是源死了，
- * 不是正常播完——直播流没有“播完”这一说；有总时长的是点播
- * （readyAsLive 为 false），不报。顶层函数方便单元测试直接调用。
- */
-internal fun shouldReportPrematureLiveEnd(
-    readyAsLive: Boolean,
-    readyAtMs: Long,
-    nowMs: Long,
-): Boolean = readyAsLive && readyAtMs >= 0L && nowMs >= readyAtMs &&
-    nowMs - readyAtMs <= Media3VideoPlayer.MAX_PREMATURE_LIVE_END_MS
-
-/**
- * 直播流过早播完该不该在同一条线路上再试一次：60 秒窗口内累计
- * 的过早播完还没到上限就再试，超过上限就按断流报、走换线/报错。
+ * 直播流播完该不该在同一条线路上再试一次：60 秒窗口内累计
+ * 的播完还没到上限就再试，超过上限就按断流报、走换线/报错。
  * 窗口外的旧记录先清掉——播稳一阵子后偶尔一次源抖不该和几小时前
  * 的记录叠加计数，否则播得越久越容易被一次小抖动判死刑；窗口内
  * 连着断才说明这条线现在就是死的。
- * 上限 20 次是天光实测值（v2.2.26 平板实测：凤凰每条连接只活
- * 3–5 秒，60 秒里要连 12–20 次才撑得住；5 次的话 40 秒出头就
- * 烧完上限、照样报断流）。真正死掉的源不用怕上限太高：播不起来
- * 根本到不了就绪，过早播完这支不触发，加载超时那路会先报；
- * 上限只管“播几秒又断”这种半死不活的线。
+ * 凤凰 FLV 每条连接几秒就关：单次播完直接报断流会让只有一条线路
+ * 的台立刻冻住；先重拉几次（每次都是 SCF 现取新票据的新连接），
+ * 扛住偶发断流，超限才报。
+ * v2.2.29 之前只认“就绪 10 秒内播完”：播稳超 10 秒才断的落回原有
+ * 断流计时那条慢路，v2.2.28 平板实测 72 秒照样报断流——上限提到
+ * 100 次也没用，瓶颈在那条慢路。直播流没有“播完”这一说，播多久
+ * 断了都是源死了：现在不分 10 秒内外，直播流播完一律走这条快路
+ * 重拉（1–3 秒退避、上限 100 次）。
+ * 上限 100 次不是拍脑袋：实测凤凰每条连接只活 2–3 秒、加 1–3 秒
+ * 退避，60 秒窗口里稳态就有约 20 次；20 次正好卡在稳态上、65 秒
+ * 就烧完上限、照样报断流（v2.2.27 平板实测：64 秒还在播，72 秒
+ * 已报）。100 次是稳态的 5 倍余量，正常抖动永远碰不到，只防
+ * 0.6 秒内连断这种真死源。真正死掉的源不用怕上限太高：播不起来
+ * 根本到不了就绪，播完这支不触发，加载超时那路会先报；上限只管
+ * “播几秒又断”这种半死不活的线。
  * 顶层函数方便单元测试直接调用。
  */
 internal fun nextPrematureEndRetry(
@@ -139,11 +133,11 @@ internal fun nextPrematureEndRetry(
 }
 
 /**
- * 过早播完第几次重拉前等多久：第 1、2 次 1 秒，第 3、4 次 2 秒，
+ * 直播流播完第几次重拉前等多久：第 1、2 次 1 秒，第 3、4 次 2 秒，
  * 第 5 次起 3 秒封顶。不共用 silentRetryDelayMs 那档（1/2/3 秒递增）：
- * 过早播完是“播起来了、连接被源站掐了”，不是上游一时抖动——
+ * 播完是“播起来了、连接被源站掐了”，不是上游一时抖动——
  * 等太久只会让缓冲态占掉大半时间；重拉本身就是新连接，等 1–3 秒
- * 够了。调用处先把本次过早播完计入再算，入参就是第几次重试；纯算式，
+ * 够了。调用处先把本次播完计入再算，入参就是第几次重试；纯算式，
  * 抽出来方便单元测试锁死档位。
  */
 internal fun prematureEndRetryDelayMs(retryNumber: Int): Long = when {
@@ -255,28 +249,30 @@ class Media3VideoPlayer(
     // 释放时取消，过期重试不干扰新频道
     private var silentRetryJob: Job? = null
 
-    // 就绪时刻与是不是直播流：过早播完的判断用（时长未知即直播流；
-    // 点播有总时长，不报）。单调时钟 elapsedRealtime，墙钟跳变不影响
-    private var readyAtMs: Long = -1L
+    // 就绪时是不是直播流：直播流播完的判断用（时长未知即直播流；
+    // 点播有总时长，不报）
     private var readyAsLive: Boolean = false
 
-    // 60 秒窗口内过早播完的时间戳：超限才报断流；换台时清零
+    // 60 秒窗口内直播流播完的时间戳：超限才报断流；换台时清零
     private var prematureEndTimestamps: List<Long> = emptyList()
 
-    // 过早播完的延迟重拉任务：退避后同一条线路再试一次。换台、停播
+    // 直播流播完的延迟重拉任务：退避后同一条线路再试一次。换台、停播
     // 或释放时取消，过期重拉不干扰新频道（无声重试同款 hazard）
     private var prematureEndRetryJob: Job? = null
 
     companion object {
         const val MAX_SILENT_RETRY = 3
 
-        // 过早播完（就绪 10 秒内播完的直播流）判定窗口（天光 v2.2.25 同款）
-        const val MAX_PREMATURE_LIVE_END_MS = 10_000L
+        // 直播流播完在同一条线路上最多重拉几次：100 次（见
+        // nextPrematureEndRetry）。凤凰每条连接只活 2–3 秒、加 1–3 秒
+        // 退避，60 秒窗口里稳态就有约 20 次；20 次正好卡在稳态上，
+        // 65 秒就烧完、照样报断流（v2.2.27 平板实测：64 秒还在播，
+        // 72 秒已报）。100 次是稳态的 5 倍余量，正常抖动永远碰不到，
+        // 只防 0.6 秒内连断这种真死源
+        const val MAX_PREMATURE_END_RETRIES = 100
 
-        // 过早播完同一条线路最多重拉次数（天光 v2.2.26/v2.2.27 同款实测值）
-        const val MAX_PREMATURE_END_RETRIES = 20
-
-        // 过早播完计数的滑动窗口：窗口外的旧记录不清会误判
+        // 播完重试的计数窗口：60 秒内的播完才累计，窗口外
+        // 的旧记录不清会误判
         const val PREMATURE_END_RETRY_WINDOW_MS = 60_000L
     }
 
@@ -542,7 +538,7 @@ class Media3VideoPlayer(
     }
 
     private fun prepare(contentType: Int? = null) {
-        // 重新备流（换台、换容器、软解重建都走这里）：挂起的过早播完
+        // 重新备流（换台、换容器、软解重建都走这里）：挂起的直播流播完
         // 重拉任务取消，别让旧任务到点把刚备好的流又重拉一遍
         prematureEndRetryJob?.cancel()
         prematureEndRetryJob = null
@@ -565,7 +561,7 @@ class Media3VideoPlayer(
         }
 
         override fun onPlayerError(ex: androidx.media3.common.PlaybackException) {
-            // 有错就走报错那条路：挂起的过早播完重拉任务取消，别让它
+            // 有错就走报错那条路：挂起的直播流播完重拉任务取消，别让它
             // 到点又把流拉起来、和报错换线撞车（天光同款：延迟重试
             // 任务在各报错分支里先取消）
             prematureEndRetryJob?.cancel()
@@ -651,10 +647,9 @@ class Media3VideoPlayer(
                 silentRetryCount = 0
                 silentRetryJob?.cancel()
                 silentRetryJob = null
-                // 记就绪时刻与是不是直播流：过早播完的判断用
+                // 记是不是直播流：直播流播完的判断用
                 // （时长未知即直播流；点播有总时长，不报）。播起来了，
-                // 挂起的过早播完重拉任务也不需要了
-                readyAtMs = SystemClock.elapsedRealtime()
+                // 挂起的直播流播完重拉任务也不需要了
                 readyAsLive = videoPlayer.duration == C.TIME_UNSET
                 prematureEndRetryJob?.cancel()
                 prematureEndRetryJob = null
@@ -699,18 +694,17 @@ class Media3VideoPlayer(
                 if (shouldReplayOnEnded(videoPlayer.duration)) {
                     videoPlayer.seekToDefaultPosition()
                     videoPlayer.prepare()
-                } else if (shouldReportPrematureLiveEnd(
-                        readyAsLive,
-                        readyAtMs,
-                        SystemClock.elapsedRealtime(),
-                    )
-                ) {
-                    // 过早播完（就绪 10 秒内播完的直播流）：源站掐了连接，
-                    // 不是正常播完。先在同一条线路上重拉几次再报断流
-                    // （天光 v2.2.26/v2.2.27 同款：凤凰 FLV 每条连接 2–5 秒
-                    // 就关，单次播完直接报断流会让只有一条线路的台立刻冻住；
-                    // 60 秒窗口内累计 20 次还稳不住才报断流走换线）。
-                    // 重拉用的是 SCF 现取新票据的新连接，扛住偶发断流。
+                } else if (readyAsLive) {
+                    // 直播流播完：源站断了流（如凤凰 FLV 每条连接几秒就关），
+                    // 不是正常播完——直播流没有“播完”这一说，播多久断了都
+                    // 是源死了。先在同一条线路上重拉（每次都是 SCF 现取新票据
+                    // 的新连接，带 1/1/2/2/3 秒短退避），扛住偶发断流；60 秒
+                    // 窗口内累计 100 次还稳不住，才按断流报、走换线/报错流程。
+                    // v2.2.29 之前只认就绪 10 秒内播完，播稳超 10 秒的落回原有
+                    // 断流计时那条慢路，v2.2.28 平板实测 72 秒照样报断流——上限
+                    // 提到 100 次也没用，瓶颈在那条慢路；现在不分播了多久，
+                    // 直播流播完一律走这条快路。点播有总时长（readyAsLive
+                    // 为 false），正常播完根本不进这支。
                     val nowMs = SystemClock.elapsedRealtime()
                     val (streak, giveUp) = nextPrematureEndRetry(
                         prematureEndTimestamps,
