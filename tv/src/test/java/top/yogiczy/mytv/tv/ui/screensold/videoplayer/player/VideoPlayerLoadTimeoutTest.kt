@@ -5,6 +5,7 @@ import android.view.TextureView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 
@@ -34,6 +35,8 @@ class VideoPlayerLoadTimeoutTest {
         override fun setVideoTextureView(textureView: TextureView) {}
 
         fun emitPrepared(timeoutMs: Long) = triggerPrepared(timeoutMs)
+        fun emitLoadProgress(timeoutMs: Long) = notifyLoadProgress(timeoutMs)
+        fun emitCancelLoadTimeout() = cancelLoadTimeout()
         fun emitPosition(position: Long, timeoutMs: Long) =
             triggerCurrentPosition(position, timeoutMs)
         fun emitError(error: PlaybackException?) = triggerError(error)
@@ -226,6 +229,98 @@ class VideoPlayerLoadTimeoutTest {
 
         Thread.sleep(1000)
         assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
+    }
+
+    @Test
+    fun `加载有进展就给看门狗续命，超时到了也不报`() {
+        // 天光 v2.2.31 同款（aede8748）：慢启动时列表/分片陆续到货，
+        // 每次加载完成都给看门狗续命，200 毫秒的超时到了也不该报；
+        // 停了进展才报
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 200L)
+        Thread.sleep(50)
+        player.emitLoadProgress(timeoutMs = 200L)
+        Thread.sleep(50)
+        player.emitLoadProgress(timeoutMs = 200L)
+        assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
+
+        Thread.sleep(250)
+        assertEquals(
+            listOf(VideoPlayer.PlaybackException.LOAD_TIMEOUT),
+            errors,
+        )
+    }
+
+    @Test
+    fun `超过总上限的进展不再续命，超时照常只报一次`() {
+        // 总上限是超时的 3 倍（100 毫秒 ×3 = 300 毫秒）：上限内续命，
+        // 上限外再有进展也不续——细流式卡住的源不能靠零星加载无限
+        // 拖下去，到点照样只报一次超时
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        Thread.sleep(50)
+        player.emitLoadProgress(timeoutMs = 100L)
+        Thread.sleep(70)
+        player.emitLoadProgress(timeoutMs = 100L)
+        Thread.sleep(130)
+        player.emitLoadProgress(timeoutMs = 100L)
+        Thread.sleep(70)
+        player.emitLoadProgress(timeoutMs = 100L)
+
+        Thread.sleep(150)
+        assertEquals(
+            listOf(VideoPlayer.PlaybackException.LOAD_TIMEOUT),
+            errors,
+        )
+    }
+
+    @Test
+    fun `就绪后的加载进展不再重新挂看门狗`() {
+        // 就绪后分片加载还会一直回调：那时续命等于把已取消的看门狗
+        // 重新挂起来，播稳后断流就乱套了（断流归 cutoff 计时管）
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.emitReady()
+        player.emitLoadProgress(timeoutMs = 100L)
+
+        Thread.sleep(300)
+        assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
+    }
+
+    @Test
+    fun `排队前取消看门狗，等待里不再报超时`() {
+        // 延迟重试排队时取消旧看门狗：退避等待里它先到了会报一个假
+        // LOAD_TIMEOUT，取消后等待里不再报
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+        player.onError { it?.let { errors.add(it) } }
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.emitCancelLoadTimeout()
+
+        Thread.sleep(300)
+        assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
+    }
+
+    @Test
+    fun `总上限内允许续命`() {
+        assertEquals(true, shouldRestartLoadTimeout(0L, 15_000L))
+        assertEquals(true, shouldRestartLoadTimeout(44_999L, 15_000L))
+    }
+
+    @Test
+    fun `到总上限或超过就不续命`() {
+        assertFalse(shouldRestartLoadTimeout(45_000L, 15_000L))
+        assertFalse(shouldRestartLoadTimeout(60_000L, 15_000L))
     }
 
     @Test

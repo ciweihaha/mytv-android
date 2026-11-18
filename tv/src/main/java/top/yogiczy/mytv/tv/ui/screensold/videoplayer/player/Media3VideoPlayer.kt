@@ -38,6 +38,8 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
 import androidx.media3.exoplayer.smoothstreaming.SsMediaSource
+import androidx.media3.exoplayer.source.LoadEventInfo
+import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -578,6 +580,11 @@ class Media3VideoPlayer(
                         // 退避后同一条线路再试一次：上游抖动是时间性的，
                         // 立即重拉可能撞上同一次故障（票据刷新、CDN 瞬断）；
                         // 按重试次数递增延迟（第 1 次 1s、第 2 次 2s、第 3 次 3s）
+                        // 排队前先取消旧看门狗：退避等待里它还在跑，剩下的
+                        // 时间比退避短就先报一个假 LOAD_TIMEOUT（超时 1 秒时
+                        // 第 1 次退避几乎必撞）；重试开火后 triggerPrepared()
+                        // 会重新挂，这里取消不会漏掉超时判断。天光 v2.2.31 同款。
+                        cancelLoadTimeout()
                         silentRetryJob?.cancel()
                         silentRetryJob = coroutineScope.launch {
                             delay(silentRetryDelayMs(silentRetryCount))
@@ -585,10 +592,9 @@ class Media3VideoPlayer(
                             videoPlayer.prepare()
                             // 重试后也要重启加载超时 watchdog：triggerPrepared() 只在
                             // prepare() 里调，重试直接调 ExoPlayer 的 prepare() 会绕过
-                            // 它，所以下面显式再调一次。但重启发生在退避等完之后——等
-                            // 待期间旧 watchdog 还在跑，若它剩下的时间比本次退避短，就
-                            // 先报一个假 LOAD_TIMEOUT（超时 1 秒时第 1 次退避几乎必撞；
-                            // 默认 5 秒时报错晚于 4 秒才撞上；877 轮 P2-2 是旧机理）。
+                            // 它，所以下面显式再调一次；排队时旧看门狗已取消，等待里
+                            // 不会再报假超时（天光 v2.2.31 同款：超时 1 秒时第 1 次
+                            // 退避几乎必撞，默认 5 秒时报错晚于 4 秒才撞上）。
                             triggerPrepared()
                         }
                     } else {
@@ -731,6 +737,11 @@ class Media3VideoPlayer(
                         // 无反馈；重拉时清掉，之后 BUFFERING/READY 会按
                         // 正常流程再置。
                         triggerBuffering(true)
+                        // 排队前取消旧看门狗：就绪时它已被取消，但上一次
+                        // 重拉开火后 triggerPrepared() 又挂了新的——流再
+                        // 播完时新的可能还在跑，退避等待里它先到了会报假
+                        // LOAD_TIMEOUT；开火后会重新挂。天光 v2.2.31 同款。
+                        cancelLoadTimeout()
                         prematureEndRetryJob?.cancel()
                         prematureEndRetryJob = coroutineScope.launch {
                             delay(prematureEndRetryDelayMs(streak.size))
@@ -740,8 +751,8 @@ class Media3VideoPlayer(
                             // 重试后也要重启加载超时 watchdog：triggerPrepared()
                             // 只在 prepare() 里调，重试直接调 ExoPlayer 的
                             // prepare() 会绕过它，所以下面显式再调一次
-                            // （无声重试同款写法）。就绪后 watchdog 已取消，
-                            // 等待期间没有旧 watchdog 在跑，不会先报假超时。
+                            // （无声重试同款写法）；排队时旧看门狗已取消，
+                            // 等待里不会再报假超时。
                             // 上次位置变化挂起的断流计时到点还会再补一次
                             // onInterrupt，上层靠换台守卫挡住了（同台同线
                             // 同节目直接 return），重拉成功后 triggerPrepared()
@@ -868,6 +879,17 @@ class Media3VideoPlayer(
     }
 
     private val metadataListener = object : AnalyticsListener {
+        override fun onLoadCompleted(
+            eventTime: AnalyticsListener.EventTime,
+            loadEventInfo: LoadEventInfo,
+            mediaLoadData: MediaLoadData,
+        ) {
+            // 一次加载完成就是进展：SCF 慢启动时列表/分片陆续到货，
+            // 看门狗该续命而不是报超时；续命的总上限和误报清理都在
+            // 基类里决策，这里只传“有进展”这个事实。天光 v2.2.31 同款。
+            notifyLoadProgress()
+        }
+
         override fun onVideoInputFormatChanged(
             eventTime: AnalyticsListener.EventTime,
             format: Format,
