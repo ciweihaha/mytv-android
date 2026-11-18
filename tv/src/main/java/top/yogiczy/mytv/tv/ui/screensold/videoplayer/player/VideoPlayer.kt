@@ -23,6 +23,12 @@ abstract class VideoPlayer(
     }
 
     open fun release() {
+        // 释放后两路计时都不应再跑：天光同款（基类 release() 里两路都取消）；
+        // 切播放器核心时旧播放器被释放、协程作用域还活着，不取消的话挂起
+        // 的加载超时／断流计时到点还会各触发一次
+        loadTimeoutJob?.cancel()
+        loadTimeoutJob = null
+        cancelInterruptTimeout()
         clearAllListeners()
     }
 

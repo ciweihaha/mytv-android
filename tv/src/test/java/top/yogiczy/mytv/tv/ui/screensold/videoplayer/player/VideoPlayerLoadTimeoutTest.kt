@@ -143,6 +143,40 @@ class VideoPlayerLoadTimeoutTest {
     }
 
     @Test
+    fun `释放取消挂起的加载超时，不再报 LOAD_TIMEOUT`() {
+        // release() 里 loadTimeoutJob?.cancel() 那行（天光同款：基类
+        // release() 里两路计时都取消）：切播放器核心时旧播放器被释放、
+        // 协程作用域还活着，不取消的话挂起的加载超时到点还会报一次
+        // LOAD_TIMEOUT。release() 会清掉监听器，所以测的时候先释放、
+        // 再重新注册监听——只为观察计时任务本身还在不在，不依赖旧监听器
+        val player = FakeVideoPlayer()
+        val errors = mutableListOf<VideoPlayer.PlaybackException>()
+
+        player.emitPrepared(timeoutMs = 100L)
+        player.release()
+
+        player.onError { it?.let { errors.add(it) } }
+
+        Thread.sleep(1000)
+        assertEquals(emptyList<VideoPlayer.PlaybackException>(), errors)
+    }
+
+    @Test
+    fun `释放取消挂起的断流计时，不再报中断`() {
+        // release() 里 cancelInterruptTimeout() 那行：同上，断流计时那半
+        val player = FakeVideoPlayer()
+        val interruptCount = java.util.concurrent.atomic.AtomicInteger(0)
+
+        player.emitPosition(1000L, timeoutMs = 200L)
+        player.release()
+
+        player.onInterrupt { interruptCount.incrementAndGet() }
+
+        Thread.sleep(1000)
+        assertEquals(0, interruptCount.get())
+    }
+
+    @Test
     fun `空错误不取消加载超时，超时照常报`() {
         // 天光 1833 轮姊妹检查：进缓冲时底层报一次空错误清显示——
         // 空错误只是“开始缓冲”的信号，不能取消加载超时，否则卡在
