@@ -612,6 +612,15 @@ class Media3VideoPlayer(
                     // 报断流，上层把这条线从可播列表里拿掉、换下一条线
                     // （天光 v2.2.25 同款：过早播完报 CUTOFF 走换线，2719 轮）
                     triggerError(PlaybackException.LIVE_STREAM_ENDED)
+                    // 播完后位置再也不会动：把 500ms 位置轮询也停掉，
+                    // 否则它在死播放器上永远空转（每 500ms 推一次冻住
+                    // 的位置），上次位置变化挂起的断流计时到点还会再补
+                    // 一次 onInterrupt——上层靠换台守卫挡住了（同台同线
+                    // 同节目直接 return），但空转本身不该留着。
+                    // 点播重备那档不用停：prepare() 里已经停了，READY
+                    // 后会重拉。
+                    updatePositionJob?.cancel()
+                    updatePositionJob = null
                 }
             }
         }
