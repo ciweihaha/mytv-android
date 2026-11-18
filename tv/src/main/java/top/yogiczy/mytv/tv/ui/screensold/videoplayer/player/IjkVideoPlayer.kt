@@ -336,6 +336,9 @@ class IjkVideoPlayer(
 
         updateJob?.cancel()
         updateJob = coroutineScope.launch {
+            // 先把上一条流的位置复位：同 Media3 那档（天光同款）——
+            // IJK 直接报原始位置，暂停／开局冻住时更容易撞上旧值
+            triggerCurrentPosition(-1)
             while (true) {
                 triggerIsPlayingChanged(player.isPlaying)
                 triggerCurrentPosition(player.currentPosition)

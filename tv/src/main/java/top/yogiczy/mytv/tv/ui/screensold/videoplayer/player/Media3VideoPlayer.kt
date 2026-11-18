@@ -658,6 +658,11 @@ class Media3VideoPlayer(
 
                 updatePositionJob?.cancel()
                 updatePositionJob = coroutineScope.launch {
+                    // 先把上一条流的位置复位：基类只在位置变了时才重挂
+                    // 断流计时，新流第一个真实位置若恰好等于上一条流留
+                    // 下的值（点播开局就是 0、与初始值相同），计时就挂
+                    // 不上、就绪后卡在开头报不出断流；天光同款
+                    triggerCurrentPosition(-1)
                     var lastFrameRateSampleAtMs = System.currentTimeMillis()
                     while (true) {
                         val livePosition =
