@@ -167,6 +167,32 @@ class VideoPlayerStateTest {
     }
 
     @Test
+    fun `就绪清掉误报的加载超时错误，就绪通知仍转发一次（天光 2969 轮同款）`() {
+        // 慢启动时看门狗先报了一次假 LOAD_TIMEOUT，随后流真播起来了：
+        // 就绪要把误报的错误清掉。壳的状态层只有一个 error 字串（名字
+        // 加错误码写在一起），没有天光那个单独的 lastErrorCode 字段，
+        // 所以“错误码都清”那半没有对应物——清掉 error 就是清掉码。
+        // 这档此前一次也没断言过：就绪清错误那档用的是 UNSUPPORTED_TYPE，
+        // 加载超时那档只断了报错写进去，没断就绪再清掉。
+        val player = FakeVideoPlayer()
+        val state = VideoPlayerState(player)
+        state.initialize()
+        var readyCount = 0
+        var notifyCount = 0
+        state.onReady { readyCount++ }
+        state.onError { notifyCount++ }
+
+        player.emitError(VideoPlayer.PlaybackException.LOAD_TIMEOUT)
+        assertEquals("ERROR_LOAD_TIMEOUT(10003)", state.error)
+        assertEquals(1, notifyCount)
+
+        player.emitReady()
+        assertNull(state.error)
+        assertEquals(1, readyCount)
+        assertEquals(1, notifyCount)
+    }
+
+    @Test
     fun `换台重备清掉上一次的错误显示（天光 2051 轮姊妹检查）`() {
         val player = FakeVideoPlayer()
         val state = VideoPlayerState(player)
