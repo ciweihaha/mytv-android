@@ -704,8 +704,9 @@ object Configs {
             val provider = CloudSyncProvider.fromValue(
                 SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.CLOUDFLARE.value)
             )
-            // 升级迁移见 resolveCloudSyncProvider：Gist 账号空着就强制
-            // Cloudflare，不管存的是哪个提供商（见该函数的注释）。
+            // 升级迁移见 resolveCloudSyncProvider：只迁没配过账号的
+            // GitHub Gist；别的提供商（Gitee / 网络链接 / 本地文件 /
+            // WebDAV）是用户自己选的，各有自己的账号，不强迁。
             val resolved = resolveCloudSyncProvider(
                 provider,
                 cloudSyncGithubGistId,
@@ -1141,22 +1142,28 @@ object Configs {
 }
 
 /**
- * 云同步提供商升级迁移的判定（纯函数，单测覆盖）：从没配过 GitHub Gist
- * 账号的设备（Gist Id 和 Token 都是空的），不管存的是哪个提供商都改用
- * Cloudflare，装上就能同步，不用用户填任何东西。
+ * 云同步提供商升级迁移的判定（纯函数，单测覆盖）：只迁 GitHub Gist——
+ * 存的是 GITHUB_GIST、且 Gist 账号从没配过（Id 和 Token 都是空的），
+ * 才改用 Cloudflare，装上就能同步，不用用户填任何东西。
  *
- * 只看 Gist 账号、不看存的提供商：存的值可能被旧版本写坏（fromValue 越
- * 界兜底成 GITHUB_GIST），或根本就是旧版本（1.1.1.1）里没有迁移逻辑、
- * 一直停在 Gist；按原先“只迁 GITHUB_GIST”的条件这两种情况都漏网，
- * 设置页照样显示 Gist、拉取照样失败。配过 Gist（Id 或 Token 任一非
- * 空）的保持不动。
+ * 别把别的提供商也往 Cloudflare 迁：存着 GITEE_GIST / 网络链接 /
+ * 本地文件 / WebDAV 的设备，用户是自己选过这些提供商的（Gitee 那些
+ * 各有自己的账号，根本不走 GitHub Gist）；按 GitHub 账号空着就强迁，
+ * 他们的同步会被悄悄切走、数据看起来全丢了，而且设置里再选回来也
+ * 没用——cloudSyncProvider 的 getter 每次读都会再翻回 Cloudflare。
+ * 1656 轮放宽条件的两个理由其实不用放宽也盖得住：存值越界时 fromValue
+ * 本来就兜底成 GITHUB_GIST，旧版本（1.1.1.1）没迁移逻辑、一直停在
+ * Gist 的也是 GITHUB_GIST——只迁 GITHUB_GIST 就都迁得到。
+ * 配过 Gist（Id 或 Token 任一非空）的保持不动。
  */
 internal fun resolveCloudSyncProvider(
     provider: CloudSyncProvider,
     gistId: String,
     gistToken: String,
 ): CloudSyncProvider {
-    return if (gistId.isBlank() && gistToken.isBlank()) {
+    return if (provider == CloudSyncProvider.GITHUB_GIST &&
+        gistId.isBlank() && gistToken.isBlank()
+    ) {
         CloudSyncProvider.CLOUDFLARE
     } else {
         provider

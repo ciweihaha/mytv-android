@@ -12,19 +12,30 @@ class ConfigsMigrationTest {
     )
 
     @Test
-    fun resolveCloudSyncProvider_gistEmpty_forcesCloudflareRegardlessOfStoredProvider() {
-        // Gist 账号空着：不管存的是 Gist、Gitee、网络链接还是别的，都改 Cloudflare
+    fun resolveCloudSyncProvider_gistEmpty_forcesCloudflareOnlyForGithubGist() {
+        // Gist 账号空着：只迁存的 GitHub Gist；别的提供商保持不动——
+        // 1656 轮“不管存哪个提供商都迁 Cloudflare”会把配好的 Gitee /
+        // 网络链接 / 本地文件 / WebDAV 同步悄悄切走，而且设置里再选
+        // 回来也没用（getter 每次读都会再翻回 Cloudflare）
         assertEquals(
             CloudSyncProvider.CLOUDFLARE,
             resolveCloudSyncProvider(CloudSyncProvider.GITHUB_GIST, "", ""),
         )
         assertEquals(
-            CloudSyncProvider.CLOUDFLARE,
+            CloudSyncProvider.GITEE_GIST,
             resolveCloudSyncProvider(CloudSyncProvider.GITEE_GIST, "", ""),
         )
         assertEquals(
-            CloudSyncProvider.CLOUDFLARE,
+            CloudSyncProvider.NETWORK_URL,
             resolveCloudSyncProvider(CloudSyncProvider.NETWORK_URL, "", ""),
+        )
+        assertEquals(
+            CloudSyncProvider.LOCAL_FILE,
+            resolveCloudSyncProvider(CloudSyncProvider.LOCAL_FILE, "", ""),
+        )
+        assertEquals(
+            CloudSyncProvider.WEBDAV,
+            resolveCloudSyncProvider(CloudSyncProvider.WEBDAV, "", ""),
         )
         assertEquals(
             CloudSyncProvider.CLOUDFLARE,
