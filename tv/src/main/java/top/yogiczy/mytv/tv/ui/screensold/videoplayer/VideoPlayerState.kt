@@ -16,16 +16,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.flowOf
 import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
+import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.IjkVideoPlayer
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.Media3VideoPlayer
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
 import top.yogiczy.mytv.tv.ui.utils.Configs
+import top.yogiczy.mytv.tv.voice.AiSubtitleController
+import top.yogiczy.mytv.tv.voice.AiSubtitleStatus
+import top.yogiczy.mytv.tv.voice.AiTranslateProvider
+import top.yogiczy.mytv.tv.voice.AsrModels
+import top.yogiczy.mytv.tv.voice.AzureTranslator
+import top.yogiczy.mytv.tv.voice.CloudflareTranslator
+import java.io.File
 
 @Stable
 class VideoPlayerState(
     val instance: VideoPlayer,
+    // AI 字幕控制器：生产环境由 rememberVideoPlayerState 传入；单元测试
+    // 不传（null = 不启动 AI 字幕，字幕行/状态流给空值），旧的测试调
+    // 用 VideoPlayerState(player) 不用改。
+    private val aiSubtitleController: AiSubtitleController? = null,
     private var defaultDisplayModeProvider: () -> VideoPlayerDisplayMode = { VideoPlayerDisplayMode.ORIGINAL },
 ) {
     /** 显示模式 */
@@ -61,6 +75,48 @@ class VideoPlayerState(
     /** 元数据 */
     var metadata by mutableStateOf(VideoPlayer.Metadata())
 
+    /** AI 实时字幕当前行（空 = 不显示；没传控制器时恒为空） */
+    val aiSubtitleTextFlow = aiSubtitleController?.subtitleText ?: flowOf("")
+
+    /** AI 实时字幕状态（模型没下、引擎起不来等；没传控制器时恒为 IDLE） */
+    val aiSubtitleStatusFlow = aiSubtitleController?.status ?: flowOf(AiSubtitleStatus.IDLE)
+
+    /**
+     * 按当前设置同步 AI 字幕：开关、模型、翻译服务商/Key、播放器内核。
+     * 只在 Media3 内核下启动（IJK 没有音频回调）；模型没下好就不启动，
+     * 状态会是 NO_MODEL，设置页会提示去下载。换台、切设置后都要调一次。
+     */
+    fun syncAiSubtitle() {
+        val controller = aiSubtitleController ?: run {
+            instance.setAudioTapEnabled(false)
+            return
+        }
+        val enabled = Configs.aiSubtitleEnabled
+        // 播放器实例本身就能说明内核（Media3VideoPlayer = Media3 内核）；
+        // 这里不能用 settingsVM（它是 @Composable get，只能在组合里调）。
+        val isMedia3 = instance is Media3VideoPlayer
+        instance.setAudioTapEnabled(enabled && isMedia3)
+        if (!enabled || !isMedia3) {
+            controller.stop()
+            return
+        }
+        val model = AsrModels.byId(Configs.aiSubtitleModelId) ?: AsrModels.defaultModel()
+        controller.setTranslateMode(Configs.aiSubtitleTranslateMode)
+        controller.setTranslator(
+            when (Configs.aiSubtitleTranslateProvider) {
+                AiTranslateProvider.AZURE -> AzureTranslator(
+                    apiKey = Configs.aiSubtitleAzureApiKey,
+                    region = Configs.aiSubtitleAzureRegion,
+                )
+                AiTranslateProvider.CLOUDFLARE -> CloudflareTranslator(
+                    accountId = Configs.aiSubtitleCfAccountId,
+                    apiToken = Configs.aiSubtitleCfApiToken,
+                )
+            },
+        )
+        controller.start(model)
+    }
+
     fun prepare(line: ChannelLine) {
         error = null
         metadata = VideoPlayer.Metadata()
@@ -69,6 +125,9 @@ class VideoPlayerState(
         // onReady，用户中途调好的比例会被悄悄打回默认值；挪到这里后，
         // 换台/换线路/重载才回到默认值，重缓冲不再动它
         displayMode = defaultDisplayModeProvider()
+        // 换台：AI 字幕清空当前行、reset 识别流，别把上一台的尾巴带过来
+        aiSubtitleController?.resetForChannelChange()
+        syncAiSubtitle()
         instance.prepare(line)
     }
 
@@ -171,6 +230,15 @@ class VideoPlayerState(
         instance.onCurrentPositionChanged { currentPosition = it }
         instance.onMetadata { metadata = it }
         instance.onInterrupt { onInterruptListeners.forEach { it.invoke() } }
+        // AI 字幕：Media3 解出来的 PCM 喂给识别引擎（IJK 没有这路回调）
+        aiSubtitleController?.let { controller ->
+            instance.onAudioPcm { samples, sampleRate, channels ->
+                controller.acceptPcm16(samples, sampleRate, channels)
+            }
+            instance.onAudioPcmFloat { samples, sampleRate, channels ->
+                controller.acceptFloat(samples, sampleRate, channels)
+            }
+        }
     }
 
     fun release() {
@@ -178,6 +246,8 @@ class VideoPlayerState(
         onErrorListeners.clear()
         onInterruptListeners.clear()
         onIsBufferingListeners.clear()
+        aiSubtitleController?.stop()
+        instance.setAudioTapEnabled(false)
         instance.release()
     }
 }
@@ -198,7 +268,18 @@ fun rememberVideoPlayerState(
             Configs.VideoPlayerCore.IJK -> IjkVideoPlayer(context, coroutineScope)
         }
 
-        VideoPlayerState(player, defaultDisplayModeProvider)
+        // AI 实时字幕控制器：和播放器同生命周期（remember 的 key 和
+        // 播放器一致，切内核时一起重建）；模型目录和下载器同一个
+        val aiSubtitleController = AiSubtitleController(
+            context = context,
+            modelsDir = File(Globals.cacheDir, "asr-models"),
+            scope = coroutineScope,
+        )
+        VideoPlayerState(
+            instance = player,
+            aiSubtitleController = aiSubtitleController,
+            defaultDisplayModeProvider = defaultDisplayModeProvider,
+        )
     }
 
     DisposableEffect(videoPlayerCore, forceSoftDecode) {

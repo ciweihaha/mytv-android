@@ -238,6 +238,31 @@ object Configs {
         /** 播放器 停止上一媒体项 */
         VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM,
 
+        /** ==================== AI 实时字幕 ==================== */
+        /** AI 实时字幕 开关 */
+        AI_SUBTITLE_ENABLED,
+
+        /** AI 实时字幕 模型 id（AsrModels 里的 id） */
+        AI_SUBTITLE_MODEL_ID,
+
+        /** AI 实时字幕 翻译模式（AiTranslateMode 的名字） */
+        AI_SUBTITLE_TRANSLATE_MODE,
+
+        /** AI 实时字幕 翻译服务商（AiTranslateProvider 的名字） */
+        AI_SUBTITLE_TRANSLATE_PROVIDER,
+
+        /** AI 实时字幕 Azure 翻译 Key */
+        AI_SUBTITLE_AZURE_API_KEY,
+
+        /** AI 实时字幕 Azure 区域（可空，免费层有些区不用填） */
+        AI_SUBTITLE_AZURE_REGION,
+
+        /** AI 实时字幕 Cloudflare 账号 ID */
+        AI_SUBTITLE_CF_ACCOUNT_ID,
+
+        /** AI 实时字幕 Cloudflare API Token */
+        AI_SUBTITLE_CF_API_TOKEN,
+
         /** ==================== 主题 ==================== */
         /** 当前应用主题 */
         THEME_APP_CURRENT,
@@ -275,9 +300,6 @@ object Configs {
 
         /** 云同步 webdav 密码 */
         CLOUD_SYNC_WEBDAV_PASSWORD,
-
-        /** 云同步 Cloudflare 地址 */
-        CLOUD_SYNC_CLOUDFLARE_URL,
     }
 
     /**
@@ -672,6 +694,57 @@ object Configs {
         get() = SP.getBoolean(KEY.VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM.name, false)
         set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM.name, value)
 
+    /** ==================== AI 实时字幕 ==================== */
+    /** AI 实时字幕 开关 */
+    var aiSubtitleEnabled: Boolean
+        get() = SP.getBoolean(KEY.AI_SUBTITLE_ENABLED.name, false)
+        set(value) = SP.putBoolean(KEY.AI_SUBTITLE_ENABLED.name, value)
+
+    /** AI 实时字幕 模型 id（默认流式中文模型） */
+    var aiSubtitleModelId: String
+        get() = SP.getString(KEY.AI_SUBTITLE_MODEL_ID.name, "").ifBlank {
+            top.yogiczy.mytv.tv.voice.AsrModels.defaultModel().id
+        }
+        set(value) = SP.putString(KEY.AI_SUBTITLE_MODEL_ID.name, value)
+
+    /** AI 实时字幕 翻译模式（默认只翻英语） */
+    var aiSubtitleTranslateMode: top.yogiczy.mytv.tv.voice.AiTranslateMode
+        get() = runCatching {
+            top.yogiczy.mytv.tv.voice.AiTranslateMode.valueOf(
+                SP.getString(KEY.AI_SUBTITLE_TRANSLATE_MODE.name, "")
+            )
+        }.getOrDefault(top.yogiczy.mytv.tv.voice.AiTranslateMode.ENGLISH_ONLY)
+        set(value) = SP.putString(KEY.AI_SUBTITLE_TRANSLATE_MODE.name, value.name)
+
+    /** AI 实时字幕 翻译服务商（默认 Azure） */
+    var aiSubtitleTranslateProvider: top.yogiczy.mytv.tv.voice.AiTranslateProvider
+        get() = runCatching {
+            top.yogiczy.mytv.tv.voice.AiTranslateProvider.valueOf(
+                SP.getString(KEY.AI_SUBTITLE_TRANSLATE_PROVIDER.name, "")
+            )
+        }.getOrDefault(top.yogiczy.mytv.tv.voice.AiTranslateProvider.AZURE)
+        set(value) = SP.putString(KEY.AI_SUBTITLE_TRANSLATE_PROVIDER.name, value.name)
+
+    /** AI 实时字幕 Azure 翻译 Key（用户自己去微软免费开） */
+    var aiSubtitleAzureApiKey: String
+        get() = SP.getString(KEY.AI_SUBTITLE_AZURE_API_KEY.name, "")
+        set(value) = SP.putString(KEY.AI_SUBTITLE_AZURE_API_KEY.name, value)
+
+    /** AI 实时字幕 Azure 区域（可空） */
+    var aiSubtitleAzureRegion: String
+        get() = SP.getString(KEY.AI_SUBTITLE_AZURE_REGION.name, "")
+        set(value) = SP.putString(KEY.AI_SUBTITLE_AZURE_REGION.name, value)
+
+    /** AI 实时字幕 Cloudflare 账号 ID */
+    var aiSubtitleCfAccountId: String
+        get() = SP.getString(KEY.AI_SUBTITLE_CF_ACCOUNT_ID.name, "")
+        set(value) = SP.putString(KEY.AI_SUBTITLE_CF_ACCOUNT_ID.name, value)
+
+    /** AI 实时字幕 Cloudflare API Token */
+    var aiSubtitleCfApiToken: String
+        get() = SP.getString(KEY.AI_SUBTITLE_CF_API_TOKEN.name, "")
+        set(value) = SP.putString(KEY.AI_SUBTITLE_CF_API_TOKEN.name, value)
+
     /** ==================== 主题 ==================== */
     /** 当前应用主题 */
     var themeAppCurrent: AppThemeDef?
@@ -692,21 +765,9 @@ object Configs {
 
     /** 云同步 提供商 */
     var cloudSyncProvider: CloudSyncProvider
-        get() {
-            val provider = CloudSyncProvider.fromValue(
-                SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.CLOUDFLARE.value)
-            )
-            // 升级迁移：老版本默认是 GitHub Gist；从没配过 Gist 账号的设备
-            // （Gist Id 和 Token 都是空的），升级后自动改用 Cloudflare，
-            // 装上就能同步，不用用户填任何东西；配过 Gist 的保持不动。
-            if (provider == CloudSyncProvider.GITHUB_GIST &&
-                cloudSyncGithubGistId.isBlank() && cloudSyncGithubGistToken.isBlank()
-            ) {
-                cloudSyncProvider = CloudSyncProvider.CLOUDFLARE
-                return CloudSyncProvider.CLOUDFLARE
-            }
-            return provider
-        }
+        get() = CloudSyncProvider.fromValue(
+            SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.GITHUB_GIST.value)
+        )
         set(value) = SP.putInt(KEY.CLOUD_SYNC_PROVIDER.name, value.value)
 
     /** 云同步 github gist id */
@@ -754,11 +815,6 @@ object Configs {
     var cloudSyncWebDavPassword: String
         get() = SP.getString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, "")
         set(value) = SP.putString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, value)
-
-    /** 云同步 Cloudflare 地址（内置默认值，不用用户填） */
-    var cloudSyncCloudflareUrl: String
-        get() = SP.getString(KEY.CLOUD_SYNC_CLOUDFLARE_URL.name, Constants.CLOUDFLARE_SYNC_URL)
-        set(value) = SP.putString(KEY.CLOUD_SYNC_CLOUDFLARE_URL.name, value)
 
     // 添加网络重试次数和间隔时间
     var networkRetryCount: Long
@@ -930,7 +986,6 @@ object Configs {
             cloudSyncWebDavUrl = cloudSyncWebDavUrl,
             cloudSyncWebDavUsername = cloudSyncWebDavUsername,
             cloudSyncWebDavPassword = cloudSyncWebDavPassword,
-            cloudSyncCloudflareUrl = cloudSyncCloudflareUrl,
             networkRetryCount = networkRetryCount,
             networkRetryInterval = networkRetryInterval,
         )
@@ -1019,7 +1074,6 @@ object Configs {
         configs.cloudSyncWebDavUrl?.let { cloudSyncWebDavUrl = it }
         configs.cloudSyncWebDavUsername?.let { cloudSyncWebDavUsername = it }
         configs.cloudSyncWebDavPassword?.let { cloudSyncWebDavPassword = it }
-        configs.cloudSyncCloudflareUrl?.let { cloudSyncCloudflareUrl = it }
         configs.networkRetryCount?.let { networkRetryCount = it }
         configs.networkRetryInterval?.let { networkRetryInterval = it }
     }
@@ -1106,7 +1160,6 @@ object Configs {
         val cloudSyncWebDavUrl: String? = null,
         val cloudSyncWebDavUsername: String? = null,
         val cloudSyncWebDavPassword: String? = null,
-        val cloudSyncCloudflareUrl: String? = null,
         val networkRetryCount: Long? = null,
         val networkRetryInterval: Long? = null,
     ) {

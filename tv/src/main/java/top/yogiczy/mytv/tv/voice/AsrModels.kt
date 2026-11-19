@@ -24,20 +24,42 @@ data class AsrModel(
     val kind: AsrModelKind,
     /** 支持的语言 */
     val languages: String,
-    /** .tar.bz2 下载地址 */
-    val downloadUrl: String,
+    /** 压缩包文件名（主/备两个下载地址共用） */
+    val archiveFileName: String,
     /** 约大小（字节），仅作显示 */
     val approxSizeBytes: Long,
 ) {
-    /** 压缩包文件名 */
-    val archiveFileName: String get() = downloadUrl.substringAfterLast("/")
+    /** 下载地址（按顺序试）：国内镜像在前，GitHub 直链兜底。
+     * AsrModelManager 按这个顺序一个一个试，哪个通了用哪个。 */
+    val downloadUrls: List<String> get() = AsrModels.DOWNLOAD_URLS.map { it + archiveFileName }
+
+    /** 主下载地址：第一个国内镜像 */
+    val downloadUrl: String get() = downloadUrls.first()
+
+    /** 备用下载地址：GitHub 直链，镜像不通时回退 */
+    val fallbackDownloadUrl: String get() = AsrModels.DIRECT_BASE_URL + archiveFileName
 
     /** 解压后的模型目录名（压缩包名去掉 .tar.bz2） */
     val modelDirName: String get() = archiveFileName.removeSuffix(".tar.bz2")
 }
 
 object AsrModels {
-    private const val BASE_URL =
+    /** 下载地址前缀（按顺序试）：国内镜像在前，GitHub 直链兜底。
+     * 2026-11-19 平板实测：ghfast.top 对 sherpa-onnx 模型回 403，
+     * gh-proxy.com 能下全量（57MB，约 30 秒），所以 gh-proxy 在前、
+     * ghfast 在后；要换镜像只改这个表。 */
+    val DOWNLOAD_URLS: List<String> = listOf(
+        "https://gh-proxy.com/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/",
+        "https://ghfast.top/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/",
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/",
+    )
+
+    /** 主下载地址前缀：第一个国内镜像 */
+    const val MIRROR_BASE_URL =
+        "https://gh-proxy.com/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
+
+    /** 备用下载地址前缀：GitHub 直链，镜像不通时回退 */
+    const val DIRECT_BASE_URL =
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
 
     /** 默认推荐：流式、中文、int8 量化，体积小、延迟低 */
@@ -49,8 +71,7 @@ object AsrModels {
             displayName = "流式 Zipformer 中文",
             kind = AsrModelKind.STREAMING,
             languages = "中文",
-            downloadUrl = BASE_URL +
-                "sherpa-onnx-streaming-zipformer-ctc-multi-zh-hans-int8-2023-12-13.tar.bz2",
+            archiveFileName = "sherpa-onnx-streaming-zipformer-ctc-multi-zh-hans-int8-2023-12-13.tar.bz2",
             approxSizeBytes = 122L * 1024 * 1024,
         ),
         AsrModel(
@@ -58,8 +79,7 @@ object AsrModels {
             displayName = "流式 Zipformer 中英双语",
             kind = AsrModelKind.STREAMING,
             languages = "中文、英文",
-            downloadUrl = BASE_URL +
-                "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2",
+            archiveFileName = "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2",
             approxSizeBytes = 488L * 1024 * 1024,
         ),
         AsrModel(
@@ -67,8 +87,7 @@ object AsrModels {
             displayName = "SenseVoice 多语",
             kind = AsrModelKind.OFFLINE,
             languages = "中文、英文、日文、韩文、粤语",
-            downloadUrl = BASE_URL +
-                "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2",
+            archiveFileName = "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2",
             approxSizeBytes = 155L * 1024 * 1024,
         ),
         AsrModel(
@@ -76,8 +95,7 @@ object AsrModels {
             displayName = "Paraformer 中文",
             kind = AsrModelKind.OFFLINE,
             languages = "中文",
-            downloadUrl = BASE_URL +
-                "sherpa-onnx-paraformer-zh-2023-09-14.tar.bz2",
+            archiveFileName = "sherpa-onnx-paraformer-zh-2023-09-14.tar.bz2",
             approxSizeBytes = 218L * 1024 * 1024,
         ),
         AsrModel(
@@ -85,7 +103,7 @@ object AsrModels {
             displayName = "Whisper tiny",
             kind = AsrModelKind.OFFLINE,
             languages = "多语",
-            downloadUrl = BASE_URL + "sherpa-onnx-whisper-tiny.tar.bz2",
+            archiveFileName = "sherpa-onnx-whisper-tiny.tar.bz2",
             approxSizeBytes = 111L * 1024 * 1024,
         ),
         AsrModel(
@@ -93,7 +111,7 @@ object AsrModels {
             displayName = "Whisper base",
             kind = AsrModelKind.OFFLINE,
             languages = "多语",
-            downloadUrl = BASE_URL + "sherpa-onnx-whisper-base.tar.bz2",
+            archiveFileName = "sherpa-onnx-whisper-base.tar.bz2",
             approxSizeBytes = 198L * 1024 * 1024,
         ),
     )

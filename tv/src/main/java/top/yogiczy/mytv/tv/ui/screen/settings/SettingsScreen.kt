@@ -41,6 +41,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsEpgRefreshTi
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsEpgSourceScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsUiControlSettingScreen
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsAiSubtitleScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsNetworkRetryCountScreen
@@ -192,6 +193,9 @@ fun SettingsScreen(
                         },
                         toVideoPlayerBufferTimeScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.VIDEO_PLAYER_BUFFER_TIME.name)
+                        },
+                        toAiSubtitleScreen = {
+                            navController.navigateSingleTop(SettingsSubCategories.AI_SUBTITLE.name)
                         },
                         onBackPressed = { navController.navigateUp() },
                     )
@@ -425,6 +429,13 @@ fun SettingsScreen(
                             settingsViewModel.uiVideoPlayerSubtitle = it
                             // navController.navigateUp()
                         },
+                        onBackPressed = { navController.navigateUp() },
+                    )
+                }
+
+                composable(SettingsSubCategories.AI_SUBTITLE.name) {
+                    SettingsAiSubtitleScreen(
+                        settingsViewModel = settingsViewModel,
                         onBackPressed = { navController.navigateUp() },
                     )
                 }

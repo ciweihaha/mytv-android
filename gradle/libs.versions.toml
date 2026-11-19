@@ -19,7 +19,6 @@ kotlinx-serialization = "1.13.0"
 androidasync = "3.1.0"
 compose-foundation = "1.12.1"
 tinypinyin = "2.0.3.RELEASE"
-sherpaOnnx = "1.13.4"
 commonsCompress = "1.27.1"
 tvMaterial = "1.1.0"
 navigationCompose = "2.10.2"
@@ -71,10 +70,9 @@ tinypinyin = { module = "io.github.biezhi:TinyPinyin", version.ref = "tinypinyin
 quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 kxml2 = { group = "net.sf.kxml", name = "kxml2", version.ref = "kxml2" }
 xmlpull = { group = "xmlpull", name = "xmlpull", version.ref = "xmlpull" }
-# AI 实时字幕：sherpa-onnx 不在 Maven Central 上，走 JitPack
-#（settings.gradle.kts 里已有 jitpack 仓库）；版本与 3.x 一致 1.13.4。
-# commons-compress 解 .tar.bz2 模型包（Android SDK 没有内置 bzip2/tar）。
-sherpa-onnx = { group = "com.github.k2-fsa", name = "sherpa-onnx", version.ref = "sherpaOnnx" }
+# AI 实时字幕：sherpa-onnx 不在 Maven Central 上，JitPack 坐标也解析
+# 不到（pom 404），推理 AAR 直接放在 tv/libs/ 下（sherpa-onnx-1.13.4.aar），
+# 不走依赖坐标。commons-compress 解 .tar.bz2 模型包（Android SDK 没有内置 bzip2/tar）。
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
 
 [plugins]

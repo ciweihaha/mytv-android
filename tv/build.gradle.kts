@@ -36,12 +36,6 @@ android {
         }
 
         buildConfigField("String", "SENTRY_DSN", "\"${getProperty("sentry.dsn") ?: System.getenv("SENTRY_DSN")}\"")
-        // Cloudflare 云同步密钥：构建时打进 BuildConfig.MYTV_SYNC_KEY，
-        // 请求头 X-Sync-Key 带它才能读写 Worker 上的同步数据。CI 从
-        // GitHub secret MYTV_SYNC_KEY 取；本地构建未设置时为空串
-        // （同步走 Cloudflare 时会被 Worker 拒 401，改用 Gist，
-        // 或本地构建时设 MYTV_SYNC_KEY 环境变量）。
-        buildConfigField("String", "MYTV_SYNC_KEY", "\"${System.getenv("MYTV_SYNC_KEY") ?: ""}\"")
         // 发版 tag（如 V3.0.0.242）：Release 工作流在打 tag 构建时把 tag 名写进来，
         // 更新检查拿它和线上最新版比——内部版本号 1.1.1.N 和 tag 的 3.0.0.N 是
         // 两套编号，直接比内部版永远报“有新版”。未设置时是空串（不是 "null"，
@@ -208,13 +202,18 @@ dependencies {
 
     implementation(libs.tinypinyin)
 
-    // AI 实时字幕：模型下载/解包只用 commons-compress 解 .tar.bz2 模型包。
-    // sherpa-onnx 的推理依赖先不引：libs.sherpa.onnx 这个坐标在 JitPack
-    // 上找不到（pom 404），引了构建直接红；树里也没有任何代码用到它的
-    // 类。等推理代码真正接入时，再按能解析的坐标加回来（注意别再引
-    // onnxruntime-android：预编译 AAR 的 libsherpa-onnx-jni.so 要的是
-    // OrtGetApiBase@VERS_1.27.1，onnxruntime-android 1.22.0 只有
-    // VERS_1.22.0，混用会链接失败）。
+    // AI 实时字幕：推理用 sherpa-onnx，AAR 直接放在 tv/libs/ 下
+    // （sherpa-onnx-1.13.4.aar，GitHub release 官方包，构建时由下面
+    // 的 fileTree("libs", "*.aar") 引用）。sherpa-onnx 不在 Maven
+    // Central 上，JitPack 坐标也解析不到（pom 404），所以不走依赖
+    // 坐标、直接用本地 AAR。
+    // 重要：千万别再单独引 onnxruntime-android——AAR 里自带
+    // libonnxruntime.so（1.27.0），libsherpa-onnx-jni.so 要的正是
+    // 它提供的 OrtGetApiBase@VERS_1.27.0（已用 readelf 核对过）；
+    // 另引一个 onnxruntime-android（比如 1.22.0）会打包两份
+    // libonnxruntime.so、符号版本对不上，运行时链接失败。
+    // 换 sherpa-onnx 版本时，换 tv/libs/ 下的 AAR 文件即可（注意
+    // 新版 AAR 自带的 onnxruntime 版本可能变，以它为准）。
     implementation(libs.commons.compress)
 
     implementation(project(":core:data"))
