@@ -616,8 +616,17 @@ class Media3VideoPlayer(
                         // 会重新挂，这里取消不会漏掉超时判断。天光 v2.2.31 同款。
                         cancelLoadTimeout()
                         silentRetryJob?.cancel()
+                        // 壳没有天光的 triggerReconnecting（“正在重连…”
+                        // 指示）：无声重试是静默的、报错前不发 triggerError，
+                        // 退避等待 1–3 秒里界面会冻在最后一帧无反馈；等待
+                        // 期间用已有的 triggerBuffering(true) 顶一下，界面
+                        // 会显示缓冲态（临时台号屏）；开火时清掉，之后
+                        // BUFFERING/READY 会按正常流程再置（过早播完重拉
+                        // 同款写法）。
+                        triggerBuffering(true)
                         silentRetryJob = coroutineScope.launch {
                             delay(silentRetryDelayMs(silentRetryCount))
+                            triggerBuffering(false)
                             videoPlayer.seekToDefaultPosition()
                             videoPlayer.prepare()
                             // 重试后也要重启加载超时 watchdog：triggerPrepared() 只在
