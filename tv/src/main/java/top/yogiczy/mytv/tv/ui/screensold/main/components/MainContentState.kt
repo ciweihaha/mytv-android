@@ -64,6 +64,35 @@ internal fun nextCutoffStreak(
     return kept to (kept.size > maxCutoffs)
 }
 
+/**
+ * 自动换线时找下一条能播的线：从 fromIdx 往后第一条非网页线。
+ * 播失败自动换线（见 onError / onInterrupt）绝不能落到网页线
+ * 上——否则切台播着播着会突然跳出央视网页（网页优先模式下网页线
+ * 还排在订阅源前面）。没有能播的线就返回 null，调用方按末条线
+ * 处理（报错误、不换线）。顶层函数方便单元测试直接调用。
+ */
+internal fun nextPlayableLineIdx(
+    lineList: ChannelLineList,
+    fromIdx: Int,
+): Int? {
+    for (i in fromIdx + 1 until lineList.size) {
+        if (lineList[i].hybridType != ChannelLine.HybridType.WebView) return i
+    }
+    return null
+}
+
+/**
+ * 切台默认选线时找第一条能播的线：第一条非网页线。
+ * 上面两路（播通过的地址、同 host）都没命中时原来回 0，网页优先
+ * 模式下 0 号就是网页线、切台直接跳网页。改成第一条能播的线；
+ * 全是网页线时回 0（纯网页台只能看网页，保持原行为）。
+ * 顶层函数方便单元测试直接调用。
+ */
+internal fun firstPlayableLineIdx(lineList: ChannelLineList): Int {
+    val idx = lineList.indexOfFirst { it.hybridType != ChannelLine.HybridType.WebView }
+    return if (idx >= 0) idx else 0
+}
+
 @Stable
 class MainContentState(
     private val coroutineScope: CoroutineScope,
@@ -200,8 +229,11 @@ class MainContentState(
             settingsViewModel.iptvChannelLinePlayableUrlList -= currentChannelLine.url
             settingsViewModel.iptvChannelLinePlayableHostList -= currentChannelLine.url.urlHost()
 
-            if (_currentChannelLineIdx < _currentChannel.lineList.size - 1) {
-                changeCurrentChannel(_currentChannel, _currentChannelLineIdx + 1)
+            // 自动换线跳过网页线：下一条是网页线就再往后找，没有能播
+            // 的线就停在当前线（和原来末条线一样不换线、只报错误），
+            // 绝不跳出网页
+            nextPlayableLineIdx(_currentChannel.lineList, _currentChannelLineIdx)?.let { nextIdx ->
+                changeCurrentChannel(_currentChannel, nextIdx)
             }
         }
 
@@ -231,10 +263,11 @@ class MainContentState(
                 cutoffTimestamps = emptyList()
                 settingsViewModel.iptvChannelLinePlayableUrlList -= currentChannelLine.url
                 settingsViewModel.iptvChannelLinePlayableHostList -= currentChannelLine.url.urlHost()
-                if (_currentPlaybackEpgProgramme == null &&
-                    _currentChannelLineIdx < _currentChannel.lineList.size - 1
-                ) {
-                    changeCurrentChannel(_currentChannel, _currentChannelLineIdx + 1)
+                // 自动换线跳过网页线（同 onError）：没有能播的线就报
+                // CUTOFF 错误，别跳出网页
+                val nextIdx = nextPlayableLineIdx(_currentChannel.lineList, _currentChannelLineIdx)
+                if (_currentPlaybackEpgProgramme == null && nextIdx != null) {
+                    changeCurrentChannel(_currentChannel, nextIdx)
                 } else {
                     val cutoff = VideoPlayer.PlaybackException.CUTOFF
                     videoPlayerState.error = "${cutoff.errorCodeName}(${cutoff.errorCode})"
@@ -410,7 +443,15 @@ class MainContentState(
             } else idx
         } else lineList.resolveLineIdx(lineIdx)
 
-        return max(0, min(idx, lineList.size - 1))
+        // 切台默认选线也跳过网页线：上面两路都没命中时原来回 0，
+        // 网页优先模式下 0 号就是网页线、切台直接跳网页；改成第
+        // 一条能播的线（全是网页线时回 0，保持原行为）。手动换线
+        // 传了明确下标的不走这里，不受影响
+        return if (lineIdx == null && idx < 0) {
+            firstPlayableLineIdx(lineList)
+        } else {
+            max(0, min(idx, lineList.size - 1))
+        }
     }
 
     fun changeCurrentChannel(
