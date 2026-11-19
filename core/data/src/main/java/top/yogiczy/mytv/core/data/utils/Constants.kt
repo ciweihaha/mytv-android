@@ -137,9 +137,11 @@ object Constants {
     const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 5 // 5秒
 
     /**
-     * 播放器加载缓存时间
+     * 播放器加载缓存时间：默认 1 秒。0 会让 Media3 的 minBuffer / 起播
+     * 缓冲全是 0、零缓冲起播，分片稍慢就反复冻住（卡顿）；见
+     * Media3VideoPlayer.loadControlBufferDurationsMs。
      */
-    const val VIDEO_PLAYER_BUFFER_TIME = 0L
+    const val VIDEO_PLAYER_BUFFER_TIME = 1000L
 
     /**
      * 日志历史最大保留条数

@@ -189,6 +189,32 @@ internal fun Format.toVideoMetadata(video: VideoPlayer.Metadata.Video? = null): 
 }
 
 /**
+ * ExoPlayer 缓冲时长（纯函数，单测覆盖）：videoPlayerBufferTime 是用户
+ * 在设置里选的“播放缓冲”，默认 0；0 会让 minBuffer / 起播缓冲 / 重缓
+ * 冲后起播缓冲全是 0——播起来手里一点余粮都没有，分片稍慢（中继取列
+ * 表要 1–3 秒）就冻住，冻住后一有数据就立刻续播、又立刻冻住，画面一
+ * 卡一卡，还不触发“正在重连”（播放器自己能恢复，只是反复卡）。所以
+ * 给三个值都兜个底：最小缓冲 15 秒、起播 1 秒、重缓冲后起播 5 秒。
+ * 用户选得更大时用用户的值（取 max，不压低）；maxBuffer 沿用原来的
+ * “5 倍缓冲、至少 60 秒”口径。
+ */
+internal data class LoadControlBufferDurationsMs(
+    val minBufferMs: Int,
+    val maxBufferMs: Int,
+    val bufferForPlaybackMs: Int,
+    val bufferForPlaybackAfterRebufferMs: Int,
+)
+
+internal fun loadControlBufferDurationsMs(bufferTimeMs: Long): LoadControlBufferDurationsMs {
+    return LoadControlBufferDurationsMs(
+        minBufferMs = max(bufferTimeMs, 15_000L).toInt(),
+        maxBufferMs = max(bufferTimeMs * 5, 60_000L).toInt(),
+        bufferForPlaybackMs = max(bufferTimeMs, 1_000L).toInt(),
+        bufferForPlaybackAfterRebufferMs = max(bufferTimeMs, 5_000L).toInt(),
+    )
+}
+
+/**
  * tag 没给帧率时用实测渲染帧数补：1 秒采样窗口内渲染的帧数就是帧率
  * 的近似值（天光 2289 轮姊妹检查的反向回镜：天光那边的帧率就是这么
  * 补的，壳这边原来只从 tag 取、缺了就一直显示空）。
@@ -318,12 +344,16 @@ class Media3VideoPlayer(
                 .build()
         }
 
+        // 缓冲时长见 loadControlBufferDurationsMs：设置里的缓冲时间默认
+        // 是 0，直接拿来当 minBuffer / 起播缓冲会让播放器零缓冲起播、
+        // 分片稍慢就反复冻住（卡顿）；这里给三个值兜底。
+        val bufferDurations = loadControlBufferDurationsMs(Configs.videoPlayerBufferTime)
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                Configs.videoPlayerBufferTime.toInt(), // 最小缓冲时间（毫秒） minBufferMs
-                max(Configs.videoPlayerBufferTime.toInt() * 5, 60 * 1000), // maxBufferMs
-                Configs.videoPlayerBufferTime.toInt(), // bufferForPlaybackMs
-                Configs.videoPlayerBufferTime.toInt(), // bufferForPlaybackAfterRebufferMs
+                bufferDurations.minBufferMs,
+                bufferDurations.maxBufferMs,
+                bufferDurations.bufferForPlaybackMs,
+                bufferDurations.bufferForPlaybackAfterRebufferMs,
             )
             .build()
 
