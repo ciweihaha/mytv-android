@@ -175,6 +175,91 @@ class GitReleaseParserTest {
     }
 
     @Test
+    fun github_disguisedFlavorPicksDisguisedArm64Apk() = runBlocking {
+        // 伪装版（com.chinablue.tv）必须下伪装包：以前写死 "original"，伪装版
+        // 下到原版包、装上去是另一个包名的 app（com.github.mytv.android），
+        // 自己永远升不了级、平板上还多出一个重复图标（2026-11-19 用户报）
+        val data = githubPayload(
+            "V3.0.0.246",
+            listOf(
+                asset("mytv-android-tv-1.1.1.17-all-sdk24-disguised.apk", "https://example.com/disguised-all.apk"),
+                asset("mytv-android-tv-1.1.1.17-all-sdk24-original.apk", "https://example.com/original-all.apk"),
+                asset("mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-original.apk", "https://example.com/original-arm64.apk"),
+                asset("mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-disguised.apk", "https://example.com/disguised-arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data, listOf("disguised", "arm64-v8a"))
+        assertEquals("3.0.0.246", release.version)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/disguised-arm64.apk", release.downloadUrl)
+        assertEquals("1.1.1.17", release.internalVersion)
+    }
+
+    @Test
+    fun github_originalFlavorPicksOriginalArm64Apk() = runBlocking {
+        // 原版传 original 关键词：行为和以前写死时完全一致
+        val data = githubPayload(
+            "V3.0.0.246",
+            listOf(
+                asset("mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-disguised.apk", "https://example.com/disguised-arm64.apk"),
+                asset("mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-original.apk", "https://example.com/original-arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data, listOf("original", "arm64-v8a"))
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original-arm64.apk", release.downloadUrl)
+        assertEquals("1.1.1.17", release.internalVersion)
+    }
+
+    @Test
+    fun github_disguisedFallsBackToDisguisedAllAbiApk() = runBlocking {
+        // 没有伪装 arm64 专版：退路落到只含 disguised 的全架构包，而不是
+        // 退到原版包——退到原版包就是旧 bug 的翻版
+        val data = githubPayload(
+            "V3.0.0.246",
+            listOf(
+                asset("mytv-android-tv-1.1.1.17-all-sdk24-disguised.apk", "https://example.com/disguised-all.apk"),
+                asset("mytv-android-tv-1.1.1.17-all-sdk24-original.apk", "https://example.com/original-all.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data, listOf("disguised", "arm64-v8a"))
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/disguised-all.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun github_noKeywordsDefaultsToOriginalArm64() = runBlocking {
+        // 不传关键词（老调用方/单测）：默认原版 arm64，老行为不变
+        val data = githubPayload(
+            "V3.0.0.246",
+            listOf(
+                asset("mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-disguised.apk", "https://example.com/disguised-arm64.apk"),
+                asset("mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-original.apk", "https://example.com/original-arm64.apk"),
+            ).joinToString(","),
+        )
+        val release = githubParser.parse(data)
+        assertEquals("${Constants.GITHUB_PROXY}https://example.com/original-arm64.apk", release.downloadUrl)
+    }
+
+    @Test
+    fun extractInternalVersion_fromRealAssetName() {
+        // 附件名里的内部版：RELEASE_TAG 为空时拿它和当前内部版比，
+        // 不再拿 tag 的 3.0.0.N 和内部版 1.1.1.N 比
+        assertEquals(
+            "1.1.1.17",
+            "mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-original.apk".extractInternalVersion(),
+        )
+        assertEquals(
+            "1.1.1.17",
+            "mytv-android-tv-1.1.1.17-all-sdk24-disguised.apk".extractInternalVersion(),
+        )
+    }
+
+    @Test
+    fun extractInternalVersion_returnsEmptyForNonMatchingName() {
+        assertEquals("", "mytv.apk".extractInternalVersion())
+        assertEquals("", "release-notes.txt".extractInternalVersion())
+        assertEquals("", "".extractInternalVersion())
+    }
+
+    @Test
     fun gitee_wellFormedParses() = runBlocking {
         val data = singlePayload(
             "V1.1.1.135",

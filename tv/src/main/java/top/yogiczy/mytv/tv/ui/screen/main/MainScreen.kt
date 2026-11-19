@@ -170,6 +170,7 @@ fun MainScreen(
                 BuildConfig.VERSION_NAME,
                 settingsViewModel.updateChannel,
                 releaseTag = BuildConfig.RELEASE_TAG,
+                flavor = BuildConfig.FLAVOR,
             )
 
             if (!quiet) {

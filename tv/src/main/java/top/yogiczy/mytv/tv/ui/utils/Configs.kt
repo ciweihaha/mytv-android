@@ -341,7 +341,15 @@ object Configs {
     /** ==================== 订阅源 ==================== */
     /** 当前订阅源 */
     var iptvSourceCurrent: IptvSource
-        get() = decodeOrDefault(KEY.IPTV_SOURCE_CURRENT, Constants.IPTV_SOURCE_LIST.first())
+        get() {
+            val stored =
+                decodeOrDefault(KEY.IPTV_SOURCE_CURRENT, Constants.IPTV_SOURCE_LIST.first())
+            // 升级迁移见 resolveIptvSourceCurrent：存的当前源是已失效的上游
+            // 默认源（Gitee result.m3u 已 451）或地址为空时，改用内置地址。
+            val resolved = resolveIptvSourceCurrent(stored)
+            if (resolved != stored) iptvSourceCurrent = resolved
+            return resolved
+        }
         set(value) = SP.putString(KEY.IPTV_SOURCE_CURRENT.name, Globals.json.encodeToString(value))
 
     /** 订阅源列表 */
@@ -696,16 +704,15 @@ object Configs {
             val provider = CloudSyncProvider.fromValue(
                 SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.CLOUDFLARE.value)
             )
-            // 升级迁移：老版本默认是 GitHub Gist；从没配过 Gist 账号的设备
-            // （Gist Id 和 Token 都是空的），升级后自动改用 Cloudflare，
-            // 装上就能同步，不用用户填任何东西；配过 Gist 的保持不动。
-            if (provider == CloudSyncProvider.GITHUB_GIST &&
-                cloudSyncGithubGistId.isBlank() && cloudSyncGithubGistToken.isBlank()
-            ) {
-                cloudSyncProvider = CloudSyncProvider.CLOUDFLARE
-                return CloudSyncProvider.CLOUDFLARE
-            }
-            return provider
+            // 升级迁移见 resolveCloudSyncProvider：Gist 账号空着就强制
+            // Cloudflare，不管存的是哪个提供商（见该函数的注释）。
+            val resolved = resolveCloudSyncProvider(
+                provider,
+                cloudSyncGithubGistId,
+                cloudSyncGithubGistToken,
+            )
+            if (resolved != provider) cloudSyncProvider = resolved
+            return resolved
         }
         set(value) = SP.putInt(KEY.CLOUD_SYNC_PROVIDER.name, value.value)
 
@@ -1131,4 +1138,45 @@ object Configs {
             iptvChannelLinePlayableUrlList = null,
         )
     }
+}
+
+/**
+ * 云同步提供商升级迁移的判定（纯函数，单测覆盖）：从没配过 GitHub Gist
+ * 账号的设备（Gist Id 和 Token 都是空的），不管存的是哪个提供商都改用
+ * Cloudflare，装上就能同步，不用用户填任何东西。
+ *
+ * 只看 Gist 账号、不看存的提供商：存的值可能被旧版本写坏（fromValue 越
+ * 界兜底成 GITHUB_GIST），或根本就是旧版本（1.1.1.1）里没有迁移逻辑、
+ * 一直停在 Gist；按原先“只迁 GITHUB_GIST”的条件这两种情况都漏网，
+ * 设置页照样显示 Gist、拉取照样失败。配过 Gist（Id 或 Token 任一非
+ * 空）的保持不动。
+ */
+internal fun resolveCloudSyncProvider(
+    provider: CloudSyncProvider,
+    gistId: String,
+    gistToken: String,
+): CloudSyncProvider {
+    return if (gistId.isBlank() && gistToken.isBlank()) {
+        CloudSyncProvider.CLOUDFLARE
+    } else {
+        provider
+    }
+}
+
+/** 已失效的上游默认直播源地址：旧版默认源是上游 Gitee 的 iptv-api。 */
+internal val LEGACY_IPTV_SOURCE_URLS = setOf(
+    "https://gitee.com/mytv-android/iptv-api/raw/master/output/result.m3u",
+    "https://gitee.com/mytv-android/iptv-api/raw/master/output/webview.m3u",
+)
+
+/**
+ * 当前直播源升级迁移的判定（纯函数，单测覆盖）：存的当前源是已失效的上游
+ * 默认源（result.m3u 已被 Gitee 屏蔽、返回 451，直播一个台都拉不到）
+ * 或地址为空时，改用内置的 live.m3u。用户自己加的源不受影响。
+ */
+internal fun resolveIptvSourceCurrent(
+    stored: IptvSource,
+    default: IptvSource = Constants.IPTV_SOURCE_LIST.first(),
+): IptvSource {
+    return if (stored.url.isBlank() || stored.url in LEGACY_IPTV_SOURCE_URLS) default else stored
 }

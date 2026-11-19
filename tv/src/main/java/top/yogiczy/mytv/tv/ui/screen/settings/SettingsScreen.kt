@@ -25,10 +25,8 @@ import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsAppScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsCloudSyncScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsControlScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsDebugScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsEpgScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsIptvScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsLogScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsNetworkScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsPermissionsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsThemeScreen
@@ -222,17 +220,9 @@ fun SettingsScreen(
                     )
                 }
 
-                composable(SettingsCategories.DEBUG.name) {
-                    SettingsDebugScreen(
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsCategories.LOG.name) {
-                    SettingsLogScreen(
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
+                // 调试/日志路由已随分类入口一起隐藏（用户 2026-11-19 要求设置里
+                // 不显示这两项）：SettingsDebugScreen、SettingsLogScreen 两个
+                // 页面文件留着，恢复入口时把路由加回来。
 
                 composable(SettingsCategories.PERMISSIONS.name) {
                     SettingsPermissionsScreen(

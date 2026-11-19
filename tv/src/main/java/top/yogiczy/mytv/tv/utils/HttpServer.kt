@@ -38,12 +38,23 @@ import top.yogiczy.mytv.tv.ui.material.SnackbarType
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import java.io.File
 import java.net.Inet4Address
+import java.net.InetSocketAddress
 import java.net.NetworkInterface
+import java.net.Socket
 import java.net.SocketException
 
 
 object HttpServer : Loggable("HttpServer") {
     private const val SERVER_PORT = 10591
+
+    // start() 的防重复启动状态：started 为 true 表示本进程里已有服务实例在
+    // 跑（或正在起），再调 start() 直接跳过。bind 真正失败时由
+    // reportStartFailed 把它复位，之后还能重试。
+    private val startLock = Any()
+
+    @Volatile
+    private var started = false
+
     private val uploadedApkFile by lazy {
         File(Globals.cacheDir, "uploaded_apk.apk").apply { deleteOnExit() }
     }
@@ -54,6 +65,21 @@ object HttpServer : Loggable("HttpServer") {
     val serverUrl get() = "http://${getLocalIpAddress()}:${SERVER_PORT}"
 
     fun start(context: Context) {
+        // 防重复启动：MainActivity 每次 onCreate 都会 startService，Service
+        // 的 onStartCommand 每次都会调 start()；不加 guard 的话，app 切后
+        // 台再点开就会再建一个 AsyncHttpServer 去 bind 10591，端口已被第
+        // 一个实例占着，第二次 bind 失败就弹“设置服务启动失败”红条。服务
+        // 本身从来不停（没有 stop()），所以一个进程里只起一次就够了。
+        // started 先在同步块里置位再起协程：listen() 是异步的，两个 start()
+        // 紧挨着调时，第二个不能等第一个 bind 完才知道已经起了。
+        synchronized(startLock) {
+            if (started) {
+                log.i("设置服务已启动，跳过重复启动")
+                return
+            }
+            started = true
+        }
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val server = AsyncHttpServer()
@@ -176,12 +202,35 @@ object HttpServer : Loggable("HttpServer") {
      * 启动失败上报：端口被占等原因导致服务起不来时，记日志、弹提示。
      * listen() 的绑定失败走 setErrorCallback（异步），其它同步异常走
      * start() 里的 catch，两处共用这一份处理。
+     *
+     * 先确认端口是不是已被本应用自己的服务占了（同一进程重复起，或旧进程
+     * 没死干净还占着端口）：服务本身可用就静默跳过，别弹红条吓人；真正
+     * 起不来（端口没人监听）才报错，并把 started 复位以便之后重试。
      */
     private fun reportStartFailed(ex: Exception) {
+        if (isPortServing()) {
+            log.i("设置服务已在运行（端口 $SERVER_PORT 已被占用），跳过启动失败提示")
+            return
+        }
+        synchronized(startLock) { started = false }
         log.e("设置服务启动失败: ${ex.message}", ex)
         CoroutineScope(Dispatchers.Main).launch {
             Snackbar.show("设置服务启动失败", type = SnackbarType.ERROR)
         }
+    }
+
+    /**
+     * 端口是不是已有服务在监听：往 127.0.0.1:port 建一条 TCP 连接，能连上
+     * 就说明有人在听。10591 是本应用的设置服务端口，能连上基本就是自己
+     * （同一进程的旧实例或没死干净的旧进程）。
+     */
+    internal fun isPortServing(port: Int = SERVER_PORT): Boolean {
+        return runCatching {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress("127.0.0.1", port), 500)
+                true
+            }
+        }.getOrDefault(false)
     }
 
     private fun wrapResponse(response: AsyncHttpServerResponse) = response.apply {

@@ -79,11 +79,14 @@ object Constants {
     /**
      * GitHub 发版下载代理：发版附件的下载地址前面拼它再下。
      * 原来的 ghp.ci 已不通（2026-11-13 实测：本机与另一路出口都连不上，
-     * 同机 github.com 与 gitee.com 都是 200），改走实测能通的 gh-proxy.com。
+     * 同机 github.com 与 gitee.com 都是 200），改走实测能通的 gh-proxy.com；
+     * gh-proxy.com 在家用网络上 15 秒才回包、电视/平板上更新直接超时
+     * （2026-11-19），再改走国内快的 ghfast.top（2026-11-19 实测：
+     * 17.9MB 的 APK 2.5 秒下完、SHA 与 GitHub 直链一致）。
      * 两个解析器（Github、Custom）共用这一个常量；以后它再不通，
      * 更新下载会失败，改这里一行就行，不用动解析逻辑。
      */
-    const val GITHUB_PROXY = "https://gh-proxy.com/"
+    const val GITHUB_PROXY = "https://ghfast.top/"
 
     /**
      * Cloudflare 云同步地址：电视直播云同步的默认服务商。

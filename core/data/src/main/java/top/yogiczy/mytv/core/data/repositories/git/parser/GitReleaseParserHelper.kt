@@ -41,13 +41,13 @@ internal fun String.stripVersionPrefix(): String {
 }
 
 /**
- * 从发行版附件列表里挑一个 APK 的下载地址。
+ * 从发行版附件列表里挑一个 APK（返回附件名 + 下载地址）。
  *
  * 命中顺序：同时含全部 preferredKeywords 的 APK -> 含第一个关键词的 APK ->
  * 任意 APK -> 第一个带下载地址的附件。
  * 附件为空或没有任何附件带下载地址时抛 IllegalStateException。
  */
-internal fun JsonArray.pickDownloadUrl(vararg preferredKeywords: String): String {
+internal fun JsonArray.pickDownloadAsset(vararg preferredKeywords: String): Pair<String, String> {
     val candidates = mapNotNull { element ->
         val obj = element as? JsonObject ?: return@mapNotNull null
         val name = obj.optionalString("name")
@@ -70,5 +70,25 @@ internal fun JsonArray.pickDownloadUrl(vararg preferredKeywords: String): String
     val anyApk = candidates.firstOrNull { (name, _) ->
         name.endsWith(".apk", ignoreCase = true)
     }
-    return (preferred ?: anyApk ?: candidates.first()).second
+    return preferred ?: anyApk ?: candidates.first()
+}
+
+/**
+ * 从发行版附件列表里挑一个 APK 的下载地址。
+ *
+ * 命中顺序：同时含全部 preferredKeywords 的 APK -> 含第一个关键词的 APK ->
+ * 任意 APK -> 第一个带下载地址的附件。
+ * 附件为空或没有任何附件带下载地址时抛 IllegalStateException。
+ */
+internal fun JsonArray.pickDownloadUrl(vararg preferredKeywords: String): String {
+    return pickDownloadAsset(*preferredKeywords).second
+}
+
+/**
+ * 从发版附件文件名里取内部版（如 mytv-android-tv-1.1.1.17-arm64-v8a-sdk24-original.apk
+ * -> 1.1.1.17）。文件名不是这套格式时返回空串，不抛异常。
+ */
+internal fun String.extractInternalVersion(): String {
+    val match = Regex("""mytv-android-tv-([0-9]+(?:\.[0-9]+)*)-""").find(this)
+    return match?.groupValues?.getOrNull(1) ?: ""
 }

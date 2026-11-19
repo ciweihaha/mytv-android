@@ -19,9 +19,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
-import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.ControlCamera
@@ -208,8 +206,12 @@ enum class SettingsCategories(
     NETWORK(Icons.Outlined.Wifi, "网络"),
     CLOUD_SYNC(Icons.Outlined.CloudSync, "云同步"),
     PERMISSIONS(Icons.Outlined.Shield, "权限"),
-    DEBUG(Icons.Outlined.BugReport, "调试"),
-    LOG(Icons.AutoMirrored.Outlined.FormatListBulleted, "日志"),
+    // 调试/日志入口已隐藏（用户 2026-11-19 要求设置里不显示这两项）：
+    // 功能代码（SettingsDebugScreen、SettingsLogScreen）留着，只是不在
+    // 分类列表里出现；要恢复时把下面两行取消注释，并把 SettingsScreen 里
+    // 对应的路由加回来。
+    // DEBUG(Icons.Outlined.BugReport, "调试"),
+    // LOG(Icons.AutoMirrored.Outlined.FormatListBulleted, "日志"),
 }
 
 enum class SettingsSubCategories {

@@ -59,7 +59,12 @@ class UpdateViewModel(
         currentVersion: String,
         channel: String,
         releaseTag: String = "",
-        fetchLatestRelease: suspend (String) -> GitRelease = { GitRepository().latestRelease(it) },
+        // 当前风味（original/disguised）：传给发行版解析器挑包，伪装版必须
+        // 下伪装包——下原版包回去装的是另一个包名的 app，自己永远升不了级
+        flavor: String = "original",
+        fetchLatestRelease: suspend (String) -> GitRelease = {
+            GitRepository().latestRelease(it, listOf(flavor, "arm64-v8a"))
+        },
     ) {
         if (_isChecking) return
         if (_isUpdateAvailable) return
@@ -73,9 +78,20 @@ class UpdateViewModel(
             _latestRelease = fetchLatestRelease(releaseUrl)
             // 发版 tag（如 V3.0.0.243）与内部版（1.1.1.N）是两套编号：
             // 发版时拿 tag 和线上最新版比，手动触发/调试时 tag 为空、
-            // 拿内部版比；直接比内部版会永远报“有新版”
-            val baseVersion = releaseTag.ifBlank { currentVersion }
-            _isUpdateAvailable = _latestRelease.version.compareVersion(baseVersion) > 0
+            // 拿内部版比；直接比内部版会永远报“有新版”。
+            // tag 为空时优先拿发行版附件文件名里的内部版（如 1.1.1.17）和
+            // 当前内部版比——只有附件名里也没有内部版时才退回拿 tag 版
+            // 和内部版比（旧行为，仍会误报，但已无更好信息）。
+            _isUpdateAvailable = when {
+                releaseTag.isNotBlank() ->
+                    _latestRelease.version.compareVersion(releaseTag) > 0
+
+                _latestRelease.internalVersion.isNotBlank() ->
+                    _latestRelease.internalVersion.compareVersion(currentVersion) > 0
+
+                else ->
+                    _latestRelease.version.compareVersion(currentVersion) > 0
+            }
 
             log.i("最新版本: ${_latestRelease.version}")
         } catch (ex: Exception) {

@@ -59,6 +59,50 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun `tag 为空但附件内部版与当前同版时不报有更新`() = runBlocking {
+        // RELEASE_TAG 为空（非 tag 构建）时不能拿 tag 的 3.0.0.N 和内部版
+        // 1.1.1.N 比——3.0.0.246 永远大于 1.1.1.17，已是最新还弹更新
+        // （2026-11-19 误报的根因）；附件文件名里带内部版时拿内部版比
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.1.1.17", "stable", releaseTag = "") {
+            GitRelease(
+                version = "3.0.0.246",
+                downloadUrl = "https://example.com/app.apk",
+                internalVersion = "1.1.1.17",
+            )
+        }
+        assertFalse(viewModel.isUpdateAvailable)
+    }
+
+    @Test
+    fun `tag 为空但附件内部版更新时报有更新`() = runBlocking {
+        // 同上回落：附件内部版 1.1.1.18 大于当前 1.1.1.17，是真有更新
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.1.1.17", "stable", releaseTag = "") {
+            GitRelease(
+                version = "3.0.0.247",
+                downloadUrl = "https://example.com/app.apk",
+                internalVersion = "1.1.1.18",
+            )
+        }
+        assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
+    fun `tag 不为空时仍拿 tag 比不走内部版`() = runBlocking {
+        // 有 tag 时 tag 比较优先：内部版即使相同、tag 比线上旧也要报更新
+        val viewModel = UpdateViewModel()
+        viewModel.checkUpdate("1.1.1.17", "stable", releaseTag = "V3.0.0.245") {
+            GitRelease(
+                version = "3.0.0.246",
+                downloadUrl = "https://example.com/app.apk",
+                internalVersion = "1.1.1.17",
+            )
+        }
+        assertTrue(viewModel.isUpdateAvailable)
+    }
+
+    @Test
     fun `检查进行中再次检查直接返回不重复拉取`() = runBlocking {
         val viewModel = UpdateViewModel()
         val started = CompletableDeferred<Unit>()

@@ -14,13 +14,19 @@ class GitRepository : Loggable("GitRepository") {
 
     /**
      * 获取最新发行版
+     *
+     * preferredAssetKeywords：附件名里要含的词（如当前风味 original/disguised
+     * + 架构 arm64-v8a），原样传给解析器挑包；不传时解析器用自己的默认值。
      */
-    suspend fun latestRelease(url: String): GitRelease {
+    suspend fun latestRelease(
+        url: String,
+        preferredAssetKeywords: List<String> = emptyList(),
+    ): GitRelease {
         log.d("获取最新发行版: $url")
 
         try {
             val parser = GitReleaseParser.instances.first { it.isSupport(url) }
-            return url.requestStrict { body -> parser.parse(body.string()) }
+            return url.requestStrict { body -> parser.parse(body.string(), preferredAssetKeywords) }
                 ?: throw IllegalStateException("发行版接口返回空数据")
         } catch (ex: Exception) {
             log.e("获取最新发行版失败", ex)
