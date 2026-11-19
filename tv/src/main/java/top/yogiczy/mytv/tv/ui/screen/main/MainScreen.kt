@@ -1,7 +1,11 @@
 package top.yogiczy.mytv.tv.ui.screen.main
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,7 +70,24 @@ fun MainScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
-    
+
+    // 回到前台时检查节目单（天光 v2.2.33 回镜）：app 常驻不重启、切出
+    // 去久了再回来，服务端文件可能已更新、缓存里的节目也可能已播完；
+    // 15 分钟内回来不重复拉。只调 ViewModel 的检查入口，真拉不拉由
+    // 它按间隔决定
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                mainViewModel.onForeground()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     mainViewModel.needRefresh = { settingsViewModel.refresh() }
 
     val channelGroupListProvider = {

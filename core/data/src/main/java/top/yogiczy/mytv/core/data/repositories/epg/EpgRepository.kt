@@ -43,10 +43,16 @@ class EpgRepository(private val source: EpgSource) :
 
     /**
      * 获取节目单列表
+     *
+     * forceRefresh（天光 v2.2.33 回镜）：定时重拉（每小时）与回前台重拉
+     * 时用。缓存是否“新鲜”只看日期——服务端每天 05:32 左右出新文件、
+     * 白天也可能修正，app 常驻不重启时同一天的缓存再新鲜也是旧文件；
+     * 强制刷新跳过日期这道关，直接重新拉取。失败时 getOrRefresh 照常
+     * 拿旧缓存顶上，不会把节目单刷空
      */
-    suspend fun getEpgList(): EpgList = withContext(Dispatchers.Default) {
+    suspend fun getEpgList(forceRefresh: Boolean = false): EpgList = withContext(Dispatchers.Default) {
         try {
-            var xmlJson = getOrRefresh({ lastModified, _ -> isExpired(lastModified) }) { refresh() }
+            var xmlJson = getOrRefresh({ lastModified, _ -> forceRefresh || isExpired(lastModified) }) { refresh() }
             var epgList = Globals.json.decodeFromString<EpgList>(xmlJson)
 
             // 凌晨节目单文件更新前拉的缓存只有昨天节目：日期没过期、但一个

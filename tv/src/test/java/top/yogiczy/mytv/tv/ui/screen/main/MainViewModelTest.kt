@@ -382,4 +382,32 @@ class MainViewModelTest {
         // 取消不是失败：不重试（catch 里原样抛出去那档）
         assertFalse(shouldRetryLoadFailure(CancellationException("Job was cancelled"), 0, 3))
     }
+
+    @Test
+    fun foregroundRefresh_skippedWithin15MinutesOfLastFetch() {
+        // 天光 v2.2.33 回镜：刚拉过就切出去、几秒回来不重复拉：上次
+        // 拉取在 1 分钟前，回前台不触发；刚拉过那一刻同样不触发
+        val now = System.currentTimeMillis()
+
+        assertFalse(shouldRefreshEpgOnForeground(now - 60_000L, now))
+        assertFalse(shouldRefreshEpgOnForeground(now, now))
+    }
+
+    @Test
+    fun foregroundRefresh_triggersAfter15MinutesAway() {
+        // 离开超过 15 分钟再回来：服务端文件可能已更新、缓存里的
+        // 节目也可能已播完，重拉一次；从没成功拉过时也触发
+        val now = System.currentTimeMillis()
+
+        assertTrue(shouldRefreshEpgOnForeground(now - 16 * 60 * 1000L, now))
+        assertTrue(shouldRefreshEpgOnForeground(now - 60 * 60 * 1000L, now))
+        assertTrue(shouldRefreshEpgOnForeground(0L, now))
+    }
+
+    @Test
+    fun autoRefreshInterval_isOneHour() {
+        // 每小时重拉一次：间隔常量本身锁死，改短会多耗流量、改长
+        // 会让节目单停旧更久
+        assertEquals(60 * 60 * 1000L, EPG_AUTO_REFRESH_INTERVAL_MS)
+    }
 }

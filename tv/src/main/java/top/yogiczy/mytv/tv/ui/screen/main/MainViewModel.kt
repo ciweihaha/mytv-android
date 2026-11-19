@@ -49,6 +49,17 @@ class MainViewModel : ViewModel() {
 
     private var _lastJob: Job? = null
 
+    // 节目单上次成功拉取的时间（毫秒）：定时重拉与回前台重拉都以它
+    // 为准算间隔；失败不更新，下次触发继续重试（天光 v2.2.33 回镜）
+    private var lastEpgRefreshAt = 0L
+
+    // 每小时自动重拉的循环任务；单独一路，不碰直播源、不重置界面状态
+    private var epgAutoRefreshJob: Job? = null
+
+    // 正在跑的单次节目单重拉：定时与回前台可能撞上，跑着就跳过，
+    // 别并发两路写同一份缓存
+    private var epgRefreshJob: Job? = null
+
     var needRefresh: () -> Unit = {}
 
     init {
@@ -58,10 +69,12 @@ class MainViewModel : ViewModel() {
             _lastJob?.join()
             refreshOtherIptvSource()
         }
+        startEpgAutoRefresh()
     }
 
     fun init() {
         _lastJob?.cancel()
+        epgRefreshJob?.cancel()
         _lastJob = viewModelScope.launch {
             ChannelAlias.refresh()
             refreshChannel()
@@ -160,19 +173,9 @@ class MainViewModel : ViewModel() {
             val channelGroupList = (_uiState.value as MainUiState.Ready).channelGroupList
 
             flow {
-                val epgSource = Configs.epgSourceFollowIptv
-                    .takeIf { it }
-                    ?.let {
-                        val iptvRepository = IptvRepository(Configs.iptvSourceCurrent)
-                        iptvRepository.getEpgUrl()?.let { epgUrl ->
-                            EpgSource(
-                                name = Configs.iptvSourceCurrent.name,
-                                url = epgUrl,
-                            )
-                        }
-                    } ?: Configs.epgSourceCurrent
-
-                emit(EpgRepository(epgSource).getEpgList())
+                emit(EpgRepository(currentEpgSource()).getEpgList())
+                // 成功拉到才记时间：失败时不更新，回前台重拉下次触发继续重试
+                lastEpgRefreshAt = System.currentTimeMillis()
             }
                 .retryWhen { e, attempt ->
                     if (!shouldRetryLoadFailure(e, attempt, Configs.networkRetryCount)) {
@@ -202,6 +205,88 @@ class MainViewModel : ViewModel() {
                     _uiState.value = (_uiState.value as MainUiState.Ready).copy(epgList = epgList)
                 }
                 .collect()
+        }
+    }
+
+    /**
+     * 当前节目单源（天光 v2.2.33 回镜时抽出）：跟随直播源时从直播源取
+     * 节目单地址，取不到或不跟随时用设置里的节目单源。初始加载与自动
+     * 重拉两路共用，别各写一份
+     */
+    private suspend fun currentEpgSource(): EpgSource {
+        return Configs.epgSourceFollowIptv
+            .takeIf { it }
+            ?.let {
+                val iptvRepository = IptvRepository(Configs.iptvSourceCurrent)
+                iptvRepository.getEpgUrl()?.let { epgUrl ->
+                    EpgSource(
+                        name = Configs.iptvSourceCurrent.name,
+                        url = epgUrl,
+                    )
+                }
+            } ?: Configs.epgSourceCurrent
+    }
+
+    /**
+     * 每小时自动重拉节目单（天光 v2.2.33 回镜）：app 常驻不重启时，
+     * 启动那一次拉取之后再也没有刷新机会，节目单停在昨天；循环每隔
+     * 一小时调一次 refreshEpgOnly（强制刷新），失败只记日志、下个
+     * 整点再试。viewModelScope 取消时循环随之结束
+     */
+    private fun startEpgAutoRefresh() {
+        epgAutoRefreshJob?.cancel()
+        epgAutoRefreshJob = viewModelScope.launch {
+            while (true) {
+                delay(EPG_AUTO_REFRESH_INTERVAL_MS)
+                refreshEpgOnly(forceRefresh = true)
+            }
+        }
+    }
+
+    /**
+     * 回到前台时调用（主界面 ON_RESUME）：距上次成功拉取超过 15
+     * 分钟就重拉一次节目单。短时间切出去再回来不重复拉；离开久了
+     * 再回来，服务端文件可能已更新、或缓存里的节目已播完，重拉
+     * 一次。只在已 Ready 时真拉，初始加载进行中直接跳过
+     */
+    fun onForeground() {
+        if (!shouldRefreshEpgOnForeground(lastEpgRefreshAt)) return
+        log.d("回前台，检查节目单是否需要刷新")
+        refreshEpgOnly(forceRefresh = true)
+    }
+
+    /**
+     * 只重拉节目单，不动直播源、不重置界面状态（天光 v2.2.33 回镜）：
+     * 定时与回前台两路共用。强制刷新时连“今天且有节目”的缓存也重
+     * 拉——服务端文件每天更新，白天也可能修正。刷新失败只记日志、
+     * 沿用旧节目单，不写空、不报错，下次触发再试；中途用户切源
+     * （init 另起新一轮）时，状态已不是同一份 Ready，结果直接丢弃
+     */
+    private fun refreshEpgOnly(forceRefresh: Boolean) {
+        if (!Configs.epgEnable) return
+        if (epgRefreshJob?.isActive == true) {
+            log.d("节目单正在刷新中，跳过本次自动刷新")
+            return
+        }
+        val readyState = _uiState.value as? MainUiState.Ready ?: return
+        epgRefreshJob = viewModelScope.launch {
+            try {
+                val epgList = EpgRepository(currentEpgSource()).getEpgList(forceRefresh)
+                if (_uiState.value === readyState) {
+                    val filteredChannels =
+                        (readyState.channelGroupList.channelList + Configs.iptvChannelFavoriteList.map { it.channel }).map { it.epgName }
+                    _uiState.value = readyState.copy(
+                        epgList = withContext(Dispatchers.Default) {
+                            EpgList(epgList.filter { epg -> epg.channelList.any { it in filteredChannels } })
+                        }
+                    )
+                    lastEpgRefreshAt = System.currentTimeMillis()
+                    log.i("节目单自动刷新完成，共${epgList.size}个频道")
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                log.w("节目单自动刷新失败，沿用旧节目单", e)
+            }
         }
     }
 
@@ -347,6 +432,30 @@ internal fun mergeSimilarChannels(channelGroupList: ChannelGroupList): ChannelGr
             )
         )
     })
+
+/**
+ * 节目单自动重拉间隔（天光 v2.2.33 回镜）：服务端每天 05:32 左右出新
+ * 文件，白天也可能修正；app 常驻不重启时只靠启动那一次拉取，节目单
+ * 会停在昨天。每小时重拉一次，流量与服务端压力都可接受
+ */
+internal const val EPG_AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000L
+
+/**
+ * 回前台重拉的最小间隔：刚拉过就切出去、几秒回来不重复拉；离开
+ * 超过 15 分钟再回来，服务端文件可能已更新，重拉一次
+ */
+internal const val EPG_FOREGROUND_REFRESH_MIN_INTERVAL_MS = 15 * 60 * 1000L
+
+/**
+ * 回前台时要不要重拉节目单（纯函数，方便单元测试直接调用）：距上次
+ * 成功拉取超过最小间隔就拉。lastRefreshAt 为 0（还没成功拉过）时也
+ * 返回 true，但调用方 refreshEpgOnly 只在已 Ready 时才真拉，初始加
+ * 载进行中不会多拉一路
+ */
+internal fun shouldRefreshEpgOnForeground(
+    lastRefreshAt: Long,
+    now: Long = System.currentTimeMillis(),
+): Boolean = now - lastRefreshAt >= EPG_FOREGROUND_REFRESH_MIN_INTERVAL_MS
 
 sealed interface MainUiState {
     data class Loading(val message: String? = null) : MainUiState

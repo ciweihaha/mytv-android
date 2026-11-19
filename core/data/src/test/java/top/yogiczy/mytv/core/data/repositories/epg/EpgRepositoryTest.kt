@@ -234,6 +234,32 @@ class EpgRepositoryTest {
     }
 
     @Test
+    fun getEpgList_withForceRefresh_refetchesFreshCache() = runBlocking {
+        // 天光 v2.2.33 回镜：缓存是今天写盘的、里面有正在播的节目——
+        // 不强制刷新直接用缓存；强制刷新要跳过这道关、真去拉主源。
+        // app 常驻不重启时服务端文件每天更新，不强制就永远拉不到
+        val now = System.currentTimeMillis()
+        startServerWithLiveProgramme(now)
+        val repo = EpgRepository(source)
+
+        seedJsonCache(
+            source,
+            oneChannelEpg(
+                listOf(Triple(now - 30 * 60_000, now + 30 * 60_000, "缓存里的节目"))
+            ),
+        )
+
+        val result = repo.getEpgList(forceRefresh = true)
+
+        assertEquals(
+            "强制刷新时应跳过新鲜缓存、返回服务端新节目",
+            listOf("正在播"),
+            result.flatMap { it.programmeList.map { p -> p.title } },
+        )
+        assertEquals("强制刷新应只请求一次", 1, server.hits.get())
+    }
+
+    @Test
     fun getEpgList_refreshesWhenCachedFileIsFromYesterday() = runBlocking {
         // 缓存文件是昨天写盘的、但里面有正在播的节目：日期已过期，第一
         // 次读取就必须刷新——这档之前一次也没断言过：isExpired 判日期
