@@ -190,7 +190,7 @@ internal fun Format.toVideoMetadata(video: VideoPlayer.Metadata.Video? = null): 
 
 /**
  * ExoPlayer 缓冲时长（纯函数，单测覆盖）：videoPlayerBufferTime 是用户
- * 在设置里选的“播放缓冲”，默认 0；0 会让 minBuffer / 起播缓冲 / 重缓
+ * 在设置里选的“播放缓冲”，默认 1 秒；取 0 会让 minBuffer / 起播缓冲 / 重缓
  * 冲后起播缓冲全是 0——播起来手里一点余粮都没有，分片稍慢（中继取列
  * 表要 1–3 秒）就冻住，冻住后一有数据就立刻续播、又立刻冻住，画面一
  * 卡一卡，还不触发“正在重连”（播放器自己能恢复，只是反复卡）。所以
