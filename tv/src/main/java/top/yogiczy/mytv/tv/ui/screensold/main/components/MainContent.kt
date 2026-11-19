@@ -1,11 +1,21 @@
 package top.yogiczy.mytv.tv.ui.screensold.main.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Button
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
 import kotlinx.coroutines.launch
 import android.widget.Toast
 import android.content.Context
@@ -27,6 +37,7 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeReserveList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
 import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
+import top.yogiczy.mytv.tv.ui.material.CircularProgressIndicator
 import top.yogiczy.mytv.tv.ui.material.PopupContent
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.Visibility
@@ -59,6 +70,7 @@ import top.yogiczy.mytv.tv.ui.screensold.videotracks.VideoTracksScreen
 import top.yogiczy.mytv.tv.ui.screensold.webview.WebViewScreen
 import top.yogiczy.mytv.tv.ui.screensold.webview.WebViewScreen_X5
 import top.yogiczy.mytv.tv.ui.utils.backHandler
+import top.yogiczy.mytv.tv.ui.utils.focusOnLaunched
 import top.yogiczy.mytv.tv.ui.utils.handleDragGestures
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import top.yogiczy.mytv.tv.ui.utils.Configs
@@ -73,6 +85,7 @@ private const val WEBVIEW_DEFAULT_USER_AGENT =
 fun MainContent(
     modifier: Modifier = Modifier,
     isLoadingProvider: () -> Boolean = { false },
+    isChannelLoadFailedProvider: () -> Boolean = { false },
     filteredChannelGroupListProvider: () -> ChannelGroupList = { ChannelGroupList() },
     favoriteChannelListProvider: () -> ChannelList = { ChannelList() },
     epgListProvider: () -> EpgList = { EpgList() },
@@ -98,6 +111,15 @@ fun MainContent(
         filteredChannelGroupListProvider().channelList.getOrNull(idx)?.let { channel ->
             mainContentState.changeCurrentChannel(channel)
         }
+    }
+
+    // 首播补播：init 只在启动时跑一次，那时列表还没加载完会跑空（250 黑屏
+    // 回归）；列表一到就补一次——当前台无线路且列表非空时，按上次播放
+    //（若在列表里）否则第一个台自动播。key 用列表台数：台数 0→N 只变一
+    // 次；正在播时再变也不打断（ensureFirstPlay 只在无线路时才动）。
+    val channelCount = filteredChannelGroupListProvider().channelList.size
+    LaunchedEffect(channelCount) {
+        mainContentState.ensureFirstPlay()
     }
 
     // 当前台号：按列表现查（和选台页一致）；当前台不在列表里时显示
@@ -230,6 +252,70 @@ fun MainContent(
                                 onLongSelect = { mainContentState.isQuickOpScreenVisible = true },
                             )
                         } 
+                    }
+                }
+            }
+        }
+    }
+
+    // 还没选出台时别黑屏：列表在加载显示“正在加载频道...”，加载失败
+    // 显示失败提示 + “重新加载”按钮（调 onReload 重新拉源），列表已到
+    // 但一个台都没有（分组全被隐藏）显示“暂无频道”。有台在播时不显示。
+    Visibility({ mainContentState.currentChannel.lineList.isEmpty() }) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (isLoading) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "正在加载频道...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            } else if (isChannelLoadFailedProvider()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "频道加载失败",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "请检查网络或订阅源后重试",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onReload,
+                        modifier = Modifier.focusOnLaunched(),
+                    ) {
+                        Text("重新加载")
+                    }
+                }
+            } else if (filteredChannelGroupListProvider().channelList.isEmpty()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "暂无频道",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "分组可能已被全部隐藏，请到设置里查看",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { toSettingsScreen(null) },
+                        modifier = Modifier.focusOnLaunched(),
+                    ) {
+                        Text("去设置")
                     }
                 }
             }

@@ -290,6 +290,7 @@ fun MainScreen(
                 key(settingsViewModel.videoPlayerCore, settingsViewModel.videoPlayerForceSoftDecode) {
                     top.yogiczy.mytv.tv.ui.screensold.main.components.MainContent(
                         isLoadingProvider = { isLoading },
+                        isChannelLoadFailedProvider = { uiState is MainUiState.Error },
                         filteredChannelGroupListProvider = filteredChannelGroupListProvider,
                         favoriteChannelListProvider = favoriteChannelListProvider,
                         epgListProvider = epgListProvider,

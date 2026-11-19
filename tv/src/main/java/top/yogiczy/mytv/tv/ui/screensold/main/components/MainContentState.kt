@@ -93,6 +93,24 @@ internal fun firstPlayableLineIdx(lineList: ChannelLineList): Int {
     return if (idx >= 0) idx else 0
 }
 
+/**
+ * 首播选台（纯函数）：上次播放的台还在当前列表里就播它，否则播列表
+ * 第一个台；列表还没到（空）返回 null——调用方别播、等列表到了再
+ * 补一次（见 MainContentState.ensureFirstPlay）。顶层函数方便单元
+ * 测试直接调用。
+ * （250 回归：首播只在 init 里跑一次，那时列表还没加载完、只能兜
+ * 底成空频道，之后再也没人补播，一直黑屏；退出重进就好是因为重进
+ * 时列表已在。）
+ */
+internal fun resolveFirstPlayChannel(
+    lastPlay: Channel,
+    channelGroupList: ChannelGroupList,
+): Channel? {
+    if (channelGroupList.channelList.isEmpty()) return null
+    if (lastPlay.lineList.isNotEmpty() && lastPlay in channelGroupList.channelList) return lastPlay
+    return channelGroupList.channelFirstOrNull()
+}
+
 @Stable
 class MainContentState(
     private val coroutineScope: CoroutineScope,
@@ -303,6 +321,21 @@ class MainContentState(
         changeCurrentChannel(settingsViewModel.iptvChannelLastPlay.isEmptyOrElse {
             channelGroupList.channelFirstOrNull() ?: Channel.EMPTY
         })
+    }
+
+    /**
+     * 列表到达后补首播：init 时列表还没加载完会跑空（当前台无线路），
+     * 列表加载完后由界面层（MainContent 的 LaunchedEffect）再调一次，
+     * 按“上次播放（若在列表里）否则第一个台”选台。当前台已有线路时
+     * 什么都不做——正在播的台绝不被打断；列表还没到时也不做，等下一次。
+     */
+    fun ensureFirstPlay() {
+        if (_currentChannel.lineList.isNotEmpty()) return
+        val channel = resolveFirstPlayChannel(
+            settingsViewModel.iptvChannelLastPlay,
+            channelGroupListProvider(),
+        ) ?: return
+        changeCurrentChannel(channel)
     }
 
     private fun getPrevFavoriteChannel(): Channel? {
