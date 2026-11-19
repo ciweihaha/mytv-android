@@ -50,6 +50,27 @@ internal fun EpgList.hasLiveProgramme(now: Long = System.currentTimeMillis()): B
     any { epg -> epg.programmeList.any { it.startAt <= now && now < it.endAt } }
 
 /**
+ * 只留当前频道列表里有的台的节目单：与我的电视 keepEpgChannel
+ * 同一套判定——显示名在频道名里，或 id 在频道 tvg-id 里（大小写
+ * 不敏感）。只按显示名精确比会把名字写法不一样的台全滤掉（直播源
+ * “CCTV综合”、节目单“CCTV-1 综合”，央视 19 个台全军覆没）；id
+ * 对上也留，查节目单时 match() 还会再按名复核一次，不会贴错台。
+ * 过滤集为空时全留，和我的电视一致。公开给 tv 模块的
+ * MainViewModel 用（internal 跨不了模块）。
+ */
+fun EpgList.filterForChannels(channels: List<Channel>): EpgList {
+    val filter = channels.flatMap { listOf(it.epgName, it.tvgId) }
+        .filter { it.isNotBlank() }
+        .map { it.lowercase(Locale.ROOT) }
+        .toSet()
+    if (filter.isEmpty()) return this
+    return EpgList(filter { epg ->
+        epg.channelList.any { it.lowercase(Locale.ROOT) in filter } ||
+            (epg.id.isNotBlank() && epg.id.lowercase(Locale.ROOT) in filter)
+    })
+}
+
+/**
  * 频道节目单列表
  */
 @Serializable

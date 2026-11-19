@@ -25,6 +25,7 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelLineList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.match
+import top.yogiczy.mytv.core.data.entities.epg.filterForChannels
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.network.HttpException
@@ -195,10 +196,10 @@ class MainViewModel : ViewModel() {
                 }
                 .map { epgList ->
                     withContext(Dispatchers.Default) {
-                        val filteredChannels =
-                            (channelGroupList.channelList + Configs.iptvChannelFavoriteList.map { it.channel }).map { it.epgName }
+                        val channels =
+                            channelGroupList.channelList + Configs.iptvChannelFavoriteList.map { it.channel }
 
-                        EpgList(epgList.filter { epg -> epg.channelList.any { it in filteredChannels } })
+                        epgList.filterForChannels(channels)
                     }
                 }
                 .map { epgList ->
@@ -273,11 +274,11 @@ class MainViewModel : ViewModel() {
             try {
                 val epgList = EpgRepository(currentEpgSource()).getEpgList(forceRefresh)
                 if (_uiState.value === readyState) {
-                    val filteredChannels =
-                        (readyState.channelGroupList.channelList + Configs.iptvChannelFavoriteList.map { it.channel }).map { it.epgName }
+                    val channels =
+                        readyState.channelGroupList.channelList + Configs.iptvChannelFavoriteList.map { it.channel }
                     _uiState.value = readyState.copy(
                         epgList = withContext(Dispatchers.Default) {
-                            EpgList(epgList.filter { epg -> epg.channelList.any { it in filteredChannels } })
+                            epgList.filterForChannels(channels)
                         }
                     )
                     lastEpgRefreshAt = System.currentTimeMillis()

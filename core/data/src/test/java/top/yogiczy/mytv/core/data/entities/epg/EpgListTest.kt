@@ -277,4 +277,69 @@ class EpgListTest {
         )
         assertTrue(list.hasLiveProgramme(now))
     }
+
+    // ---- filterForChannels（250 轮：节目单过滤，与我的电视对齐） ----
+
+    @Test
+    fun filterForChannels_keepsCctvById() {
+        // 250 轮的根因：直播源“CCTV综合”、节目单“CCTV-1 综合”，
+        // 只按显示名精确比会把央视台全滤掉；我的电视 keepEpgChannel
+        // 是显示名或 id 对上就留，id cctv1 对上就留下来，match() 再
+        // 按名复核一次才认
+        val list = EpgList(listOf(Epg(id = "cctv1", channelList = listOf("CCTV-1 综合"))))
+        val filtered = list.filterForChannels(listOf(channel("CCTV综合", "cctv1")))
+        assertEquals(listOf("cctv1"), filtered.map { it.id })
+    }
+
+    @Test
+    fun filterForChannels_keepsSatelliteByName() {
+        // 名字对得上的台走原来的按名留
+        val list = EpgList(listOf(Epg(id = "szws", channelList = listOf("深圳卫视"))))
+        val filtered = list.filterForChannels(listOf(channel("深圳卫视", "szws")))
+        assertEquals(listOf("szws"), filtered.map { it.id })
+    }
+
+    @Test
+    fun filterForChannels_keepsEntryWhenIdMatchesButNameDiffers() {
+        // 上游把湖南卫视备的 id 写成海南卫视的 id（hnws2）：过滤这层
+        // 只看显示名或 id 对不对得上，id 对上就留（和我的电视一样）；
+        // 贴不贴错台是 match() 那层按名复核的事，海南卫视拿不到它
+        val list = EpgList(listOf(Epg(id = "hnws2", channelList = listOf("湖南卫视"))))
+        val filtered = list.filterForChannels(listOf(channel("海南卫视", "hnws2")))
+        assertEquals(listOf("hnws2"), filtered.map { it.id })
+    }
+
+    @Test
+    fun filterForChannels_caseInsensitiveId() {
+        // 备用源的 id 是大写（CCTV1）、直播源的 tvg-id 是小写
+        // （cctv1），大小写敏感比会对不上、整台被滤掉
+        val list = EpgList(listOf(Epg(id = "cctv1", channelList = listOf("CCTV-1 综合"))))
+        val filtered = list.filterForChannels(listOf(channel("CCTV综合", "CCTV1")))
+        assertEquals(listOf("cctv1"), filtered.map { it.id })
+    }
+
+    @Test
+    fun filterForChannels_keepsCctvAndDropsUnrelated() {
+        // 央视靠 id 留下来，卫视靠名字留下来，不在频道列表里的台
+        // 的节目单照样丢掉
+        val list = EpgList(
+            listOf(
+                Epg(id = "cctv1", channelList = listOf("CCTV-1 综合")),
+                Epg(id = "szws", channelList = listOf("深圳卫视")),
+                Epg(id = "xyz", channelList = listOf("XYZ台")),
+            )
+        )
+        val channels = listOf(
+            channel("CCTV综合", "cctv1"),
+            channel("深圳卫视", "szws"),
+        )
+        val filtered = list.filterForChannels(channels)
+        assertEquals(listOf("cctv1", "szws"), filtered.map { it.id })
+    }
+
+    @Test
+    fun filterForChannels_emptyChannels_keepsAll() {
+        // 过滤集为空时全留，和我的电视 keepEpgChannel 一致
+        assertEquals(epgList(), epgList().filterForChannels(emptyList()))
+    }
 }
