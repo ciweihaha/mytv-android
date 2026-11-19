@@ -50,7 +50,9 @@ fun AgreementScreen(
         "如您继续使用本软件即代表您已完全理解并同意上述内容。",
     )
 
-    AppScreen(modifier = modifier) {
+    // 返回键也走“不同意”：AppScreen 里 BackHandler 无条件注册，不传 onBackPressed
+    // 就吞掉一次新鲜抬起、什么都不发生；传 onDisagree 则走全应用统一的双按确认退出
+    AppScreen(modifier = modifier, onBackPressed = onDisagree) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
