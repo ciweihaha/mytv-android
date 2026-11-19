@@ -39,6 +39,12 @@ android {
         }
 
         buildConfigField("String", "SENTRY_DSN", "\"${getProperty("sentry.dsn") ?: System.getenv("SENTRY_DSN")}\"")
+        // Cloudflare 云同步密钥：构建时打进 BuildConfig.MYTV_SYNC_KEY，
+        // 请求头 X-Sync-Key 带它才能读写 Worker 上的同步数据。CI 从
+        // GitHub secret MYTV_SYNC_KEY 取；本地构建未设置时为空串
+        // （同步走 Cloudflare 时会被 Worker 拒 401，改用 Gist，
+        // 或本地构建时设 MYTV_SYNC_KEY 环境变量）。
+        buildConfigField("String", "MYTV_SYNC_KEY", "\"${System.getenv("MYTV_SYNC_KEY") ?: ""}\"")
         // 发版 tag（如 V3.0.0.242）：Release 工作流在打 tag 构建时把 tag 名写进来，
         // 更新检查拿它和线上最新版比——内部版本号 1.1.1.N 和 tag 的 3.0.0.N 是
         // 两套编号，直接比内部版永远报“有新版”。未设置时是空串（不是 "null"，

@@ -661,7 +661,7 @@ class SettingsViewModel : ViewModel() {
             Configs.cloudSyncAutoPull = value
         }
 
-    private var _cloudSyncProvider by mutableStateOf(CloudSyncProvider.GITHUB_GIST)
+    private var _cloudSyncProvider by mutableStateOf(CloudSyncProvider.CLOUDFLARE)
     var cloudSyncProvider: CloudSyncProvider
         get() = _cloudSyncProvider
         set(value) {
@@ -739,6 +739,14 @@ class SettingsViewModel : ViewModel() {
         set(value) {
             _cloudSyncWebDavPassword = value
             Configs.cloudSyncWebDavPassword = value
+        }
+
+    private var _cloudSyncCloudflareUrl by mutableStateOf("")
+    var cloudSyncCloudflareUrl: String
+        get() = _cloudSyncCloudflareUrl
+        set(value) {
+            _cloudSyncCloudflareUrl = value
+            Configs.cloudSyncCloudflareUrl = value
         }
 
     private var _keyDownEventUp by mutableStateOf(KeyDownAction.ChangeCurrentChannelToPrev)
@@ -930,6 +938,7 @@ class SettingsViewModel : ViewModel() {
         _cloudSyncWebDavUrl = Configs.cloudSyncWebDavUrl
         _cloudSyncWebDavUsername = Configs.cloudSyncWebDavUsername
         _cloudSyncWebDavPassword = Configs.cloudSyncWebDavPassword
+        _cloudSyncCloudflareUrl = Configs.cloudSyncCloudflareUrl
     }
 
     companion object {
