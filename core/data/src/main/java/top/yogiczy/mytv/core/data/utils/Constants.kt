@@ -86,6 +86,15 @@ object Constants {
     const val GITHUB_PROXY = "https://gh-proxy.com/"
 
     /**
+     * Cloudflare 云同步地址：电视直播云同步的默认服务商。
+     * 后端是用户自己的 Worker（mytv-sync）+ KV，存 all_configs.json
+     * 同款数据（CloudSyncData 的 JSON）；国内直连快，不用 GitHub 账号、
+     * 不用用户填 Gist Id/Token。密钥走请求头 X-Sync-Key，值是构建时
+     * 打进 APK 的 BuildConfig.MYTV_SYNC_KEY。
+     */
+    const val CLOUDFLARE_SYNC_URL = "https://mytv-sync.ciweihaha.win/sync"
+
+    /**
      * Git最新版本信息
      *
      * 查本 fork 自己的发版，不再查上游 Gitee：上游稳定版已是 V2.2.0.219，

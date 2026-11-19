@@ -185,6 +185,17 @@ fun SettingsCloudSyncScreen(
         }
 
         when (settingsViewModel.cloudSyncProvider) {
+            CloudSyncProvider.CLOUDFLARE -> {
+                item {
+                    SettingsListItem(
+                        headlineContent = "Cloudflare 同步地址",
+                        supportingContent = "内置，不用填",
+                        trailingContent = settingsViewModel.cloudSyncCloudflareUrl,
+                        remoteConfig = true,
+                    )
+                }
+            }
+
             CloudSyncProvider.GITHUB_GIST -> {
                 item {
                     SettingsListItem(

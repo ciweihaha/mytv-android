@@ -35,6 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERSION_CODE: ${{ github.run_number }}
+      # Cloudflare 云同步密钥：打进 BuildConfig.MYTV_SYNC_KEY，
+      # 从仓库 secret MYTV_SYNC_KEY 取（未配时为空串，同步走
+      # Cloudflare 会被 Worker 拒 401）。
+      MYTV_SYNC_KEY: ${{ secrets.MYTV_SYNC_KEY }}
       # 发版 tag 名（如 V3.0.0.243）：写进 BuildConfig.RELEASE_TAG，更新检查拿它
       # 和线上最新版比（内部版 1.1.1.N 和 tag 的 3.0.0.N 是两套编号，直接比
       # 内部版永远报“有新版”）。只在推送 tag 时才有值，手动 dispatch 时为空串。

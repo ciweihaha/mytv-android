@@ -39,6 +39,7 @@ class ConfigsPartialTest {
             cloudSyncWebDavUrl = "https://dav.example.com/",
             cloudSyncWebDavUsername = "user",
             cloudSyncWebDavPassword = "pw-123",
+            cloudSyncCloudflareUrl = "https://mytv-sync.ciweihaha.win/sync",
             networkRetryCount = 3L,
         )
 
@@ -65,6 +66,7 @@ class ConfigsPartialTest {
         assertEquals("https://dav.example.com/", result.cloudSyncWebDavUrl)
         assertEquals("user", result.cloudSyncWebDavUsername)
         assertEquals("pw-123", result.cloudSyncWebDavPassword)
+        assertEquals("https://mytv-sync.ciweihaha.win/sync", result.cloudSyncCloudflareUrl)
 
         // 普通配置：原样保留
         assertEquals(true, result.appBootLaunch)

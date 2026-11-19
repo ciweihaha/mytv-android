@@ -9,6 +9,7 @@ import top.yogiczy.mytv.core.data.utils.Loggable
 import top.yogiczy.mytv.core.util.utils.FsUtil
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.sync.repositories.CloudSyncRepository
+import top.yogiczy.mytv.tv.sync.repositories.CloudflareSyncRepository
 import top.yogiczy.mytv.tv.sync.repositories.GiteeGistSyncRepository
 import top.yogiczy.mytv.tv.sync.repositories.GithubGistSyncRepository
 import top.yogiczy.mytv.tv.sync.repositories.LocalFileSyncRepository
@@ -28,6 +29,11 @@ object CloudSync : Loggable("CloudSync") {
             CloudSyncProvider.GITEE_GIST -> GiteeGistSyncRepository(
                 Configs.cloudSyncGiteeGistId,
                 Configs.cloudSyncGiteeGistToken,
+            )
+
+            CloudSyncProvider.CLOUDFLARE -> CloudflareSyncRepository(
+                Configs.cloudSyncCloudflareUrl,
+                BuildConfig.MYTV_SYNC_KEY,
             )
 
             CloudSyncProvider.NETWORK_URL -> NetworkUrlSyncRepository(Configs.cloudSyncNetworkUrl)
@@ -114,7 +120,8 @@ enum class CloudSyncProvider(
     GITEE_GIST(1, "Gitee 代码片段", true, true),
     NETWORK_URL(2, "网络链接", true, false),
     LOCAL_FILE(3, "本地文件", true, true),
-    WEBDAV(4, "WebDAV", true, true);
+    WEBDAV(4, "WebDAV", true, true),
+    CLOUDFLARE(5, "Cloudflare", true, true);
 
     companion object {
         fun fromValue(value: Int): CloudSyncProvider {

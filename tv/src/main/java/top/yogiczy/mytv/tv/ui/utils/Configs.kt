@@ -275,6 +275,9 @@ object Configs {
 
         /** 云同步 webdav 密码 */
         CLOUD_SYNC_WEBDAV_PASSWORD,
+
+        /** 云同步 Cloudflare 地址 */
+        CLOUD_SYNC_CLOUDFLARE_URL,
     }
 
     /**
@@ -689,9 +692,21 @@ object Configs {
 
     /** 云同步 提供商 */
     var cloudSyncProvider: CloudSyncProvider
-        get() = CloudSyncProvider.fromValue(
-            SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.GITHUB_GIST.value)
-        )
+        get() {
+            val provider = CloudSyncProvider.fromValue(
+                SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.CLOUDFLARE.value)
+            )
+            // 升级迁移：老版本默认是 GitHub Gist；从没配过 Gist 账号的设备
+            // （Gist Id 和 Token 都是空的），升级后自动改用 Cloudflare，
+            // 装上就能同步，不用用户填任何东西；配过 Gist 的保持不动。
+            if (provider == CloudSyncProvider.GITHUB_GIST &&
+                cloudSyncGithubGistId.isBlank() && cloudSyncGithubGistToken.isBlank()
+            ) {
+                cloudSyncProvider = CloudSyncProvider.CLOUDFLARE
+                return CloudSyncProvider.CLOUDFLARE
+            }
+            return provider
+        }
         set(value) = SP.putInt(KEY.CLOUD_SYNC_PROVIDER.name, value.value)
 
     /** 云同步 github gist id */
@@ -739,6 +754,11 @@ object Configs {
     var cloudSyncWebDavPassword: String
         get() = SP.getString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, "")
         set(value) = SP.putString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, value)
+
+    /** 云同步 Cloudflare 地址（内置默认值，不用用户填） */
+    var cloudSyncCloudflareUrl: String
+        get() = SP.getString(KEY.CLOUD_SYNC_CLOUDFLARE_URL.name, Constants.CLOUDFLARE_SYNC_URL)
+        set(value) = SP.putString(KEY.CLOUD_SYNC_CLOUDFLARE_URL.name, value)
 
     // 添加网络重试次数和间隔时间
     var networkRetryCount: Long
@@ -910,6 +930,7 @@ object Configs {
             cloudSyncWebDavUrl = cloudSyncWebDavUrl,
             cloudSyncWebDavUsername = cloudSyncWebDavUsername,
             cloudSyncWebDavPassword = cloudSyncWebDavPassword,
+            cloudSyncCloudflareUrl = cloudSyncCloudflareUrl,
             networkRetryCount = networkRetryCount,
             networkRetryInterval = networkRetryInterval,
         )
@@ -998,6 +1019,7 @@ object Configs {
         configs.cloudSyncWebDavUrl?.let { cloudSyncWebDavUrl = it }
         configs.cloudSyncWebDavUsername?.let { cloudSyncWebDavUsername = it }
         configs.cloudSyncWebDavPassword?.let { cloudSyncWebDavPassword = it }
+        configs.cloudSyncCloudflareUrl?.let { cloudSyncCloudflareUrl = it }
         configs.networkRetryCount?.let { networkRetryCount = it }
         configs.networkRetryInterval?.let { networkRetryInterval = it }
     }
@@ -1084,6 +1106,7 @@ object Configs {
         val cloudSyncWebDavUrl: String? = null,
         val cloudSyncWebDavUsername: String? = null,
         val cloudSyncWebDavPassword: String? = null,
+        val cloudSyncCloudflareUrl: String? = null,
         val networkRetryCount: Long? = null,
         val networkRetryInterval: Long? = null,
     ) {

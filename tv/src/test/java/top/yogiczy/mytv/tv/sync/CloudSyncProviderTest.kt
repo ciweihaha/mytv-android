@@ -6,7 +6,7 @@ import org.junit.Test
 class CloudSyncProviderTest {
     @Test
     fun fromValue_allKnownValues_mapCorrectly() {
-        // 5 个云同步方式全按 value 对上：SP 里存的整数就是这一张表
+        // 6 个云同步方式全按 value 对上：SP 里存的整数就是这一张表
         for (provider in CloudSyncProvider.entries) {
             assertEquals(provider, CloudSyncProvider.fromValue(provider.value))
         }
@@ -26,7 +26,7 @@ class CloudSyncProviderTest {
         )
         assertEquals(
             CloudSyncProvider.GITHUB_GIST,
-            CloudSyncProvider.fromValue(5),
+            CloudSyncProvider.fromValue(6),
         )
     }
 }
