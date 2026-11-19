@@ -79,7 +79,23 @@ class AsrModelManager(
             targetDir.deleteRecursively()
 
             log.i("开始下载模型 ${model.displayName}（约 ${model.approxSizeBytes / 1024 / 1024}MB）...")
-            download(model.downloadUrl, tmpArchive.path, onProgress)
+            // 按顺序试下载地址（国内镜像 gh-proxy → ghfast → GitHub 直链）：
+            // 电视上直链经常打不开，镜像是主路；直链只是兜底。哪个通了
+            // 用哪个，全失败才报错。取消不回退：取消信号原样抛出去，别
+            // 在取消后又悄悄下一个。
+            var lastError: Exception? = null
+            for (url in model.downloadUrls) {
+                try {
+                    download(url, tmpArchive.path, onProgress)
+                    lastError = null
+                    break
+                } catch (ex: Exception) {
+                    if (ex is CancellationException) throw ex
+                    lastError = ex
+                    log.i("下载失败，换下一个地址重试：$url")
+                }
+            }
+            lastError?.let { throw it }
             if (!tmpArchive.exists() || tmpArchive.length() == 0L) {
                 throw IllegalStateException("模型下载失败：文件为空")
             }

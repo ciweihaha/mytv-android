@@ -11,14 +11,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.SubtitleView
+import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.material.Visibility
 import top.yogiczy.mytv.tv.ui.rememberChildPadding
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
@@ -116,6 +123,37 @@ fun VideoPlayerScreen(
                     state.instance.onCues { cues -> it.setCues(cues) }
                 },
             )
+        }
+
+        // AI 实时字幕：和内嵌字幕同一套样式（设置里的字幕大小/颜色），
+        // 位置抬到内嵌字幕行上方（bottom 96dp），两行同时有也不重叠。
+        // 只有识别出文字时才显示，没字时不占地方。
+        val aiSubtitleText by state.aiSubtitleTextFlow.collectAsState(initial = "")
+        if (aiSubtitleText.isNotBlank()) {
+            val subtitleStyle = settingsVM.uiVideoPlayerSubtitle
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 96.dp, start = 48.dp, end = 48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = aiSubtitleText,
+                    textAlign = TextAlign.Center,
+                    style = androidx.compose.ui.text.TextStyle(
+                        color = Color(subtitleStyle.style.foregroundColor),
+                        fontSize = subtitleStyle.textSize.sp,
+                        shadow = Shadow(
+                            color = Color(subtitleStyle.style.edgeColor),
+                            blurRadius = 4f,
+                        ),
+                    ),
+                    modifier = Modifier
+                        .background(Color(subtitleStyle.style.backgroundColor))
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+            }
         }
     }
 

@@ -56,6 +56,8 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelLine
 import top.yogiczy.mytv.core.util.utils.toHeaders
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import top.yogiczy.mytv.core.data.utils.Logger
+import top.yogiczy.mytv.tv.voice.AiSubtitleRenderersFactory
+import top.yogiczy.mytv.tv.voice.AudioTapProcessor
 
 /**
  * 无声重试的错误码：BEHIND_LIVE_WINDOW / DECODING_FAILED /
@@ -257,6 +259,14 @@ class Media3VideoPlayer(
 ) : VideoPlayer(coroutineScope) {
 
     private val logger = Logger.create("Media3VideoPlayer")
+
+    // AI 实时字幕的音频 tap：挂进音频链抄 PCM。必须在 videoPlayer
+    // 之前声明（getPlayer() 建 player 时就要用它）。
+    private val audioTapProcessor = AudioTapProcessor(
+        onPcm16 = { samples, sampleRate, channels -> triggerAudioPcm(samples, sampleRate, channels) },
+        onFloat = { samples, sampleRate, channels -> triggerAudioPcmFloat(samples, sampleRate, channels) },
+    )
+
     private var videoPlayer = getPlayer()
 
     private var softDecode: Boolean? = null
@@ -325,9 +335,14 @@ class Media3VideoPlayer(
         onCuesListener = listener
     }
 
+    /** AI 字幕：开/关音频 tap（抄 PCM 给识别引擎） */
+    override fun setAudioTapEnabled(enabled: Boolean) {
+        audioTapProcessor.enabled = enabled
+    }
+
     private fun getPlayer(): ExoPlayer {
         val renderersFactory =
-            DefaultRenderersFactory(context)
+            AiSubtitleRenderersFactory(context, audioTapProcessor)
                 .setExtensionRendererMode(
                     if (Configs.videoPlayerForceSoftDecode || softDecode ?: false)
                         DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER

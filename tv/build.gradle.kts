@@ -1,6 +1,9 @@
 import com.android.build.api.variant.ApplicationVariant
 import com.android.build.api.variant.FilterConfiguration
+import java.io.File
 import java.io.FileInputStream
+import java.net.URI
+import java.security.MessageDigest
 import java.util.Properties
 
 plugins {
@@ -208,13 +211,21 @@ dependencies {
 
     implementation(libs.tinypinyin)
 
-    // AI 实时字幕：模型下载/解包只用 commons-compress 解 .tar.bz2 模型包。
-    // sherpa-onnx 的推理依赖先不引：libs.sherpa.onnx 这个坐标在 JitPack
-    // 上找不到（pom 404），引了构建直接红；树里也没有任何代码用到它的
-    // 类。等推理代码真正接入时，再按能解析的坐标加回来（注意别再引
-    // onnxruntime-android：预编译 AAR 的 libsherpa-onnx-jni.so 要的是
-    // OrtGetApiBase@VERS_1.27.1，onnxruntime-android 1.22.0 只有
-    // VERS_1.22.0，混用会链接失败）。
+    // AI 实时字幕：推理用 sherpa-onnx，AAR 放在 tv/libs/ 下（构建时
+    // 由下面的 fileTree("libs", "*.aar") 引用）。sherpa-onnx 不在 Maven
+    // Central 上，JitPack 坐标也解析不到（pom 404），所以不走依赖
+    // 坐标、直接用本地 AAR。
+    // AAR 不进 git（48MB，GitHub API 推不上去、git 直推也被出口代理
+    // 拦）：构建时如果 tv/libs/ 下没有它，下面的 downloadSherpaOnnxAar
+    // 任务会从官方 release 现下（CI 能直连 GitHub），并按 SHA-256 验
+    // 证；本地已有就跳过。换版本时改下面的版本号 + SHA-256 即可。
+    // 重要：千万别再单独引 onnxruntime-android——AAR 里自带
+    // libonnxruntime.so（1.27.0），libsherpa-onnx-jni.so 要的正是
+    // 它提供的 OrtGetApiBase@VERS_1.27.0（已用 readelf 核对过）；
+    // 另引一个 onnxruntime-android（比如 1.22.0）会打包两份
+    // libonnxruntime.so、符号版本对不上，运行时链接失败。
+    // 换 sherpa-onnx 版本时，换 tv/libs/ 下的 AAR 文件即可（注意
+    // 新版 AAR 自带的 onnxruntime 版本可能变，以它为准）。
     implementation(libs.commons.compress)
 
     implementation(project(":core:data"))
@@ -248,4 +259,73 @@ fun getProperty(key: String): String? {
     }
 
     return null
+}
+
+// AI 实时字幕：sherpa-onnx AAR 构建时下载（不进 git，48MB 推不上去）。
+// 官方 release：https://github.com/k2-fsa/sherpa-onnx/releases/tag/v1.13.4
+// tv/libs/ 下已有同名文件且 SHA-256 对得上就跳过；否则现下并校验。
+// 失败时构建直接报错，别静默编出一个缺原生库的包。
+val sherpaOnnxAarFile = file("libs/sherpa-onnx-1.13.4.aar")
+val sherpaOnnxAarUrls = listOf(
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.4/sherpa-onnx-1.13.4.aar",
+    "https://gh-proxy.com/https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.4/sherpa-onnx-1.13.4.aar",
+)
+val sherpaOnnxAarSha256 = "03f9c4df965f21c71269365a7951a7f23b5696fddd093fa318c80d65550ab780"
+
+tasks.register("downloadSherpaOnnxAar") {
+    description = "下载 sherpa-onnx AAR 到 tv/libs（已有且 SHA-256 正确时跳过）"
+    group = "build setup"
+    outputs.file(sherpaOnnxAarFile)
+    doLast {
+        val digest = MessageDigest.getInstance("SHA-256")
+        fun sha256Of(f: File): String =
+            digest.digest(f.readBytes()).joinToString("") { "%02x".format(it) }
+        if (sherpaOnnxAarFile.exists() && sha256Of(sherpaOnnxAarFile) == sherpaOnnxAarSha256) {
+            logger.lifecycle("sherpa-onnx AAR 已存在且校验通过，跳过下载")
+            return@doLast
+        }
+        sherpaOnnxAarFile.parentFile.mkdirs()
+        val tmp = File(sherpaOnnxAarFile.parentFile, "sherpa-onnx-1.13.4.aar.tmp")
+        // 按顺序试地址（官方直链 → 国内镜像），每个地址最多重试 2 次；
+        // 下完验 SHA-256，不对就删了换下一个，全失败才报错。
+        var lastError: Exception? = null
+        var downloaded = false
+        for (url in sherpaOnnxAarUrls) {
+            repeat(2) { attempt ->
+                if (downloaded) return@repeat
+                try {
+                    logger.lifecycle("正在下载 sherpa-onnx AAR（第 ${attempt + 1} 次）：$url")
+                    tmp.delete()
+                    URI(url).toURL().openStream().use { input ->
+                        tmp.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    if (sha256Of(tmp) != sherpaOnnxAarSha256) {
+                        throw GradleException("SHA-256 不符")
+                    }
+                    downloaded = true
+                } catch (ex: Exception) {
+                    lastError = ex
+                    logger.warn("下载失败（$url，第 ${attempt + 1} 次）：${ex.message}")
+                    tmp.delete()
+                }
+            }
+            if (downloaded) break
+        }
+        if (!downloaded) {
+            tmp.delete()
+            throw GradleException("下载 sherpa-onnx AAR 失败（已试 ${sherpaOnnxAarUrls.size} 个地址）：${lastError?.message}，请检查网络后重试", lastError)
+        }
+        if (!tmp.renameTo(sherpaOnnxAarFile)) {
+            tmp.copyTo(sherpaOnnxAarFile, overwrite = true)
+            tmp.delete()
+        }
+        logger.lifecycle("sherpa-onnx AAR 下载完成并校验通过")
+    }
+}
+
+// 所有需要 AAR 的构建先保证它在位（本地已有时任务直接跳过，不联网）。
+tasks.configureEach {
+    if (name.startsWith("pre") && (name.endsWith("Build") || name == "preBuild")) {
+        dependsOn(tasks.named("downloadSherpaOnnxAar"))
+    }
 }

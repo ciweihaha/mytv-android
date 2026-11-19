@@ -25,3 +25,6 @@ keystore.jks
 .kotlin
 /release
 tv/release/
+
+# AI 实时字幕：sherpa-onnx AAR 构建时现下，不进 git（48MB）
+tv/libs/sherpa-onnx-*.aar

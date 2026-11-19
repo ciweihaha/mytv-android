@@ -27,6 +27,7 @@ fun SettingsVideoPlayerScreen(
     toVideoPlayerDisplayModeScreen: () -> Unit = {},
     toVideoPlayerLoadTimeoutScreen: () -> Unit = {},
     toVideoPlayerBufferTimeScreen: () -> Unit = {},
+    toAiSubtitleScreen: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
     SettingsCategoryScreen(
@@ -134,6 +135,16 @@ fun SettingsVideoPlayerScreen(
                 supportingContent = settingsViewModel.videoPlayerHeaders,
                 remoteConfig = true,
                 trailingIcon = if (!isValid) Icons.Default.ErrorOutline else null,
+            )
+        }
+
+        item {
+            SettingsListItem(
+                headlineContent = "AI 实时字幕",
+                supportingContent = "本地模型听写，边播边出字幕；英文台走免费接口翻中文",
+                trailingContent = if (settingsViewModel.aiSubtitleEnabled) "开" else "关",
+                onSelect = toAiSubtitleScreen,
+                link = true,
             )
         }
     }

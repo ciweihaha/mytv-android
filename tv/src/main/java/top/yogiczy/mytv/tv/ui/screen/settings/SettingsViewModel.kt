@@ -553,6 +553,79 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
+    // ==================== AI 实时字幕 ====================
+    private var _aiSubtitleEnabled by mutableStateOf(false)
+    var aiSubtitleEnabled: Boolean
+        get() = _aiSubtitleEnabled
+        set(value) {
+            _aiSubtitleEnabled = value
+            Configs.aiSubtitleEnabled = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleModelId by mutableStateOf("")
+    var aiSubtitleModelId: String
+        get() = _aiSubtitleModelId
+        set(value) {
+            _aiSubtitleModelId = value
+            Configs.aiSubtitleModelId = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleTranslateMode by mutableStateOf(top.yogiczy.mytv.tv.voice.AiTranslateMode.ENGLISH_ONLY)
+    var aiSubtitleTranslateMode: top.yogiczy.mytv.tv.voice.AiTranslateMode
+        get() = _aiSubtitleTranslateMode
+        set(value) {
+            _aiSubtitleTranslateMode = value
+            Configs.aiSubtitleTranslateMode = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleTranslateProvider by mutableStateOf(top.yogiczy.mytv.tv.voice.AiTranslateProvider.AZURE)
+    var aiSubtitleTranslateProvider: top.yogiczy.mytv.tv.voice.AiTranslateProvider
+        get() = _aiSubtitleTranslateProvider
+        set(value) {
+            _aiSubtitleTranslateProvider = value
+            Configs.aiSubtitleTranslateProvider = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleAzureApiKey by mutableStateOf("")
+    var aiSubtitleAzureApiKey: String
+        get() = _aiSubtitleAzureApiKey
+        set(value) {
+            _aiSubtitleAzureApiKey = value
+            Configs.aiSubtitleAzureApiKey = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleAzureRegion by mutableStateOf("")
+    var aiSubtitleAzureRegion: String
+        get() = _aiSubtitleAzureRegion
+        set(value) {
+            _aiSubtitleAzureRegion = value
+            Configs.aiSubtitleAzureRegion = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleCfAccountId by mutableStateOf("")
+    var aiSubtitleCfAccountId: String
+        get() = _aiSubtitleCfAccountId
+        set(value) {
+            _aiSubtitleCfAccountId = value
+            Configs.aiSubtitleCfAccountId = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
+    private var _aiSubtitleCfApiToken by mutableStateOf("")
+    var aiSubtitleCfApiToken: String
+        get() = _aiSubtitleCfApiToken
+        set(value) {
+            _aiSubtitleCfApiToken = value
+            Configs.aiSubtitleCfApiToken = value
+            afterSetWhenCloudSyncAutoPull()
+        }
+
     private var _networkRetryCount by mutableLongStateOf(Constants.NETWORK_RETRY_COUNT)
     var networkRetryCount: Long
         get() = _networkRetryCount
@@ -843,6 +916,14 @@ class SettingsViewModel : ViewModel() {
         _videoPlayerDisplayMode = Configs.videoPlayerDisplayMode
         _videoPlayerForceSoftDecode = Configs.videoPlayerForceSoftDecode
         _videoPlayerStopPreviousMediaItem = Configs.videoPlayerStopPreviousMediaItem
+        _aiSubtitleEnabled = Configs.aiSubtitleEnabled
+        _aiSubtitleModelId = Configs.aiSubtitleModelId
+        _aiSubtitleTranslateMode = Configs.aiSubtitleTranslateMode
+        _aiSubtitleTranslateProvider = Configs.aiSubtitleTranslateProvider
+        _aiSubtitleAzureApiKey = Configs.aiSubtitleAzureApiKey
+        _aiSubtitleAzureRegion = Configs.aiSubtitleAzureRegion
+        _aiSubtitleCfAccountId = Configs.aiSubtitleCfAccountId
+        _aiSubtitleCfApiToken = Configs.aiSubtitleCfApiToken
         _networkRetryCount = Configs.networkRetryCount
         _networkRetryInterval = Configs.networkRetryInterval
         _themeAppCurrent = Configs.themeAppCurrent

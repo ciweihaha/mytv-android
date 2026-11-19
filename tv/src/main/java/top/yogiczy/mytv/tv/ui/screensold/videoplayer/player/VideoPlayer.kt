@@ -123,6 +123,11 @@ abstract class VideoPlayer(
     private val onCurrentPositionChanged = mutableListOf<(position: Long) -> Unit>()
     private val onMetadataListeners = mutableListOf<(metadata: Metadata) -> Unit>()
     private val onInterruptListeners = mutableListOf<() -> Unit>()
+    // AI 实时字幕用的音频回调：Media3 核心解出来的 PCM（PCM16 或 float，
+    // 声道交错），IJK 核心没有这路回调。回调在播放器音频线程上同步调，
+    // 监听方要同步消费（重采样是同步读的）；数组是每次新拷的，别攒着。
+    private val onAudioPcmListeners = mutableListOf<(samples: ShortArray, sampleRate: Int, channels: Int) -> Unit>()
+    private val onAudioPcmFloatListeners = mutableListOf<(samples: FloatArray, sampleRate: Int, channels: Int) -> Unit>()
 
     private fun clearAllListeners() {
         onResolutionListeners.clear()
@@ -135,6 +140,18 @@ abstract class VideoPlayer(
         onCurrentPositionChanged.clear()
         onMetadataListeners.clear()
         onInterruptListeners.clear()
+        onAudioPcmListeners.clear()
+        onAudioPcmFloatListeners.clear()
+    }
+
+    /** AI 字幕：Media3 解出来的 PCM16 音频（声道交错） */
+    protected fun triggerAudioPcm(samples: ShortArray, sampleRate: Int, channels: Int) {
+        onAudioPcmListeners.forEach { it(samples, sampleRate, channels) }
+    }
+
+    /** AI 字幕：Media3 解出来的 float 音频（声道交错，-1..1） */
+    protected fun triggerAudioPcmFloat(samples: FloatArray, sampleRate: Int, channels: Int) {
+        onAudioPcmFloatListeners.forEach { it(samples, sampleRate, channels) }
     }
 
     protected fun triggerResolution(width: Int, height: Int) {
@@ -292,6 +309,22 @@ abstract class VideoPlayer(
     fun onInterrupt(listener: () -> Unit) {
         onInterruptListeners.add(listener)
     }
+
+    /** AI 字幕：订阅 Media3 解出来的 PCM16 音频 */
+    fun onAudioPcm(listener: (samples: ShortArray, sampleRate: Int, channels: Int) -> Unit) {
+        onAudioPcmListeners.add(listener)
+    }
+
+    /** AI 字幕：订阅 Media3 解出来的 float 音频 */
+    fun onAudioPcmFloat(listener: (samples: FloatArray, sampleRate: Int, channels: Int) -> Unit) {
+        onAudioPcmFloatListeners.add(listener)
+    }
+
+    /**
+     * AI 字幕：开/关音频 tap。Media3 核心重写（打开 tap 才抄音频）；
+     * IJK 核心没有音频回调，默认空实现（开字幕也拿不到音频，设置里会提示）。
+     */
+    open fun setAudioTapEnabled(enabled: Boolean) {}
 
     data class PlaybackException(val errorCodeName: String, val errorCode: Int) :
         Exception(errorCodeName) {

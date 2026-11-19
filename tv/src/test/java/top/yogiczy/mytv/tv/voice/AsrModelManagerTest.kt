@@ -240,11 +240,17 @@ class AsrModelManagerTest {
 
     @Test
     fun asrModels_catalogIsWellFormed() {
-        // 目录里的模型：URL 都是 asr-models release 下的 .tar.bz2，
-        // 目录名就是包名去后缀，默认模型是流式（实时字幕用）
-        val base = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
+        // 目录里的模型：下载地址按顺序是国内镜像（gh-proxy、ghfast）
+        // 再加 GitHub 直链兜底；所有地址的包名相同、都是 asr-models
+        // release 下的 .tar.bz2；目录名就是包名去后缀，默认模型是流式
+        //（实时字幕用）
+        val directBase = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
         for (model in AsrModels.ALL) {
-            assertTrue(model.downloadUrl.startsWith(base))
+            assertTrue(model.downloadUrls.size >= 3)
+            assertTrue(model.downloadUrls.last().startsWith(directBase))
+            assertTrue(model.downloadUrls.first().startsWith("https://gh-proxy.com/"))
+            val fileNames = model.downloadUrls.map { it.substringAfterLast("/") }.toSet()
+            assertEquals(setOf(model.archiveFileName), fileNames)
             assertTrue(model.archiveFileName.endsWith(".tar.bz2"))
             assertEquals(
                 model.archiveFileName.removeSuffix(".tar.bz2"),
@@ -347,6 +353,49 @@ class AsrModelManagerTest {
             assertTrue(result.isFailure)
             assertEquals(AsrModelState.NOT_INSTALLED, manager.modelState(model))
             assertFalse(File(work, "models/${model.id}").exists())
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun downloadModel_mirrorFails_fallsBackToDirect() = runBlocking {
+        // 第一个地址（镜像）下载失败时，要按顺序试下一个地址，而不是
+        // 直接报失败；两次用的 URL 必须是下载列表的前两个。
+        // 取消不回退：取消信号原样抛、不能悄悄再下一个（见取消单测）。
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("whisper-tiny")!!
+            val archive = File(work, "pkg.tar.bz2")
+            BZip2CompressorOutputStream(archive.outputStream()).use { bz2 ->
+                TarArchiveOutputStream(bz2).use { tar ->
+                    val tokens = "a b".toByteArray()
+                    val tokensEntry = TarArchiveEntry("sherpa-onnx-whisper-tiny/tokens.txt")
+                    tokensEntry.size = tokens.size.toLong()
+                    tar.putArchiveEntry(tokensEntry)
+                    tar.write(tokens)
+                    tar.closeArchiveEntry()
+                    val onnx = "fake".toByteArray()
+                    val onnxEntry = TarArchiveEntry("sherpa-onnx-whisper-tiny/model.onnx")
+                    onnxEntry.size = onnx.size.toLong()
+                    tar.putArchiveEntry(onnxEntry)
+                    tar.write(onnx)
+                    tar.closeArchiveEntry()
+                }
+            }
+            val triedUrls = mutableListOf<String>()
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { url, path, _ ->
+                    triedUrls.add(url)
+                    if (triedUrls.size == 1) throw Exception("镜像不通")
+                    archive.copyTo(File(path), overwrite = true)
+                },
+            )
+            val result = manager.downloadModel(model)
+            assertTrue(result.isSuccess)
+            assertEquals(model.downloadUrls.take(2), triedUrls)
+            assertEquals(AsrModelState.INSTALLED, manager.modelState(model))
         } finally {
             work.deleteRecursively()
         }
