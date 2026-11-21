@@ -111,6 +111,11 @@ class AsrModelManager(
                 modelContentDir.deleteRecursively()
             }
 
+            // transducer 三件套改名：包里的文件名带 epoch
+            //（encoder-epoch-99-avg-1.onnx），引擎只认 encoder.onnx /
+            // decoder.onnx / joiner.onnx，不改名就认不出三件套。
+            normalizeTransducerFileNames(targetDir)
+
             if (!isModelDirComplete(targetDir)) {
                 throw IllegalStateException("模型文件不完整：缺少 tokens.txt 或 .onnx 模型文件")
             }
@@ -134,6 +139,32 @@ class AsrModelManager(
     /** 删除一个已安装的模型（释放空间）。 */
     fun deleteModel(model: AsrModel): Boolean {
         return modelDir(model).deleteRecursively()
+    }
+}
+
+/**
+ * 把 transducer 三件套改成引擎认的名字：包里的文件名带 epoch
+ *（如 encoder-epoch-99-avg-1.onnx），引擎只认 encoder.onnx /
+ * decoder.onnx / joiner.onnx，不改名就认不出三件套、引擎起不来。
+ * 已是标准名的不动；目标名已存在时不覆盖；一对多时不动（不猜哪个是）。
+ */
+internal fun normalizeTransducerFileNames(dir: File) {
+    for ((prefix, targetName) in listOf(
+        "encoder" to "encoder.onnx",
+        "decoder" to "decoder.onnx",
+        "joiner" to "joiner.onnx",
+    )) {
+        val target = File(dir, targetName)
+        if (target.exists()) continue
+        val candidates = dir.listFiles { f ->
+            f.isFile && f.name.startsWith("$prefix-") && f.name.endsWith(".onnx")
+        } ?: continue
+        if (candidates.size == 1) {
+            if (!candidates[0].renameTo(target)) {
+                candidates[0].copyTo(target, overwrite = true)
+                candidates[0].delete()
+            }
+        }
     }
 }
 

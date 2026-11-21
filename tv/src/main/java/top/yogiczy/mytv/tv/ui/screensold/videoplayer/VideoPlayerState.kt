@@ -271,7 +271,6 @@ fun rememberVideoPlayerState(
         // AI 实时字幕控制器：和播放器同生命周期（remember 的 key 和
         // 播放器一致，切内核时一起重建）；模型目录和下载器同一个
         val aiSubtitleController = AiSubtitleController(
-            context = context,
             modelsDir = File(Globals.cacheDir, "asr-models"),
             scope = coroutineScope,
         )

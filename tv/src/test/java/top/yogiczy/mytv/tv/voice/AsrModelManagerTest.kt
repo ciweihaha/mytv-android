@@ -402,6 +402,109 @@ class AsrModelManagerTest {
     }
 
     @Test
+    fun normalizeTransducerFileNames_renamesEpochNames() {
+        // 双语模型包里的三件套带 epoch 名（encoder-epoch-99-avg-1.onnx），
+        // 引擎只认 encoder/decoder/joiner.onnx：改名后才能认出 TRANSDUCER。
+        val dir = tempDir()
+        try {
+            File(dir, "tokens.txt").writeText("a b")
+            File(dir, "encoder-epoch-99-avg-1.onnx").writeText("fake")
+            File(dir, "decoder-epoch-99-avg-1.onnx").writeText("fake")
+            File(dir, "joiner-epoch-99-avg-1.onnx").writeText("fake")
+            // 改名前认不出（三个 .onnx 既不是三件套也不是单个）
+            assertNull(detectStreamingModelType(dir))
+            normalizeTransducerFileNames(dir)
+            assertTrue(File(dir, "encoder.onnx").exists())
+            assertTrue(File(dir, "decoder.onnx").exists())
+            assertTrue(File(dir, "joiner.onnx").exists())
+            assertFalse(File(dir, "encoder-epoch-99-avg-1.onnx").exists())
+            assertFalse(File(dir, "decoder-epoch-99-avg-1.onnx").exists())
+            assertFalse(File(dir, "joiner-epoch-99-avg-1.onnx").exists())
+            assertEquals(AsrModelType.TRANSDUCER, detectStreamingModelType(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun normalizeTransducerFileNames_leavesStandardNamesAlone() {
+        val dir = tempDir()
+        try {
+            File(dir, "tokens.txt").writeText("a b")
+            File(dir, "encoder.onnx").writeText("real")
+            File(dir, "decoder.onnx").writeText("real")
+            File(dir, "joiner.onnx").writeText("real")
+            normalizeTransducerFileNames(dir)
+            assertEquals("real", File(dir, "encoder.onnx").readText())
+            assertEquals(AsrModelType.TRANSDUCER, detectStreamingModelType(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun normalizeTransducerFileNames_doesNotOverwriteExistingTarget() {
+        // 标准名和 epoch 名同时在：不覆盖已有的标准名，不猜哪个是对的
+        val dir = tempDir()
+        try {
+            File(dir, "tokens.txt").writeText("a b")
+            File(dir, "encoder.onnx").writeText("real")
+            File(dir, "encoder-epoch-99-avg-1.onnx").writeText("epoch")
+            normalizeTransducerFileNames(dir)
+            assertEquals("real", File(dir, "encoder.onnx").readText())
+            assertTrue(File(dir, "encoder-epoch-99-avg-1.onnx").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun downloadModel_renamesTransducerEpochNames() = runBlocking {
+        // 端到端：双语模型包里三件套带 epoch 名，下载安装后目录里
+        // 必须是标准名、引擎能认出 TRANSDUCER（否则装完也起不来）。
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("streaming-zipformer-bilingual-zh-en")!!
+            val archive = File(work, "pkg.tar.bz2")
+            BZip2CompressorOutputStream(archive.outputStream()).use { bz2 ->
+                TarArchiveOutputStream(bz2).use { tar ->
+                    fun add(name: String, text: String) {
+                        val bytes = text.toByteArray()
+                        val entry = TarArchiveEntry(name)
+                        entry.size = bytes.size.toLong()
+                        tar.putArchiveEntry(entry)
+                        tar.write(bytes)
+                        tar.closeArchiveEntry()
+                    }
+                    val prefix = "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
+                    add("$prefix/tokens.txt", "a b")
+                    add("$prefix/encoder-epoch-99-avg-1.onnx", "fake")
+                    add("$prefix/decoder-epoch-99-avg-1.onnx", "fake")
+                    add("$prefix/joiner-epoch-99-avg-1.onnx", "fake")
+                    add("$prefix/bpe.model", "fake")
+                }
+            }
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { _, path, _ ->
+                    archive.copyTo(File(path), overwrite = true)
+                },
+            )
+            val result = manager.downloadModel(model)
+            assertTrue(result.isSuccess)
+            assertEquals(AsrModelState.INSTALLED, manager.modelState(model))
+            val targetDir = File(work, "models/${model.id}")
+            assertTrue(File(targetDir, "encoder.onnx").exists())
+            assertTrue(File(targetDir, "decoder.onnx").exists())
+            assertTrue(File(targetDir, "joiner.onnx").exists())
+            assertFalse(File(targetDir, "encoder-epoch-99-avg-1.onnx").exists())
+            assertEquals(AsrModelType.TRANSDUCER, detectStreamingModelType(targetDir))
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
     fun modelState_partialFiles_isIncomplete() {
         // 目录在但文件不全（只有 tokens.txt）：状态是 INCOMPLETE，不是已安装
         val work = tempDir()

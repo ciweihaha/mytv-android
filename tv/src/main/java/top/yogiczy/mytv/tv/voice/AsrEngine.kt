@@ -1,6 +1,5 @@
 package top.yogiczy.mytv.tv.voice
 
-import android.content.res.AssetManager
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -65,7 +64,6 @@ internal fun findCtcModelFile(modelDir: File): File? {
  * onError 只报引擎起不来/解码崩了这类致命问题，识别中途的空结果不算错。
  */
 class AsrEngine(
-    private val assets: AssetManager,
     private val modelDir: File,
     private val onPartial: (String) -> Unit,
     private val onFinal: (String) -> Unit,
@@ -138,6 +136,14 @@ class AsrEngine(
     }
 
     private fun createRecognizer(type: AsrModelType): OnlineRecognizer {
+        // 模型路径全是文件系统绝对路径：AssetManager 必须传 null，
+        // 走 newFromFile。传了非空 AssetManager，原生层会把绝对路径
+        // 当 assets 名去读，加载失败、进程直接退出 255（一开字幕就闪退）。
+        return OnlineRecognizer(assetManager = null, config = buildRecognizerConfig(type))
+    }
+
+    /** 识别器配置（纯构造，不碰 native 层）：模型路径全是绝对路径。 */
+    internal fun buildRecognizerConfig(type: AsrModelType): OnlineRecognizerConfig {
         val tokens = File(modelDir, "tokens.txt").absolutePath
         // 有 bpe.model 的模型（默认中文 CTC、中英双语）走 BPE 分词；
         // 没有的用默认 cjkchar（别传空串，会盖掉默认值）
@@ -185,7 +191,7 @@ class AsrEngine(
             decodingMethod = "greedy_search",
             maxActivePaths = 4,
         )
-        return OnlineRecognizer(assets, config)
+        return config
     }
 
     private fun decodeLoop() {

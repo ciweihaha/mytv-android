@@ -1,6 +1,5 @@
 package top.yogiczy.mytv.tv.voice
 
-import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,7 +38,6 @@ enum class AiTranslateMode { OFF, ENGLISH_ONLY, ALL }
  * IJK 核心没有音频回调，所以 IJK 下 AI 字幕不可用（设置里会提示）。
  */
 class AiSubtitleController(
-    private val context: Context,
     private val modelsDir: File,
     private val scope: CoroutineScope,
 ) {
@@ -75,7 +73,6 @@ class AiSubtitleController(
         }
         _status.value = AiSubtitleStatus.STARTING
         val eng = AsrEngine(
-            assets = context.assets,
             modelDir = modelDir,
             onPartial = { text -> onRecognized(text, isFinal = false) },
             onFinal = { text -> onRecognized(text, isFinal = true) },
