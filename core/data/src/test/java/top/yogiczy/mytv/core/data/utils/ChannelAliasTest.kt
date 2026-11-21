@@ -1,5 +1,8 @@
 package top.yogiczy.mytv.core.data.utils
 
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -148,6 +151,45 @@ class ChannelAliasTest {
     fun aliasLookup_unknown_returnsNull() {
         val lookup = ChannelAlias.buildAliasLookup(customMap, defaultMap)
         assertNull(lookup["不存在的台"])
+    }
+
+    @Test
+    fun aliasLookup_liveSourceSpellingOfCctv5p_mapsToCctv5plus() {
+        // cctv5p 回归：直播源写“CCTV体育赛事”、节目单写“CCTV-5+ 体育赛事”，
+        // 节目单那边的显示名进别名表能标成 CCTV5+，直播源这边却标不成——
+        // 表里只有带 5+ 的写法，没有不带 5+ 的“CCTV体育赛事”，频道 epgName
+        // 原样不动；match() 先按名查不到，再按 tvg-id=cctv5p 查到后，
+        // 名字复核（“CCTV体育赛事”对“CCTV5+”）和“显示名即 tvg-id”
+        // （“CCTV5+”对“cctv5p”）两档全不过，06 行节目名一直空白；
+        // 其余央视台的标准化显示名（CCTV2/CCTV3…）本身就是 tvg-id，
+        // 第二档能过，只有 cctv5p 一台掉队。修法是在表里给 CCTV5+
+        // 补上“CCTV体育赛事”这一条，频道 epgName 也标成 CCTV5+，
+        // 按名就能直接认到。读磁盘上的真表（单测里 Globals.resources
+        // 读不到资源，standardChannelName 本体测不了这条），缺了这
+        // 条就失败
+        val lookup = ChannelAlias.buildAliasLookup(emptyMap(), realDefaultAliasMap())
+        assertEquals("CCTV5+", lookup.getValue("cctv体育赛事"))
+    }
+
+    private fun realDefaultAliasMap(): Map<String, List<String>> {
+        // 单元测试的工作目录可能是模块目录（core/data）或仓库根目录，
+        // 两种都认：从当前目录一路往上找，直到找到真表文件
+        var dir: java.io.File? = java.io.File(System.getProperty("user.dir") ?: ".")
+        while (dir != null) {
+            val candidates = listOf(
+                java.io.File(dir, "core/data/src/main/res/raw/channel_name_alias.json"),
+                java.io.File(dir, "src/main/res/raw/channel_name_alias.json"),
+            )
+            val found = candidates.firstOrNull { it.isFile }
+            if (found != null) {
+                val json = Globals.json.parseToJsonElement(found.readText()).jsonObject
+                return json.mapValues { (_, value) ->
+                    value.jsonArray.map { it.jsonPrimitive.content }
+                }
+            }
+            dir = dir.parentFile
+        }
+        error("找不到 channel_name_alias.json：从 ${System.getProperty("user.dir")} 往上都没找到")
     }
 
     @Test

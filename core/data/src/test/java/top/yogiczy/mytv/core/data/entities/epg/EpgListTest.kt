@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import top.yogiczy.mytv.core.data.entities.channel.Channel
+import top.yogiczy.mytv.core.data.entities.epg.Epg.Companion.recentProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.clearCache
 import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.match
 
@@ -341,5 +342,34 @@ class EpgListTest {
     fun filterForChannels_emptyChannels_keepsAll() {
         // 过滤集为空时全留，和我的电视 keepEpgChannel 一致
         assertEquals(epgList(), epgList().filterForChannels(emptyList()))
+    }
+
+    @Test
+    fun match_cctv5p_afterAliasFix_showsProgramme() {
+        // cctv5p 回归（2026-11-21 平板实测：epg.xml 里 17 个节目、
+        // tvg-id 与直播源一致，TV Live 251 的 06 行仍无节目名）：
+        // 别名表修好后，直播源“CCTV体育赛事”与节目单“CCTV-5+ 体育赛事”
+        // 都标成 CCTV5+，频道 epgName 就是 CCTV5+，按名直接认到，
+        // recentProgramme 拿得到正在播的那档。修前这个用例的形状
+        // 是 epgName “CCTV体育赛事”——按名查不到、按 id 查到后名字
+        // 复核与“显示名即 tvg-id”两档全不过，match 回空 Epg、行空白
+        val now = 1_700_000_000_000L
+        val list = EpgList(
+            listOf(
+                Epg(
+                    id = "cctv5p",
+                    channelList = listOf("CCTV5+"),
+                    programmeList = EpgProgrammeList(
+                        listOf(
+                            EpgProgramme(now - 3_600_000, now + 3_600_000, "正在播的比赛"),
+                            EpgProgramme(now + 3_600_000, now + 7_200_000, "下一场比赛"),
+                        )
+                    ),
+                ),
+            )
+        )
+        val matched = list.match(channel("CCTV5+", "cctv5p"))
+        assertEquals("cctv5p", matched?.id)
+        assertEquals("正在播的比赛", matched?.recentProgramme(now)?.now?.title)
     }
 }
