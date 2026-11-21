@@ -62,9 +62,15 @@ import top.yogiczy.mytv.core.data.utils.Logger
  * IO_UNSPECIFIED（原有）+ 瞬时网络错 IO_BAD_HTTP_STATUS（2004：拉列表
  * 或分片时上游回了错误状态，如 502/503/403）、
  * IO_NETWORK_CONNECTION_FAILED（2001）、
- * IO_NETWORK_CONNECTION_TIMEOUT（2002）。ExoPlayer 内部已重试过
- * 几次才上报，但直接判死刑会让只有一条线路的台永久卡死（CCTV7
- * 的 2004 就是这么报播放失败的）；同一条线路上再试几次。
+ * IO_NETWORK_CONNECTION_TIMEOUT（2002）+ 容器损坏
+ * PARSING_CONTAINER_MALFORMED（3001：分片本身 HTTP 200、长度完整，
+ * 但 PES 层损坏，播放器一个轨道都解析不出来；天光 v2.2.40 同款判断：
+ * 坏窗口是分钟级的，重拉拿新节目单后新分片大概率已干净。壳侧没有天光
+ * 的“耗尽后自动重调”，走已有的无声重试这条路、最多 3 次，超限上报走
+ * 换线）。ExoPlayer 内部已重试过几次才上报，但直接判死刑会让只有
+ * 一条线路的台永久卡死（CCTV7 的 2004 就是这么报播放失败的）；
+ * 同一条线路上再试几次。容器不支持（3003）不进这里——它走下面的
+ * 三种容器轮试分支，重试同一条线没有意义。
  * 顶层函数方便单元测试直接调用。
  */
 internal fun isSilentRetryError(errorCode: Int): Boolean =
@@ -73,7 +79,8 @@ internal fun isSilentRetryError(errorCode: Int): Boolean =
         errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
         errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
         errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
-        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+        errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED
 
 /**
  * 无声重试第几次前等多久：第 1 次 1 秒、第 2 次 2 秒、第 3 次

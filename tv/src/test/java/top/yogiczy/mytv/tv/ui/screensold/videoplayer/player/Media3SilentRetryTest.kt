@@ -29,6 +29,17 @@ class Media3SilentRetryTest {
     }
 
     @Test
+    fun `3001 容器损坏是无声重试错误`() {
+        // 天光 v2.2.40 同款判断：分片 HTTP 200、长度完整、但 PES 层损坏，
+        // 播放器一个轨道都解析不出来、报 3001；坏窗口是分钟级的，重拉拿新
+        // 节目单后新分片大概率已干净。壳侧没有天光的“耗尽后自动重调”，走
+        // 已有的无声重试这条路。码值锁死 3001：就是 logcat 里那个
+        // ERROR_CODE_PARSING_CONTAINER_MALFORMED(3001)。
+        assertEquals(3001, Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED)
+        assertTrue(isSilentRetryError(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED))
+    }
+
+    @Test
     fun `原有三类错误仍无声重试`() {
         assertTrue(isSilentRetryError(Media3PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW))
         assertTrue(isSilentRetryError(Media3PlaybackException.ERROR_CODE_DECODING_FAILED))
@@ -60,6 +71,17 @@ class Media3SilentRetryTest {
         assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 1))
         assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 2))
         assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 3))
+    }
+
+    @Test
+    fun `3001 最多无声重试 3 次`() {
+        // 坏窗口是分钟级的、3 次退避（1/2/3 秒）未必能等过去：3 次都还坏
+        // 就上报原始错误走换线，不循环；只有一条线路的台才会在此挂住，
+        // 和其他无声重试错误同一口径
+        assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, 0))
+        assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, 1))
+        assertTrue(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, 2))
+        assertFalse(shouldSilentRetry(Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, 3))
     }
 
     @Test
