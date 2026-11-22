@@ -57,9 +57,15 @@ class Pcm16kResampler {
             offset += step
         }
         // 丢掉已消费的采样，但留 offset 前面一个采样供下次插值
-        val drop = offset.toInt()
+        // offset 是 double 步进累加的：循环退出时它可能已超过 pending.size
+        //（步长 step>1 时最后一次 +step 会越过边界，例如 48kHz 下
+        // pending 剩 4799 个、offset 已到 4800），drop 必须钳到实际剩余数，
+        // 否则 removeAt(0) 在空列表上抛 IndexOutOfBoundsException——
+        // Media3 会把它包成 ERROR_CODE_UNSPECIFIED，整个播放器报错换线
+        //（真机 BBC 上已复现：堆栈见 Pcm16kResampler.resample:62）。
+        val drop = minOf(offset.toInt(), pending.size)
         if (drop > 0) {
-            repeat(drop) { pending.removeAt(0) }
+            pending.subList(0, drop).clear()
             offset -= drop
         }
         return out.toFloatArray()

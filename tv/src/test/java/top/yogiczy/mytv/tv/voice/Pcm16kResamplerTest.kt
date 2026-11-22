@@ -95,4 +95,46 @@ class Pcm16kResamplerTest {
         val out2 = fresh.processPcm16(ShortArray(4800) { 16384 }, 48000, 1)
         assertFloatArrayEquals(out2, out1)
     }
+
+    @Test
+    fun pcm16_48kStereo_oddChunkSizes_noCrash() {
+        // 回归：真机 BBC 上 IndexOutOfBoundsException（resample:62）。
+        // 48kHz 步长是 3.0：offset 按 3 累加，循环退出时 offset 可能超过
+        // pending.size（例如 pending 剩 4799 个、offset 已到 4800），
+        // 旧代码 removeAt(0) 删到空列表上就崩，Media3 再包成
+        // ERROR_CODE_UNSPECIFIED、播放器报错换线。单测原来只喂 4800
+        //（能被 3 整除）所以没触发；真机解码器给的块大小是任意的。
+        val r = Pcm16kResampler()
+        val chunkFrames = intArrayOf(1024, 1023, 1025, 2048, 100, 7, 1, 4799, 4800, 4801, 333, 999)
+        for (frames in chunkFrames) {
+            // 立体声：每帧 2 个采样，恒定 0.5
+            val out = r.processPcm16(ShortArray(frames * 2) { 16384 }, 48000, 2)
+            for (v in out) assertTrue("恒定信号重采样后应仍是 0.5，实际 $v", abs(v - 0.5f) < 1e-4f)
+        }
+    }
+
+    @Test
+    fun resample_fuzz_randomChunkSizes_noCrash() {
+        // 随机块大小 fuzz：覆盖 48kHz/44.1kHz/32kHz、单声道/立体声，
+        // 任何块大小序列都不能抛异常、输出值必须在 [-1, 1] 内。
+        // 固定种子，保证可复现。
+        val random = kotlin.random.Random(0)
+        for (sampleRate in intArrayOf(48000, 44100, 32000)) {
+            for (channels in intArrayOf(1, 2)) {
+                val r = Pcm16kResampler()
+                repeat(200) {
+                    val frames = random.nextInt(1, 3001)
+                    val out = if (channels == 1) {
+                        r.processPcm16(ShortArray(frames) { 16384 }, sampleRate, 1)
+                    } else {
+                        r.processPcm16(ShortArray(frames * 2) { 16384 }, sampleRate, 2)
+                    }
+                    for (v in out) {
+                        assertTrue("输出值应在 [-1, 1] 内，实际 $v", v in -1f..1f)
+                        assertTrue("恒定信号重采样后应仍是 0.5，实际 $v", abs(v - 0.5f) < 1e-4f)
+                    }
+                }
+            }
+        }
+    }
 }
