@@ -1,6 +1,12 @@
 package top.yogiczy.mytv.core.util.utils
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -15,6 +21,8 @@ import java.io.InputStreamReader
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * 下载进度计算测试：总长度未知或为 0 时不得除零崩溃。
@@ -31,6 +39,8 @@ class DownloaderTest {
     private class TestHttpServer {
         private val serverSocket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
         val port: Int get() = serverSocket.localPort
+        val slowHeadersSent = CountDownLatch(1)
+        val slowRelease = CountDownLatch(1)
 
         private val thread = Thread({
             try {
@@ -93,6 +103,19 @@ class DownloaderTest {
                                 out.write(content)
                                 out.write("\r\n0\r\n\r\n".toByteArray())
                                 out.flush()
+                            }
+
+                            requestLine.startsWith("GET /slow ") -> {
+                                // 只发响应头、不发正文：下载卡在读流上，等测试
+                                // 取消；10 秒内不放行就自己关连接，免得测试
+                                // 失败时服务端线程一直挂着
+                                out.write(
+                                    "HTTP/1.1 200 OK\r\nContent-Length: 104857600\r\nConnection: close\r\n\r\n"
+                                        .toByteArray()
+                                )
+                                out.flush()
+                                slowHeadersSent.countDown()
+                                slowRelease.await(10, TimeUnit.SECONDS)
                             }
 
                             requestLine.startsWith("GET /servererror ") -> {
@@ -231,6 +254,52 @@ class DownloaderTest {
         assertEquals("下载文件失败，请检查网络连接", ex.message)
         assertFalse(target.exists())
         assertFalse(File(dir, "latest.apk.tmp").exists())
+    }
+
+    @Test
+    fun downloadTo_cancelledMidDownload_throwsCancellationExceptionPromptly() {
+        // 取消下载要立刻停下来：只发响应头、不发正文，让下载卡在读流那步；
+        // 取消后应在几秒内抛取消异常——没修法时读流要等 10 秒读超时才抛
+        // IOException、再被包成网络错，withTimeout(10 秒) 先超时失败
+        // （天光同款测试）。
+        val server = TestHttpServer().apply { start() }
+        try {
+            val dir = tempFolder.newFolder("dl")
+            val target = File(dir, "latest.apk")
+            runBlocking {
+                val deferred = async(Dispatchers.Default) {
+                    Downloader.downloadTo(
+                        "http://127.0.0.1:${server.port}/slow", target.path, null
+                    )
+                }
+                // 等响应头到了、下载确实卡在读流上再取消
+                assertTrue(server.slowHeadersSent.await(10, TimeUnit.SECONDS))
+                delay(500)
+
+                val start = System.currentTimeMillis()
+                deferred.cancel()
+                val thrown = try {
+                    withTimeout(10_000) { deferred.await() }
+                    null
+                } catch (e: Throwable) {
+                    e
+                }
+                val elapsed = System.currentTimeMillis() - start
+
+                // 没修法时 withTimeout 先到、抛的是超时取消，不是下载本身的取消
+                assertTrue(
+                    "取消后应立刻抛取消异常，实际是 $thrown（${elapsed}ms）",
+                    thrown is CancellationException &&
+                        thrown !is TimeoutCancellationException,
+                )
+                assertTrue("取消后应在 5 秒内停下，实际 ${elapsed}ms", elapsed < 5_000)
+            }
+            assertFalse(target.exists())
+            assertFalse(File(dir, "latest.apk.tmp").exists())
+        } finally {
+            server.slowRelease.countDown()
+            server.stop()
+        }
     }
 
     @Test
