@@ -428,6 +428,42 @@ class AsrModelManagerTest {
     }
 
     @Test
+    fun normalizeTransducerFileNames_renamesEpochNamesWithInt8Variants() {
+        // 回归：双语模型包里每个部件都有 fp32 和 int8 两个变体
+        //（encoder-epoch-99-avg-1.onnx + encoder-epoch-99-avg-1.int8.onnx），
+        // 不把 int8 排除出去，每组候选都是 2 个、永远改不了名；
+        // 2026-11-23 平板实测：装完目录里仍是 epoch 名，
+        // detectStreamingModelType 认不出、引擎报“模型不完整”。
+        // 引擎只用 fp32 的标准名，int8 变体原样保留、不改名。
+        val dir = tempDir()
+        try {
+            File(dir, "tokens.txt").writeText("a b")
+            File(dir, "bpe.model").writeText("fake")
+            File(dir, "encoder-epoch-99-avg-1.onnx").writeText("fake-fp32")
+            File(dir, "encoder-epoch-99-avg-1.int8.onnx").writeText("fake-int8")
+            File(dir, "decoder-epoch-99-avg-1.onnx").writeText("fake-fp32")
+            File(dir, "decoder-epoch-99-avg-1.int8.onnx").writeText("fake-int8")
+            File(dir, "joiner-epoch-99-avg-1.onnx").writeText("fake-fp32")
+            File(dir, "joiner-epoch-99-avg-1.int8.onnx").writeText("fake-int8")
+            // 改名前认不出（6 个 .onnx 既不是三件套也不是单个）
+            assertNull(detectStreamingModelType(dir))
+            normalizeTransducerFileNames(dir)
+            assertEquals("fake-fp32", File(dir, "encoder.onnx").readText())
+            assertEquals("fake-fp32", File(dir, "decoder.onnx").readText())
+            assertEquals("fake-fp32", File(dir, "joiner.onnx").readText())
+            assertFalse(File(dir, "encoder-epoch-99-avg-1.onnx").exists())
+            assertFalse(File(dir, "decoder-epoch-99-avg-1.onnx").exists())
+            assertFalse(File(dir, "joiner-epoch-99-avg-1.onnx").exists())
+            assertEquals("fake-int8", File(dir, "encoder-epoch-99-avg-1.int8.onnx").readText())
+            assertEquals("fake-int8", File(dir, "decoder-epoch-99-avg-1.int8.onnx").readText())
+            assertEquals("fake-int8", File(dir, "joiner-epoch-99-avg-1.int8.onnx").readText())
+            assertEquals(AsrModelType.TRANSDUCER, detectStreamingModelType(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun normalizeTransducerFileNames_leavesStandardNamesAlone() {
         val dir = tempDir()
         try {
@@ -499,6 +535,57 @@ class AsrModelManagerTest {
             assertTrue(File(targetDir, "decoder.onnx").exists())
             assertTrue(File(targetDir, "joiner.onnx").exists())
             assertFalse(File(targetDir, "encoder-epoch-99-avg-1.onnx").exists())
+            assertEquals(AsrModelType.TRANSDUCER, detectStreamingModelType(targetDir))
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun downloadModel_renamesTransducerEpochNamesWithInt8() = runBlocking {
+        // 端到端（带 int8 变体的真包结构）：双语模型包里每个部件都有
+        // fp32 和 int8 两个变体，下载安装后目录里必须是标准名、
+        // 引擎能认出 TRANSDUCER；int8 变体原样保留。
+        val work = tempDir()
+        try {
+            val model = AsrModels.byId("streaming-zipformer-bilingual-zh-en")!!
+            val archive = File(work, "pkg.tar.bz2")
+            BZip2CompressorOutputStream(archive.outputStream()).use { bz2 ->
+                TarArchiveOutputStream(bz2).use { tar ->
+                    fun add(name: String, text: String) {
+                        val bytes = text.toByteArray()
+                        val entry = TarArchiveEntry(name)
+                        entry.size = bytes.size.toLong()
+                        tar.putArchiveEntry(entry)
+                        tar.write(bytes)
+                        tar.closeArchiveEntry()
+                    }
+                    val prefix = "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
+                    add("$prefix/tokens.txt", "a b")
+                    add("$prefix/encoder-epoch-99-avg-1.onnx", "fake-fp32")
+                    add("$prefix/encoder-epoch-99-avg-1.int8.onnx", "fake-int8")
+                    add("$prefix/decoder-epoch-99-avg-1.onnx", "fake-fp32")
+                    add("$prefix/decoder-epoch-99-avg-1.int8.onnx", "fake-int8")
+                    add("$prefix/joiner-epoch-99-avg-1.onnx", "fake-fp32")
+                    add("$prefix/joiner-epoch-99-avg-1.int8.onnx", "fake-int8")
+                    add("$prefix/bpe.model", "fake")
+                }
+            }
+            val manager = AsrModelManager(
+                modelsDir = File(work, "models"),
+                download = { _, path, _ ->
+                    archive.copyTo(File(path), overwrite = true)
+                },
+            )
+            val result = manager.downloadModel(model)
+            assertTrue(result.isSuccess)
+            assertEquals(AsrModelState.INSTALLED, manager.modelState(model))
+            val targetDir = File(work, "models/${model.id}")
+            assertEquals("fake-fp32", File(targetDir, "encoder.onnx").readText())
+            assertEquals("fake-fp32", File(targetDir, "decoder.onnx").readText())
+            assertEquals("fake-fp32", File(targetDir, "joiner.onnx").readText())
+            assertFalse(File(targetDir, "encoder-epoch-99-avg-1.onnx").exists())
+            assertEquals("fake-int8", File(targetDir, "encoder-epoch-99-avg-1.int8.onnx").readText())
             assertEquals(AsrModelType.TRANSDUCER, detectStreamingModelType(targetDir))
         } finally {
             work.deleteRecursively()

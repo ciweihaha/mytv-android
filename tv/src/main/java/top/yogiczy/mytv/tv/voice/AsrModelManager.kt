@@ -147,6 +147,11 @@ class AsrModelManager(
  *（如 encoder-epoch-99-avg-1.onnx），引擎只认 encoder.onnx /
  * decoder.onnx / joiner.onnx，不改名就认不出三件套、引擎起不来。
  * 已是标准名的不动；目标名已存在时不覆盖；一对多时不动（不猜哪个是）。
+ * 注意：双语模型包里每个部件都有 fp32 和 int8 两个变体
+ *（encoder-epoch-99-avg-1.onnx 和 encoder-epoch-99-avg-1.int8.onnx），
+ * 不把 int8 排除出去，每组候选都是 2 个、永远改不了名（2026-11-23
+ * 平板实测：装完目录里仍是 epoch 名，引擎报“模型不完整”）。
+ * 引擎只用 fp32 的标准名，int8 变体是备选、不用改名。
  */
 internal fun normalizeTransducerFileNames(dir: File) {
     for ((prefix, targetName) in listOf(
@@ -157,7 +162,8 @@ internal fun normalizeTransducerFileNames(dir: File) {
         val target = File(dir, targetName)
         if (target.exists()) continue
         val candidates = dir.listFiles { f ->
-            f.isFile && f.name.startsWith("$prefix-") && f.name.endsWith(".onnx")
+            f.isFile && f.name.startsWith("$prefix-") && f.name.endsWith(".onnx") &&
+                !f.name.contains(".int8.")
         } ?: continue
         if (candidates.size == 1) {
             if (!candidates[0].renameTo(target)) {
