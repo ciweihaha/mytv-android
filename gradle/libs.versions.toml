@@ -19,7 +19,7 @@ kotlinx-serialization = "1.13.0"
 androidasync = "3.1.0"
 compose-foundation = "1.12.1"
 tinypinyin = "2.0.3.RELEASE"
-commonsCompress = "1.27.1"
+commonsCompress = "1.20"
 tvMaterial = "1.1.0"
 navigationCompose = "2.10.2"
 sentry = "6.26.0"
@@ -73,6 +73,19 @@ xmlpull = { group = "xmlpull", name = "xmlpull", version.ref = "xmlpull" }
 # AI 实时字幕：sherpa-onnx 不在 Maven Central 上，JitPack 坐标也解析
 # 不到（pom 404），推理 AAR 直接放在 tv/libs/ 下（sherpa-onnx-1.13.4.aar），
 # 不走依赖坐标。commons-compress 解 .tar.bz2 模型包（Android SDK 没有内置 bzip2/tar）。
+# 版本钉在 1.20，别升（已逐版实测，不是猜的）：
+# - 1.26.0 起 BZip2/Tar 改走 commons-io（BoundedInputStream、CloseShieldInputStream、
+#   IOUtils），commons-io 的 PathUtils 在 <clinit> 里引用 java.nio.file.OpenOption，
+#   Android 7.0（API 24）上没有这个类，模型解压一开始就 NoClassDefFoundError 崩溃
+#   （2026-11-22 平板实测；单测在 JVM 上跑拦不住）。
+# - 1.21–1.25.0 也一样崩，只是换个位置：org.apache.commons.compress.utils.IOUtils
+#   的 <clinit>（第 47 行）引用 java.nio.file.LinkOption，TarArchiveInputStream
+#   一读记录就崩。1.21/1.22/1.23.0/1.24.0/1.25.0 逐版都验过，全是这一个错。
+# - 只有 1.20 能在“禁 java.nio.file / commons-io”的类加载器里跑通解压。
+# - core-library desugaring 也拦不住：崩溃包的 dex 里仍是原名引用
+#   （21 处 Ljava/nio/file/OpenOption;，0 处脱糖后名字）。
+# AsrModelManagerTest.extractTarBz2_doesNotNeedJavaNioFile 就是这个模拟测试，
+# 升版后回归会直接失败。minSdk 还是 24 就别动这个版本。
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
 
 [plugins]

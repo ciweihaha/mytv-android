@@ -12,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
+import java.net.URLClassLoader
 
 class AsrModelManagerTest {
     private fun tempDir(): File {
@@ -505,6 +506,50 @@ class AsrModelManagerTest {
     }
 
     @Test
+    fun extractTarBz2_doesNotNeedJavaNioFile() {
+        // 回归：commons-compress 1.26+ 的 BZip2 解压要走 commons-io
+        //（BoundedInputStream、CloseShieldInputStream），commons-io 的
+        // PathUtils 在 <clinit> 里引用 java.nio.file.OpenOption，
+        // Android 7.0（API 24）上没有这个类，模型解压一开始就崩
+        //（NoClassDefFoundError，2026-11-22 平板实测；单测在 JVM 上
+        // 跑拦不住）。core-library desugaring 也拦不住：崩溃包的 dex
+        // 里仍是原名引用。本测试在“禁 java.nio.file / commons-io”的
+        // 类加载器里跑解压，模拟 API 24：解压路径敢碰这两个包就失败。
+        // 修法是把 commons-compress 钉在 1.20（见 libs.versions.toml）：
+        // 1.21–1.25.0 全在 IOUtils.<clinit> 里碰 java.nio.file.LinkOption，
+        // 1.26+ 还多一路 commons-io，只有 1.20 能跑通这个模拟。
+        val work = tempDir()
+        try {
+            val archive = File(work, "model.tar.bz2")
+            BZip2CompressorOutputStream(archive.outputStream()).use { bz2 ->
+                TarArchiveOutputStream(bz2).use { tar ->
+                    val content = "hello".toByteArray()
+                    val entry = TarArchiveEntry("sherpa-onnx-test/tokens.txt")
+                    entry.size = content.size.toLong()
+                    tar.putArchiveEntry(entry)
+                    tar.write(content)
+                    tar.closeArchiveEntry()
+                }
+            }
+            val dest = File(work, "out").apply { mkdirs() }
+            val loader = Api24SimulatingClassLoader()
+            val ktClass = Class.forName(
+                "top.yogiczy.mytv.tv.voice.AsrModelManagerKt", true, loader,
+            )
+            val extract = ktClass.getDeclaredMethod(
+                "extractTarBz2", File::class.java, File::class.java,
+            )
+            extract.invoke(null, archive, dest)
+            assertEquals(
+                "hello",
+                File(dest, "sherpa-onnx-test/tokens.txt").readText(),
+            )
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    @Test
     fun modelState_partialFiles_isIncomplete() {
         // 目录在但文件不全（只有 tokens.txt）：状态是 INCOMPLETE，不是已安装
         val work = tempDir()
@@ -519,5 +564,41 @@ class AsrModelManagerTest {
         } finally {
             work.deleteRecursively()
         }
+    }
+}
+
+/**
+ * 模拟 Android 7.0（API 24）的类加载器：java.nio.file（API 26 才有）
+ * 和 org.apache.commons.io（commons-compress 1.26+ 才引的）一律当作
+ * 不存在。解压路径用到的类（voice 包 + commons-compress）用本加载器
+ * 重新定义，让它们的引用走上面的拦截；其余的走父加载器。
+ */
+private class Api24SimulatingClassLoader : URLClassLoader(
+    (System.getProperty("java.class.path") ?: "")
+        .split(File.pathSeparator).map { File(it).toURI().toURL() }.toTypedArray(),
+    ClassLoader.getSystemClassLoader(),
+) {
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        if (name.startsWith("java.nio.file.") ||
+            name.startsWith("org.apache.commons.io.")
+        ) {
+            throw ClassNotFoundException(name)
+        }
+        if (name.startsWith("top.yogiczy.mytv.tv.voice.") ||
+            name.startsWith("org.apache.commons.compress.")
+        ) {
+            // 单线程测试，不用 getClassLoadingLock 加锁。
+            var c = findLoadedClass(name)
+            if (c == null) {
+                c = try {
+                    findClass(name)
+                } catch (e: ClassNotFoundException) {
+                    super.loadClass(name, false)
+                }
+            }
+            if (resolve) resolveClass(c)
+            return c
+        }
+        return super.loadClass(name, resolve)
     }
 }
