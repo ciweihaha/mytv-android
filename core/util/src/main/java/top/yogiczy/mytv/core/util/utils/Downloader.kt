@@ -1,7 +1,12 @@
 package top.yogiczy.mytv.core.util.utils
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
@@ -41,6 +46,19 @@ object Downloader {
 
             val client = baseClient.newBuilder().addNetworkInterceptor(interceptor).build()
             val request = okhttp3.Request.Builder().url(url).build()
+            val call = client.newCall(request)
+            // 取消要能打断阻塞的 execute()/copyTo：withContext 的取消是协作
+            // 式的，阻塞调用本身不会停——没这行时取消下载要等整包下完才抛，
+            // 更新包在慢网下能拖很久（天光同款修法）。另起一个协程守着：父协
+            // 程一取消它就先收尾、顺手取消这次 HTTP 调用，读流立刻抛错；正
+            // 常下完时外层 finally 把它取消掉，对已完成的调用再取消也没影响。
+            val cancelCall = launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    call.cancel()
+                }
+            }
 
             val targetFile = File(filePath)
             // 先下到同目录临时文件，成功才 rename 覆盖目标：原先直接写目标文件，
@@ -49,7 +67,7 @@ object Downloader {
             val tmpFile = File(targetFile.absoluteFile.parent, "${targetFile.name}.tmp")
             try {
                 val response = try {
-                    client.newCall(request).execute()
+                    call.execute()
                 } catch (ex: Exception) {
                     throw Exception("下载文件失败，请检查网络连接", ex)
                 }
@@ -81,7 +99,15 @@ object Downloader {
                 }
             } catch (ex: Exception) {
                 tmpFile.delete()
+                // 取消不是失败：call.cancel() 抛的是 IOException，不是取消
+                // 异常——协程已取消说明这次失败就是取消，原样抛取消异常，
+                // 别包成网络错（调用方 UpdateViewModel／AsrModelManager 已按
+                // 取消处理：删残文件、不弹失败提示；包错了会绕回失败那条路）。
+                if (ex is CancellationException) throw ex
+                currentCoroutineContext().ensureActive()
                 throw ex
+            } finally {
+                cancelCall.cancel()
             }
         }
 
